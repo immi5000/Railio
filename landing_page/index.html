@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Railio — The AI co-pilot for rail maintenance.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a href="#top" class="brand"><span class="mk"><i></i></span>Railio</a>
+      <nav class="nav-links">
+        <a href="#how">How it works</a>
+        <a href="#impact">Projected Impact</a>
+        <a href="#security">Security</a>
+      </nav>
+      <a class="btn btn-super" href="mailto:hello@railio.com?subject=Demo%20request">Book a demo <span class="arr">→</span></a>
+    </div>
+  </header>
+
+  <section class="hero" id="top">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="hero-eyebrow"><span class="lbl">Railio · The AI co-pilot for rail maintenance</span></span>
+        <h1 class="display" style="margin-top:24px">The AI co-pilot<br/>for <span class="blue">rail<br/>maintenance.</span></h1>
+        <p class="lede" style="margin-top:32px">Voice-first. Diagnoses faults, walks technicians through the repair, and files FRA paperwork in the background — so trains move and your team doesn't drown in admin.</p>
+        <div class="hero-cta" style="margin-top:36px">
+          <a class="btn btn-super" href="mailto:hello@railio.com?subject=Demo%20request">Book a demo <span class="arr">→</span></a>
+          <a class="btn btn-ghost" href="#how">See it work</a>
+        </div>
+      </div>
+      <div>
+        <div class="phone-stage">
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="ph-bar"><span>2:14</span><span>RAILIO</span></div>
+              <div class="ph-app">
+                <div class="ph-top">
+                  <span class="live"><i></i> Live diagnosis</span>
+                  <span class="unit">Unit 4423</span>
+                </div>
+                <div class="ph-card">
+                  <div class="lbl">Active fault</div>
+                  <div class="val"><b>Brake pipe pressure low</b> · Car 6, B-end</div>
+                </div>
+                <div id="ph-transcript" class="ph-transcript" style="display:flex;flex-direction:column;gap:10px"></div>
+                <div class="ph-foot">
+                  <div class="mic">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10v2a7 7 0 0 0 14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+                  </div>
+                  <div class="wave" id="ph-wave"></div>
+                  <div class="htxt"><b>Listening</b>Tap to interrupt</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="sect-head"><span class="sect-eyebrow">02 — How it works</span></div>
+      <div class="how-stage">
+        <div class="how-steps" role="tablist" id="how-steps"></div>
+        <div id="how-dossier"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="impact" class="alt dark">
+    <div class="wrap">
+      <div class="sect-head"><span class="sect-eyebrow">03 — Projected Impact</span></div>
+      <div class="metrics">
+        <div class="m blue">
+          <div class="lab">Annual labor recovered</div>
+          <div class="num">$2.4<span class="u">M</span></div>
+          <div class="desc">Per 100 technicians.</div>
+        </div>
+        <div class="m">
+          <div class="lab">Commuter hours saved</div>
+          <div class="num">118<span class="u">k / yr</span></div>
+          <div class="desc">Faster turn-around means fewer cancelled commutes.</div>
+        </div>
+        <div class="m">
+          <div class="lab">Documentation time</div>
+          <div class="num">−93<span class="u">%</span></div>
+          <div class="desc">From 45 minutes to 3 minutes per work order.</div>
+        </div>
+        <div class="m">
+          <div class="lab">Mean time to repair</div>
+          <div class="num">−38<span class="u">%</span></div>
+          <div class="desc">Cross-referencing manuals & history on the spot.</div>
+        </div>
+        <div class="m">
+          <div class="lab">Fleet availability</div>
+          <div class="num">+4.2<span class="u">pts</span></div>
+          <div class="desc">Recovered hours equal additional revenue-service days per locomotive.</div>
+        </div>
+        <div class="m">
+          <div class="lab">Compliance findings</div>
+          <div class="num">0</div>
+          <div class="desc">Down from 11 prior findings YoY in the same audit cycle.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="security">
+    <div class="wrap">
+      <div class="sect-head"><span class="sect-eyebrow">04 — Security</span></div>
+      <div class="sec">
+        <div class="item">
+          <div class="top"><span class="num">01</span><span class="badge">49 CFR · 229</span></div>
+          <h3 class="h4">FRA F6180.49A auto-drafting</h3>
+          <p style="margin-top:10px">Defect cards and air brake tests pre-filled from voice and the steps actually performed.</p>
+        </div>
+        <div class="item">
+          <div class="top"><span class="num">02</span><span class="badge">SHA-256</span></div>
+          <h3 class="h4">Tamper-evident audit log</h3>
+          <p style="margin-top:10px">Every prompt, response, and form revision is hashed and time-stamped.</p>
+        </div>
+        <div class="item">
+          <div class="top"><span class="num">03</span><span class="badge">RAG · cited</span></div>
+          <h3 class="h4">Manual-grounded answers</h3>
+          <p style="margin-top:10px">Refuses to answer outside your maintenance manuals and historical work orders.</p>
+        </div>
+        <div class="item">
+          <div class="top"><span class="num">04</span><span class="badge">SOC 2 · Type II</span></div>
+          <h3 class="h4">Tenant-isolated</h3>
+          <p style="margin-top:10px">Customer data is never used to train models. Pick US, EU, or on-prem.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="photoband flush">
+    <div class="photo-frame">
+      <img src="assets/yard.jpg" alt="Freight yard" loading="lazy" />
+      <div class="photo-overlay">
+        <div class="top"></div>
+        <div class="bot">
+          <h3>Designed in the yard,<br/>for the yard.</h3>
+          <p>Built with road car inspectors and locomotive maintainers from short-line, regional, and Class I operators in mind.</p>
+          <div style="margin-top:24px">
+            <a class="btn btn-super" href="mailto:hello@railio.com?subject=Demo%20request">Book a demo <span class="arr">→</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="wrap">
+      <div class="foot-grid">
+        <div>
+          <a href="#top" class="brand"><span class="mk"><i></i></span>Railio</a>
+          <p style="margin:16px 0 0;color:#9A9A9A;font-size:14px;max-width:38ch;line-height:1.5">The AI co-pilot for rail maintenance technicians. Voice-first. Manual-grounded. FRA-aware by default.</p>
+        </div>
+        <div><h5>Product</h5><ul><li><a href="#how">How it works</a></li><li><a href="#impact">Projected Impact</a></li><li><a href="#security">Security</a></li></ul></div>
+        <div><h5>Company</h5><ul><li><a href="#">About</a></li><li><a href="#">Careers</a></li><li><a href="mailto:hello@railio.com">Contact</a></li></ul></div>
+        <div><h5>Legal</h5><ul><li><a href="#">Privacy</a></li><li><a href="#">Terms</a></li><li><a href="#">Trust center</a></li></ul></div>
+      </div>
+      <div class="foot-bot">
+        <span>© 2026 Railio Systems, Inc.</span>
+        <span>Made for the yard.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
