@@ -21,7 +21,7 @@
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.38.3",
     "fast-xml-parser": "^5.7.2",
-    "next": "15.1.6",
+    "next": "15.1.11",
     "openai": "^4.77.3",
     "postgres": "^3.4.5",
     "react": "19.0.0",
