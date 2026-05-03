@@ -106,4 +106,4 @@ To add another source: append an entry to [`corpus-sources/sources.json`](./corp
 - `corpus_chunks_vec` is a `sqlite-vec` virtual table holding 1024-dim float vectors. Both `manual` and `tribal_knowledge` chunks live there; `search_corpus` filters by `doc_class`.
 - Photo uploads land in `./.railio-uploads/<ticket_id>/<uuid>.<ext>` — paths are passed back to the chat as attachments and inlined into the next OpenAI message as `image_url` data-URI parts.
 - The AI's tool calls are persisted in full (`{name, input, output}`) on the assistant message's `tool_calls` JSON — that's the audit trail the SME and the UI both read.
-- The hash chain is `sha256(prev_hash || canonical(row))`; `verify-chain` walks it per ticket.
+- The hash chain is `sha256(prev_hash || canonical(row))`; `verify-chain` walks it per ticket. 
