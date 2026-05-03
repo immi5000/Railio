@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import path from "node:path";
-import { corsHeaders, jsonError, preflight } from "@/lib/cors";
+import { jsonError, preflight } from "@/lib/cors";
 import { runChat } from "@/lib/chat-loop";
 import type { Attachment, SendMessageBody, StreamEvent } from "@contract/contract";
 
@@ -64,7 +64,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   return new Response(stream, {
     headers: {
-      ...corsHeaders(),
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
