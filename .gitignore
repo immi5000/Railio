@@ -1,0 +1,21 @@
+.claude
+CLAUDE.md
+
+.research
+
+# env files — never commit
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# local data / uploads
+.railio.db
+.railio.db-journal
+.railio-uploads/
+
+# build output / deps
+node_modules/
+.next/
+*.tsbuildinfo
+.vercel

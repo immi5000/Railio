@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.railio.db
+.railio.db-journal
+.railio.db-wal
+.railio.db-shm
+.railio-uploads/
+corpus-sources/raw/
+.env
+*.log

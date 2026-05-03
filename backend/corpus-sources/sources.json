@@ -1,0 +1,26 @@
+[
+  {
+    "kind": "ecfr-xml",
+    "url": "https://www.ecfr.gov/api/versioner/v1/full/2025-01-01/title-49.xml?subtitle=B&chapter=II&part=229",
+    "out_filename": "cfr-49-part-229.xml",
+    "doc_class": "manual",
+    "doc_id": "cfr_49_229",
+    "doc_title": "49 CFR Part 229 — Railroad Locomotive Safety Standards"
+  },
+  {
+    "kind": "ecfr-xml",
+    "url": "https://www.ecfr.gov/api/versioner/v1/full/2025-01-01/title-49.xml?subtitle=B&chapter=II&part=232",
+    "out_filename": "cfr-49-part-232.xml",
+    "doc_class": "manual",
+    "doc_id": "cfr_49_232",
+    "doc_title": "49 CFR Part 232 — Brake System Safety Standards for Freight and Other Non-Passenger Trains"
+  },
+  {
+    "kind": "ecfr-xml",
+    "url": "https://www.ecfr.gov/api/versioner/v1/full/2025-01-01/title-49.xml?subtitle=B&chapter=II&part=218",
+    "out_filename": "cfr-49-part-218.xml",
+    "doc_class": "manual",
+    "doc_id": "cfr_49_218",
+    "doc_title": "49 CFR Part 218 — Railroad Operating Practices"
+  }
+]
