@@ -75,7 +75,7 @@ button {
   margin: 0;
 }
 .h2 {
-  font-size: 40px;
+  font-size: clamp(28px, 5.5vw, 40px);
   font-weight: 700;
   line-height: 0.95;
   text-transform: uppercase;
@@ -83,7 +83,7 @@ button {
   letter-spacing: -0.005em;
 }
 .h3 {
-  font-size: 28px;
+  font-size: clamp(22px, 4.5vw, 28px);
   font-weight: 700;
   line-height: 0.95;
   text-transform: uppercase;
@@ -133,6 +133,7 @@ button {
   font-family: inherit;
   background: transparent;
   color: inherit;
+  white-space: nowrap;
 }
 .btn:disabled {
   opacity: 0.4;
@@ -252,6 +253,15 @@ button {
   color: var(--ink);
   transition: border-color 0.12s, box-shadow 0.12s;
 }
+/* iOS Safari zooms on focus when input font-size < 16px. Bump to 16px on
+   touchscreen-width breakpoints. */
+@media (max-width: 760px) {
+  .input,
+  .textarea,
+  .select {
+    font-size: 16px;
+  }
+}
 .input:focus,
 .textarea:focus,
 .select:focus {
@@ -285,6 +295,11 @@ button {
   border: 1px solid var(--border);
   padding: 16px;
 }
+@media (max-width: 640px) {
+  .card {
+    padding: 16px;
+  }
+}
 
 /* === Pills === */
 .pill {
@@ -299,6 +314,7 @@ button {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-2);
+  white-space: nowrap;
 }
 .pill-blue {
   background: var(--mta);
@@ -509,6 +525,12 @@ button {
   cursor: pointer;
   transition: background 0.1s;
 }
+/* Grid children default to min-width:auto, which lets long unbroken text
+   force the row wider than the container. Force min-width:0 so children
+   can shrink and trigger their text-overflow ellipsis. */
+.queue-row > * {
+  min-width: 0;
+}
 .queue-row:hover {
   background: var(--pale);
 }
@@ -521,6 +543,59 @@ button {
     grid-template-columns: 1fr;
     gap: 4px;
   }
+  .queue-header {
+    display: none !important;
+  }
+}
+
+/* === Responsive split layouts ===
+   Pages that use a two-column "left panel + chat/body" grid set this class
+   so it collapses to one column on phones. */
+.split-2col {
+  display: grid;
+  gap: 24px;
+}
+@media (max-width: 760px) {
+  .split-2col {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+}
+
+/* Pages that fix the section height to the viewport (chat-style) need to
+   relax that constraint on mobile so the stacked children can scroll
+   naturally instead of crushing each other. */
+@media (max-width: 760px) {
+  .ticket-shell {
+    height: auto !important;
+  }
+  .ticket-shell .split-2col > * {
+    min-height: 70vh;
+  }
+  .repair-context {
+    border-left: 0 !important;
+    border-top: 1px solid var(--border);
+    padding: 16px !important;
+  }
+}
+
+/* Stack two-column form field grids on small screens. Used by FieldRow grids
+   and the inspection / defect / repair item rows in FormsTab. */
+@media (max-width: 640px) {
+  .form-field-row {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+  }
+  .form-item-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Drawer: full width with reduced padding on phones so 32px doesn't crush content. */
+@media (max-width: 640px) {
+  .drawer {
+    padding: 20px 16px !important;
+  }
 }
 
 /* Hide scrollbars in chat list while keeping scroll */
@@ -529,10 +604,73 @@ button {
   scrollbar-width: thin;
 }
 
+/* Chat list / composer mobile tightening */
+@media (max-width: 640px) {
+  .chat-list {
+    padding: 16px !important;
+    gap: 12px !important;
+  }
+  .chat-composer {
+    padding: 8px !important;
+    /* Respect iOS safe-area at the bottom of the screen */
+    padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
 /* === Role picker cards === */
 .role-card:hover {
   background: var(--mta) !important;
   color: #fff !important;
+}
+.role-card-divider {
+  border-right: 1px solid var(--ink);
+}
+@media (max-width: 640px) {
+  .role-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .role-card-divider {
+    border-right: 0;
+    border-bottom: 1px solid var(--ink);
+  }
+}
+
+/* === TopNav mobile === */
+.topnav-burger {
+  display: none;
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--ink);
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  padding: 0;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+}
+.topnav-burger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--ink);
+}
+.topnav-drawer {
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  display: none;
+}
+@media (max-width: 760px) {
+  .topnav-links {
+    display: none !important;
+  }
+  .topnav-burger {
+    display: inline-flex;
+  }
+  .topnav-drawer {
+    display: block;
+  }
 }
 
 /* Toast */

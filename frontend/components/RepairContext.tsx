@@ -67,6 +67,7 @@ export function RepairContext({ ticketId }: { ticketId: number }) {
 
   return (
     <aside
+      className="repair-context"
       style={{
         height: "100%",
         overflowY: "auto",

@@ -243,7 +243,7 @@ export function ChatPane({
     >
       <div
         ref={listRef}
-        className="scroll-chat"
+        className="scroll-chat chat-list"
         style={{
           flex: 1,
           padding: 24,
@@ -294,6 +294,7 @@ export function ChatPane({
       )}
 
       <div
+        className="chat-composer"
         style={{
           borderTop: "1px solid var(--border)",
           padding: 12,
@@ -310,6 +311,7 @@ export function ChatPane({
           compact
         />
         <div
+          className="chat-composer-row"
           style={{
             display: "flex",
             gap: 8,
@@ -326,9 +328,7 @@ export function ChatPane({
           />
           <textarea
             className="textarea"
-            placeholder={
-              streaming ? "Assistant is responding…" : "Message…  (⌘/Ctrl+Enter to send)"
-            }
+            placeholder={streaming ? "Assistant is responding…" : "Message…"}
             value={composerValue}
             onChange={(e) => {
               setInterim("");
@@ -349,7 +349,7 @@ export function ChatPane({
             }}
           />
           <button
-            className="btn btn-super"
+            className="btn btn-super chat-send"
             onClick={() => send()}
             disabled={streaming || (!draft.trim() && pending.length === 0)}
             style={{ alignSelf: "stretch" }}

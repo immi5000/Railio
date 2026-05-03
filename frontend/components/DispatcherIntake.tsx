@@ -107,8 +107,8 @@ export function DispatcherIntake() {
         </div>
 
         <div
+          className="split-2col"
           style={{
-            display: "grid",
             gridTemplateColumns: "1fr 1fr",
             gap: 24,
           }}
@@ -147,9 +147,17 @@ export function DispatcherIntake() {
                     ))}
                   </select>
                 )}
-                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginTop: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <input
                     className="input"
+                    style={{ flex: "1 1 140px" }}
                     placeholder="Reporting mark"
                     value={reportingMark}
                     onChange={(e) => setReportingMark(e.target.value)}
@@ -157,6 +165,7 @@ export function DispatcherIntake() {
                   />
                   <input
                     className="input"
+                    style={{ flex: "1 1 140px" }}
                     placeholder="Road number"
                     value={roadNumber}
                     onChange={(e) => setRoadNumber(e.target.value)}
@@ -164,7 +173,7 @@ export function DispatcherIntake() {
                   />
                   <input
                     className="input"
-                    style={{ width: 120 }}
+                    style={{ flex: "1 1 100px", maxWidth: 160 }}
                     placeholder="Asset ID"
                     type="number"
                     value={assetId === "" ? "" : assetId}

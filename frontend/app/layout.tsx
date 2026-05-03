@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { TopNav } from "@/components/TopNav";
@@ -6,6 +6,12 @@ import { TopNav } from "@/components/TopNav";
 export const metadata: Metadata = {
   title: "Railio — AI co-pilot for rail maintenance",
   description: "Voice-first diagnostics, repair guidance, and FRA paperwork.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

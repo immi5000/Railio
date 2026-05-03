@@ -24,6 +24,7 @@ export default function DispatcherTicketPage({
 
   return (
     <section
+      className="ticket-shell"
       style={{
         padding: "16px 0 0",
         height: "calc(100vh - 56px)",
@@ -63,11 +64,10 @@ export default function DispatcherTicketPage({
       </div>
 
       <div
-        className="wrap"
+        className="wrap split-2col"
         style={{
           flex: 1,
           minHeight: 0,
-          display: "grid",
           gridTemplateColumns: "1fr 1.3fr",
           gap: 24,
           paddingBottom: 16,
@@ -138,6 +138,7 @@ function Field({
 }) {
   return (
     <div
+      className="form-field-row"
       style={{
         display: "grid",
         gridTemplateColumns: "140px 1fr",

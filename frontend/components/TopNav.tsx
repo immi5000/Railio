@@ -9,9 +9,11 @@ export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [role, setRole] = useState<"dispatcher" | "tech" | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setRole(getRoleCookie());
+    setOpen(false);
   }, [pathname]);
 
   // The role picker page is fullscreen — hide the nav there.
@@ -19,10 +21,57 @@ export function TopNav() {
 
   function switchRole() {
     clearRoleCookie();
+    setOpen(false);
     router.push("/app");
   }
 
   const isAdmin = pathname?.startsWith("/admin");
+
+  const links = (
+    <>
+      <a
+        href="/landing/index.html"
+        style={navLinkStyle(false)}
+        title="Back to landing page"
+      >
+        ← Landing
+      </a>
+      {role === "dispatcher" && (
+        <>
+          <Link
+            href="/dispatcher"
+            style={navLinkStyle(pathname === "/dispatcher")}
+          >
+            Queue
+          </Link>
+          <Link
+            href="/dispatcher/new"
+            style={navLinkStyle(pathname === "/dispatcher/new")}
+          >
+            New ticket
+          </Link>
+        </>
+      )}
+      {role === "tech" && (
+        <Link href="/tech" style={navLinkStyle(pathname === "/tech")}>
+          Queue
+        </Link>
+      )}
+      <Link
+        href="/knowledge"
+        style={navLinkStyle(pathname?.startsWith("/knowledge") ?? false)}
+        title="Browse what the LLM cites"
+      >
+        Knowledge
+      </Link>
+      <Link href="/admin/parts" style={navLinkStyle(!!isAdmin)}>
+        Parts admin
+      </Link>
+      <button onClick={switchRole} className="btn btn-ghost btn-sm">
+        {role ? `${role} · switch` : "Pick role"}
+      </button>
+    </>
+  );
 
   return (
     <header
@@ -49,50 +98,39 @@ export function TopNav() {
           </span>
           Railio
         </Link>
-        <nav style={{ display: "flex", gap: 24, alignItems: "center" }}>
-          <a
-            href="/landing/index.html"
-            style={navLinkStyle(false)}
-            title="Back to landing page"
-          >
-            ← Landing
-          </a>
-          {role === "dispatcher" && (
-            <>
-              <Link
-                href="/dispatcher"
-                style={navLinkStyle(pathname === "/dispatcher")}
-              >
-                Queue
-              </Link>
-              <Link
-                href="/dispatcher/new"
-                style={navLinkStyle(pathname === "/dispatcher/new")}
-              >
-                New ticket
-              </Link>
-            </>
-          )}
-          {role === "tech" && (
-            <Link href="/tech" style={navLinkStyle(pathname === "/tech")}>
-              Queue
-            </Link>
-          )}
-          <Link
-            href="/knowledge"
-            style={navLinkStyle(pathname?.startsWith("/knowledge") ?? false)}
-            title="Browse what the LLM cites"
-          >
-            Knowledge
-          </Link>
-          <Link href="/admin/parts" style={navLinkStyle(!!isAdmin)}>
-            Parts admin
-          </Link>
-          <button onClick={switchRole} className="btn btn-ghost btn-sm">
-            {role ? `${role} · switch` : "Pick role"}
-          </button>
+        <nav
+          className="topnav-links"
+          style={{ display: "flex", gap: 24, alignItems: "center" }}
+        >
+          {links}
         </nav>
+        <button
+          type="button"
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
+          className="topnav-burger"
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
       </div>
+      {open && (
+        <div className="topnav-drawer">
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+              padding: "16px 16px 20px",
+            }}
+            onClick={() => setOpen(false)}
+          >
+            {links}
+          </div>
+        </div>
+      )}
     </header>
   );
 }

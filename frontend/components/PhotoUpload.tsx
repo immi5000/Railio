@@ -86,6 +86,7 @@ export function PhotoUpload({
           ref={inputRef}
           type="file"
           accept="image/*"
+          capture="environment"
           multiple
           style={{ display: "none" }}
           onChange={(e) => {

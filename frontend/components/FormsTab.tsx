@@ -175,10 +175,12 @@ function FormEditor({
           justifyContent: "space-between",
           alignItems: "center",
           marginBottom: 16,
+          flexWrap: "wrap",
+          gap: 12,
         }}
       >
         <span className="sect-eyebrow">{labelForType(form.form_type)}</span>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <span className="pill">{form.status}</span>
           <button
             className="btn btn-ghost btn-sm"
@@ -251,7 +253,7 @@ function FieldRow({
   const flashing = flash.has(path);
   return (
     <div
-      className={flashing ? "field-flash" : undefined}
+      className={`form-field-row ${flashing ? "field-flash" : ""}`.trim()}
       style={{
         display: "grid",
         gridTemplateColumns: "180px 1fr",
@@ -372,7 +374,7 @@ function DailyInspectionForm({
           return (
             <div
               key={i}
-              className={flashing ? "field-flash" : undefined}
+              className={`form-item-row ${flashing ? "field-flash" : ""}`.trim()}
               style={{
                 display: "grid",
                 gridTemplateColumns: "120px 1fr 100px 1fr 0.4fr",
@@ -499,7 +501,7 @@ function F6180_49A_Form({
           return (
             <div
               key={i}
-              className={flashing ? "field-flash" : undefined}
+              className={`form-item-row ${flashing ? "field-flash" : ""}`.trim()}
               style={{
                 display: "grid",
                 gridTemplateColumns: "120px 1.6fr 1fr 120px 0.4fr",
@@ -579,7 +581,7 @@ function F6180_49A_Form({
           return (
             <div
               key={i}
-              className={flashing ? "field-flash" : undefined}
+              className={`form-item-row ${flashing ? "field-flash" : ""}`.trim()}
               style={{
                 display: "grid",
                 gridTemplateColumns: "1.6fr 1fr 1fr 0.4fr",

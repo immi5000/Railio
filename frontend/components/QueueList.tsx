@@ -75,7 +75,7 @@ export function QueueList({
             }}
           >
             <div
-              className="queue-row"
+              className="queue-row queue-header"
               style={{
                 background: "var(--pale)",
                 fontSize: 11,
@@ -124,7 +124,6 @@ export function QueueList({
                         color: "var(--muted)",
                         fontSize: 13,
                         marginTop: 2,
-                        maxWidth: "80ch",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",

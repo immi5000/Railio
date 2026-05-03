@@ -246,6 +246,7 @@ function DocBlock({
             key={c.id}
             type="button"
             onClick={() => onOpen(c.id)}
+            className="form-item-row"
             style={{
               appearance: "none",
               background: "#fff",

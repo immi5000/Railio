@@ -30,6 +30,7 @@ export function TechTicketView({ ticketId }: { ticketId: number }) {
 
   return (
     <section
+      className="ticket-shell"
       style={{
         padding: "16px 0 0",
         height: "calc(100vh - 56px)",
@@ -55,7 +56,14 @@ export function TechTicketView({ ticketId }: { ticketId: number }) {
               Ticket #{ticketId}
             </h1>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
             {ticket && (
               <span className={statusPillClass(ticket.status as TicketStatus)}>
                 {statusLabel(ticket.status as TicketStatus)}
@@ -90,11 +98,10 @@ export function TechTicketView({ ticketId }: { ticketId: number }) {
       </div>
 
       <div
-        className="wrap"
+        className="wrap split-2col"
         style={{
           flex: 1,
           minHeight: 0,
-          display: "grid",
           gridTemplateColumns: "1.3fr .9fr",
           gap: 0,
           paddingBottom: 16,

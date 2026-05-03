@@ -20,7 +20,7 @@ export default function RolePickerPage() {
         flexDirection: "column",
       }}
     >
-      <div className="wrap" style={{ padding: "32px 32px 0" }}>
+      <div className="wrap" style={{ paddingTop: 32 }}>
         <a href="/" className="brand">
           <span className="mk">
             <i />
@@ -49,6 +49,7 @@ export default function RolePickerPage() {
         </p>
 
         <div
+          className="role-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
@@ -116,23 +117,22 @@ function RoleCard({
   return (
     <button
       onClick={onClick}
-      className="role-card"
+      className={`role-card ${divider ? "role-card-divider" : ""}`.trim()}
       style={{
         appearance: "none",
         border: 0,
-        borderRight: divider ? "1px solid var(--ink)" : "0",
         background: "#fff",
         color: "var(--ink)",
         cursor: "pointer",
         textAlign: "left",
-        padding: "56px 40px",
+        padding: "clamp(28px, 5vw, 56px) clamp(20px, 4vw, 40px)",
         fontFamily: "inherit",
         transition:
           "background 0.15s ease, color 0.15s ease, transform 0.12s ease",
         display: "flex",
         flexDirection: "column",
         gap: 16,
-        minHeight: 320,
+        minHeight: 240,
       }}
       onMouseDown={(e) =>
         ((e.currentTarget as HTMLButtonElement).style.transform =
@@ -154,7 +154,7 @@ function RoleCard({
       </span>
       <span
         style={{
-          fontSize: 56,
+          fontSize: "clamp(40px, 9vw, 56px)",
           fontWeight: 800,
           textTransform: "uppercase",
           letterSpacing: "-0.01em",
