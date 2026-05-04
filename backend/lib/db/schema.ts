@@ -13,6 +13,7 @@ export const tickets = pgTable("tickets", {
   id: serial("id").primaryKey(),
   asset_id: integer("asset_id").references(() => assets.id),
   status: text("status").notNull(),
+  severity: text("severity").notNull().default("major"),
   opened_by_role: text("opened_by_role").notNull(),
   opened_at: text("opened_at").notNull(),
   initial_error_codes: text("initial_error_codes"),

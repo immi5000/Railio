@@ -359,6 +359,116 @@ button {
   color: #8a1f15;
 }
 
+/* === Rendered markdown inside assistant chat bubbles === */
+.md {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+  word-break: break-word;
+}
+.md > *:first-child {
+  margin-top: 0;
+}
+.md > *:last-child {
+  margin-bottom: 0;
+}
+.md p {
+  margin: 0 0 8px 0;
+}
+.md h1,
+.md h2,
+.md h3,
+.md h4 {
+  margin: 12px 0 6px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.md h1 {
+  font-size: 18px;
+}
+.md h2 {
+  font-size: 16px;
+}
+.md h3,
+.md h4 {
+  font-size: 14px;
+}
+.md ul,
+.md ol {
+  margin: 4px 0 8px 0;
+  padding-left: 22px;
+}
+.md li {
+  margin: 2px 0;
+}
+.md li > p {
+  margin: 0;
+}
+.md strong {
+  font-weight: 700;
+}
+.md em {
+  font-style: italic;
+}
+.md a {
+  color: var(--mta);
+  text-decoration: underline;
+}
+.md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  background: var(--pale);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+}
+.md pre {
+  background: #0a0a0a;
+  color: #e5e5e5;
+  padding: 10px 12px;
+  margin: 8px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+}
+.md pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+.md blockquote {
+  border-left: 3px solid var(--mta);
+  margin: 8px 0;
+  padding: 2px 0 2px 12px;
+  color: var(--ink-2);
+}
+.md hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+.md table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.md th,
+.md td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.md th {
+  background: var(--pale);
+  font-weight: 700;
+}
+
 /* === Chat composer / messages === */
 .chat-message-user {
   background: var(--mta-soft);

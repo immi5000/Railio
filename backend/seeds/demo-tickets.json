@@ -5,6 +5,7 @@
     "road_number": "8754",
     "initial_symptoms": "Crew reports smoke from the #3 power assembly during notch 7 climb out of yard 4. Smell of burnt oil at the cab vent.",
     "initial_error_codes": "EOA-3, FUEL-PRESS-LOW",
+    "severity": "critical",
     "fault_dump_raw": "GE ToolBoxLOCO export — BNSF 8754 — 2026-05-01\n2026-05-01 06:14:02 EOA-3   SEVERITY=MAJOR    Engine oil aeration (sump return) sustained > 90s\n2026-05-01 06:14:02 FUEL-PRESS-LOW  WARN  Common rail pressure 1180 bar @ notch 5 (target 1450)\n2026-05-01 06:18:41 SMOKE-DET-3     INFO  Smoke detector cabinet 3 over threshold for 11s\n2026-05-01 06:23:09 EOA-3   SEVERITY=MAJOR    Engine oil aeration (sump return) sustained > 90s\n2026-05-01 06:31:12 FUEL-PRESS-LOW  WARN  Common rail pressure 1190 bar @ notch 6 (target 1450)"
   },
   {
@@ -13,6 +14,7 @@
     "road_number": "7416",
     "initial_symptoms": "Class I brake test failed: brake pipe leakage 7 psi/min after the 26-L relay valve was replaced last shift. Tech needs to re-check.",
     "initial_error_codes": "BP-LEAK-HI",
+    "severity": "major",
     "fault_dump_raw": "GE ToolBoxLOCO export — UP 7416 — 2026-05-01\n2026-05-01 14:02:11 BP-LEAK-HI   SEVERITY=MAJOR  Brake pipe leakage 7.2 psi/min (limit 5.0)\n2026-05-01 14:05:48 ABT-CLASS-I  FAIL            Class I test aborted at brake pipe stage"
   },
   {
@@ -21,6 +23,7 @@
     "road_number": "3221",
     "initial_symptoms": "EOA-3 logged after a 90-minute idle in the yard. Tech to confirm whether sensor false-positive vs. real aeration.",
     "initial_error_codes": "EOA-3",
+    "severity": "minor",
     "fault_dump_raw": "GE ToolBoxLOCO export — CSX 3221 — 2026-05-02\n2026-05-02 03:11:45 EOA-3   SEVERITY=MINOR  Engine oil aeration spike, single sample\n2026-05-02 03:14:22 EOA-3   SEVERITY=MINOR  Engine oil aeration spike, single sample"
   }
 ]

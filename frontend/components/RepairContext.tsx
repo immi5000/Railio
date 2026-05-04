@@ -247,9 +247,18 @@ function TicketCard({ ticket }: { ticket: TicketDetail }) {
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 14 }}>Ticket #{ticket.id}</div>
-        <span className={statusPillClass(ticket.status as TicketStatus)}>
-          {statusLabel(ticket.status as TicketStatus)}
-        </span>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <span
+            className={severityClass(ticket.severity)}
+            style={{ textTransform: "capitalize" }}
+            title={`Severity: ${ticket.severity}`}
+          >
+            {ticket.severity}
+          </span>
+          <span className={statusPillClass(ticket.status as TicketStatus)}>
+            {statusLabel(ticket.status as TicketStatus)}
+          </span>
+        </div>
       </div>
       <div className="micro" style={{ color: "var(--muted)", marginBottom: 8 }}>
         Opened {formatDate(ticket.opened_at)}

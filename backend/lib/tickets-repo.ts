@@ -1,6 +1,6 @@
 import { getSql } from "./db";
 import { buildInitialForms } from "./forms/pre-fill";
-import type { Asset, Form, FormType, Ticket, TicketDetail, TicketPart, TicketStatus } from "@contract/contract";
+import type { Asset, Form, FormType, Severity, Ticket, TicketDetail, TicketPart, TicketStatus } from "@contract/contract";
 import { listMessages } from "./messages-repo";
 
 export async function getAsset(id: number): Promise<Asset | null> {
@@ -43,6 +43,7 @@ async function rowToTicket(r: any): Promise<Ticket> {
     id: r.id,
     asset: asset!,
     status: r.status,
+    severity: (r.severity ?? "major") as Severity,
     opened_at: r.opened_at,
     initial_error_codes: r.initial_error_codes,
     initial_symptoms: r.initial_symptoms,
@@ -87,6 +88,7 @@ export type CreateTicketInput = {
   initial_symptoms?: string;
   initial_error_codes?: string;
   fault_dump_raw?: string;
+  severity?: Severity;
 };
 
 // Demo-only: rewind a ticket so a dispatcher can run the same scenario again.
@@ -137,10 +139,11 @@ export async function createTicket(inp: CreateTicketInput): Promise<Ticket> {
   const opened_at = new Date().toISOString();
 
   const inserted = await sql<{ id: number }[]>`
-    INSERT INTO tickets (asset_id, status, opened_by_role, opened_at, initial_error_codes, initial_symptoms, fault_dump_raw)
+    INSERT INTO tickets (asset_id, status, severity, opened_by_role, opened_at, initial_error_codes, initial_symptoms, fault_dump_raw)
     VALUES (
       ${inp.asset_id},
       'AWAITING_TECH',
+      ${inp.severity ?? "major"},
       'dispatcher',
       ${opened_at},
       ${inp.initial_error_codes ?? null},

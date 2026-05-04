@@ -49,7 +49,7 @@ async function buildTicketContext(ticket_id: number): Promise<string | null> {
   if (!t) return null;
   const lines: string[] = ["=== TICKET CONTEXT ==="];
   lines.push(
-    `Ticket: #${t.id} · status: ${t.status} · opened: ${t.opened_at}` +
+    `Ticket: #${t.id} · status: ${t.status} · severity: ${t.severity} · opened: ${t.opened_at}` +
       (t.closed_at ? ` · closed: ${t.closed_at}` : "")
   );
   const a = t.asset;

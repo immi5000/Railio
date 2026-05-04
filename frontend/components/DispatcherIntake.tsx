@@ -9,7 +9,7 @@ import {
   parseFaultDump,
   patchTicket,
 } from "@/lib/api";
-import type { ParsedFault, Ticket } from "@/lib/contract";
+import type { ParsedFault, Severity, Ticket } from "@/lib/contract";
 import { ChatPane } from "./ChatPane";
 import { severityClass } from "@/lib/format";
 
@@ -28,6 +28,7 @@ export function DispatcherIntake() {
   const [symptoms, setSymptoms] = useState("");
   const [errorCodes, setErrorCodes] = useState("");
   const [faultDump, setFaultDump] = useState("");
+  const [severity, setSeverity] = useState<Severity>("major");
 
   // Existing tickets are used to seed the asset selector with anything we already know.
   const { data: existing } = useQuery({
@@ -61,6 +62,7 @@ export function DispatcherIntake() {
         initial_symptoms: symptoms || undefined,
         initial_error_codes: errorCodes || undefined,
         fault_dump_raw: faultDump || undefined,
+        severity,
       }),
     onSuccess: async (t) => {
       setCreatedTicket(t);
@@ -184,6 +186,32 @@ export function DispatcherIntake() {
                     }
                     disabled={!!createdTicket}
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Severity</label>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {(["minor", "major", "critical"] as Severity[]).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={
+                        severity === s
+                          ? severityClass(s)
+                          : "pill pill-soft"
+                      }
+                      style={{
+                        cursor: createdTicket ? "default" : "pointer",
+                        opacity: createdTicket && severity !== s ? 0.5 : 1,
+                        textTransform: "capitalize",
+                      }}
+                      onClick={() => !createdTicket && setSeverity(s)}
+                      disabled={!!createdTicket}
+                    >
+                      {s}
+                    </button>
+                  ))}
                 </div>
               </div>
 

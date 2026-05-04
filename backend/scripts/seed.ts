@@ -62,6 +62,7 @@ import { createTicket } from "../lib/tickets-repo";
       initial_symptoms: t.initial_symptoms,
       initial_error_codes: t.initial_error_codes,
       fault_dump_raw: t.fault_dump_raw,
+      severity: t.severity,
     });
     console.log(`seed: demo ticket #${created.id} (${t.label})`);
   }

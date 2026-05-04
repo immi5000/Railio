@@ -21,6 +21,7 @@ export type CreateTicketBody = {
   initial_symptoms?: string;
   initial_error_codes?: string;
   fault_dump_raw?: string;
+  severity?: Severity;
   opened_by_role: "dispatcher";
 };
 
@@ -110,6 +111,7 @@ export type Ticket = {
   id: number;
   asset: Asset;
   status: TicketStatus;
+  severity: Severity;
   opened_at: string;
   initial_error_codes: string | null;
   initial_symptoms: string | null;

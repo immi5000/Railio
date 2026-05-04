@@ -3,6 +3,8 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { apiUrl, fileUrl, getTicket, uploadPhotos } from "@/lib/api";
 import type {
   Citation,
@@ -488,9 +490,15 @@ function MessageBubble({
         >
           {message.role === "assistant" ? "Railio" : message.role}
         </div>
-        <div style={{ whiteSpace: "pre-wrap", fontSize: 14, lineHeight: 1.5 }}>
-          {message.content}
-        </div>
+        {message.role === "assistant" ? (
+          <Markdown>{message.content}</Markdown>
+        ) : (
+          <div
+            style={{ whiteSpace: "pre-wrap", fontSize: 14, lineHeight: 1.5 }}
+          >
+            {message.content}
+          </div>
+        )}
 
         {message.attachments && message.attachments.length > 0 && (
           <div
@@ -664,13 +672,15 @@ function LiveBubble({
           ))}
         </div>
 
-        <div style={{ whiteSpace: "pre-wrap", fontSize: 14, lineHeight: 1.5 }}>
-          {live.text || (
+        {live.text ? (
+          <Markdown>{live.text}</Markdown>
+        ) : (
+          <div style={{ fontSize: 14, lineHeight: 1.5 }}>
             <span className="micro" style={{ color: "var(--muted)" }}>
               Thinking…
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
         {live.requestPhoto && (
           <RequestPhotoBlock
@@ -750,6 +760,14 @@ function RequestPhotoBlock({
       <button className="btn btn-super btn-sm" onClick={() => ref.current?.click()}>
         Send photo →
       </button>
+    </div>
+  );
+}
+
+function Markdown({ children }: { children: string }) {
+  return (
+    <div className="md">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
     </div>
   );
 }
