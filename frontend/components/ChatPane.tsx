@@ -43,7 +43,7 @@ export function ChatPane({
   onFormUpdated,
 }: Props) {
   const qc = useQueryClient();
-  const { data, refetch } = useQuery({
+  const { data } = useQuery({
     queryKey: ["ticket", ticketId],
     queryFn: () => getTicket(ticketId),
   });
@@ -56,6 +56,9 @@ export function ChatPane({
   const [streaming, setStreaming] = useState(false);
   const [live, setLive] = useState<LiveAssistant | null>(null);
   const [openChunk, setOpenChunk] = useState<number | null>(null);
+  // Map tool-call call_id → tool name so `tool_call_completed` (which only
+  // carries call_id) can dispatch on the original tool name.
+  const callIdToName = useRef<Map<string, string>>(new Map());
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -133,9 +136,12 @@ export function ChatPane({
     switch (ev.type) {
       case "user_message_persisted":
       case "assistant_message_persisted":
-        // refetch to pick up authoritative server state (citations, hash, tool_calls)
-        refetch();
+        // Invalidate so every observer (status pill, Start/Close buttons,
+        // queue badges) picks up authoritative server state — citations,
+        // hash, tool_calls, status, pre-arrival summary, etc.
+        qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
         if (ev.type === "assistant_message_persisted") {
+          qc.invalidateQueries({ queryKey: ["tickets"] });
           setLive(null);
         }
         break;
@@ -152,6 +158,7 @@ export function ChatPane({
         );
         break;
       case "tool_call_started":
+        callIdToName.current.set(ev.call_id, ev.name);
         setLive((prev) =>
           prev
             ? {
@@ -172,7 +179,7 @@ export function ChatPane({
           setToast("Form updated");
         }
         break;
-      case "tool_call_completed":
+      case "tool_call_completed": {
         setLive((prev) =>
           prev
             ? {
@@ -183,7 +190,22 @@ export function ChatPane({
               }
             : prev,
         );
+        const toolName = callIdToName.current.get(ev.call_id);
+        if (toolName === "set_ticket_status") {
+          // Backend has committed the new status; invalidate so every observer
+          // (TechTicketView's Start/Close buttons, status pill, queue badges)
+          // re-renders with the fresh ticket.
+          qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
+          qc.invalidateQueries({ queryKey: ["tickets"] });
+          const newStatus = (ev.output as { status?: string } | undefined)
+            ?.status;
+          setToast(
+            newStatus ? `Status → ${newStatus.replace(/_/g, " ")}` : "Status changed",
+          );
+        }
+        callIdToName.current.delete(ev.call_id);
         break;
+      }
       case "request_photo":
         setLive((prev) =>
           prev
