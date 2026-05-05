@@ -1,49 +1,49 @@
 [
   {
     "doc_class": "tribal_knowledge",
-    "doc_id": "tribal_imran_2026q2",
-    "doc_title": "Senior-tech notes — Imran, 2026-Q2",
-    "source_label": "Senior-tech note — Imran, 2026-04-15",
+    "doc_id": "tribal_bob_2026q2",
+    "doc_title": "Senior-tech notes — Bob, 2026-Q2",
+    "source_label": "Senior-tech note — Bob, 2026-04-15",
     "page": null,
     "text": "On ES44ACs, before pulling an injector for an oil-soaked power assembly, always check fuel rail pressure transducer reading at idle. Nine times out of ten the transducer is reporting low and the EMS is overshooting fuel duty cycle, drowning the assembly. Saved a power-pack swap last summer twice doing this."
   },
   {
     "doc_class": "tribal_knowledge",
-    "doc_id": "tribal_imran_2026q2",
-    "doc_title": "Senior-tech notes — Imran, 2026-Q2",
-    "source_label": "Senior-tech note — Imran, 2026-04-22",
+    "doc_id": "tribal_john_2026q2",
+    "doc_title": "Senior-tech notes — John, 2026-Q2",
+    "source_label": "Senior-tech note — John, 2026-04-22",
     "page": null,
     "text": "EOA-3 on a unit that just came out of a long idle session: leave it for 20 minutes and re-probe. The aeration sensor reads false-positive when the sump return line is still hot from idle and the oil hasn't fully de-aerated. Don't tear into it on the first read."
   },
   {
     "doc_class": "tribal_knowledge",
-    "doc_id": "tribal_imran_2026q2",
-    "doc_title": "Senior-tech notes — Imran, 2026-Q2",
-    "source_label": "Senior-tech note — Imran, 2026-03-30",
+    "doc_id": "tribal_akshay_2026q2",
+    "doc_title": "Senior-tech notes — Akshay, 2026-Q2",
+    "source_label": "Senior-tech note — Akshay, 2026-03-30",
     "page": null,
     "text": "Reman injectors (PN ending -R) work fine but reuse the high-pressure injector line at your peril. The mating face on the reman bore is slightly different and you'll get a 100-bar drop after the first few hours. Always replace the line."
   },
   {
     "doc_class": "tribal_knowledge",
-    "doc_id": "tribal_imran_2026q2",
-    "doc_title": "Senior-tech notes — Imran, 2026-Q2",
-    "source_label": "Senior-tech note — Imran, 2026-04-08",
+    "doc_id": "tribal_devan_2026q2",
+    "doc_title": "Senior-tech notes — Devan, 2026-Q2",
+    "source_label": "Senior-tech note — Devan, 2026-04-08",
     "page": null,
     "text": "Junior techs miss this: on FUEL-PRESS-LOW, change the primary filter and re-probe before swapping the transfer pump. The pump diagnostics in EMS aren't precise — they'll page you to the pump even when the filter is clogged."
   },
   {
     "doc_class": "tribal_knowledge",
-    "doc_id": "tribal_imran_2026q2",
-    "doc_title": "Senior-tech notes — Imran, 2026-Q2",
-    "source_label": "Senior-tech note — Imran, 2026-02-19",
+    "doc_id": "tribal_bob_2026q2",
+    "doc_title": "Senior-tech notes — Bob, 2026-Q2",
+    "source_label": "Senior-tech note — Bob, 2026-02-19",
     "page": null,
     "text": "On a smoking #3 power assembly: confirm the smoke isn't from the lower #4 turbo drain — it shows up as #3 because of cab airflow. Stick your hand under both. Cold = innocent."
   },
   {
     "doc_class": "tribal_knowledge",
-    "doc_id": "tribal_imran_2026q2",
-    "doc_title": "Senior-tech notes — Imran, 2026-Q2",
-    "source_label": "Senior-tech note — Imran, 2026-04-26",
+    "doc_id": "tribal_john_2026q2",
+    "doc_title": "Senior-tech notes — John, 2026-Q2",
+    "source_label": "Senior-tech note — John, 2026-04-26",
     "page": null,
     "text": "26-L relay valve replacements: bench-test before installing. Out-of-box failure rate on the heavy variant (RV200H) was about 1 in 8 last year. Don't trust the box."
   }

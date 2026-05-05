@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { json, jsonError, preflight } from "@/lib/cors";
-import { getTicketDetail } from "@/lib/tickets-repo";
+import { deleteTicket, getTicketDetail } from "@/lib/tickets-repo";
 import { getSql } from "@/lib/db";
 import type { Severity, TicketStatus } from "@contract/contract";
 
@@ -51,4 +51,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
   const t = await getTicketDetail(ticketId);
   return t ? json(t) : jsonError("not found", 404);
+}
+
+export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  const ok = await deleteTicket(Number(id));
+  if (!ok) return jsonError("not found", 404);
+  return json({ deleted: true });
 }

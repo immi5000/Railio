@@ -491,11 +491,6 @@ function F6180_49A_Form({
         <div className="micro" style={{ marginBottom: 8 }}>
           Defects
         </div>
-        {defects.length === 0 && (
-          <span style={{ color: "var(--muted)", fontSize: 13 }}>
-            None recorded.
-          </span>
-        )}
         {defects.map((d, i) => {
           const flashing = flash.has(`defects.${i}`);
           return (

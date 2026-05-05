@@ -2,36 +2,37 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { resetTicket } from "@/lib/api";
+import { deleteTicket } from "@/lib/api";
 
 /**
- * Dispatcher-only demo helper: confirm, then POST /api/tickets/:id/reset.
- * Invalidates the ticket and forms caches on success.
+ * Two-step destructive button: click once to arm ("Delete"), click "Yes,
+ * delete" to fire `DELETE /api/tickets/:id`. Invalidates relevant caches and
+ * notifies the parent via `onDeleted` so it can re-route if needed.
  */
-export function ResetTicketButton({
+export function DeleteTicketButton({
   ticketId,
   size = "sm",
   variant = "ghost",
-  label = "Reset for demo",
-  onReset,
+  label = "Delete",
+  onDeleted,
 }: {
   ticketId: number;
   size?: "sm" | "md";
   variant?: "ghost" | "primary";
   label?: string;
-  onReset?: () => void;
+  onDeleted?: () => void;
 }) {
   const qc = useQueryClient();
   const [confirming, setConfirming] = useState(false);
 
   const mut = useMutation({
-    mutationFn: () => resetTicket(ticketId),
+    mutationFn: () => deleteTicket(ticketId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
-      qc.invalidateQueries({ queryKey: ["forms", ticketId] });
       qc.invalidateQueries({ queryKey: ["tickets"] });
+      qc.removeQueries({ queryKey: ["ticket", ticketId] });
+      qc.removeQueries({ queryKey: ["forms", ticketId] });
       setConfirming(false);
-      onReset?.();
+      onDeleted?.();
     },
   });
 
@@ -47,20 +48,17 @@ export function ResetTicketButton({
           e.stopPropagation();
           setConfirming(true);
         }}
-        title="Wipes messages, forms, and state — for demo replay"
+        title="Permanently delete this ticket"
       >
-        ↻ {label}
+        🗑 {label}
       </button>
     );
   }
 
   return (
     <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-      <span
-        className="micro"
-        style={{ color: "#8a1f15" }}
-      >
-        Wipe everything?
+      <span className="micro" style={{ color: "#8a1f15" }}>
+        Delete forever?
       </span>
       <button
         type="button"
@@ -72,7 +70,7 @@ export function ResetTicketButton({
         }}
         disabled={mut.isPending}
       >
-        {mut.isPending ? "Resetting…" : "Yes, reset"}
+        {mut.isPending ? "Deleting…" : "Yes, delete"}
       </button>
       <button
         type="button"

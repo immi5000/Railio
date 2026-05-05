@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listTickets } from "@/lib/api";
 import { formatDate, statusLabel, statusPillClass } from "@/lib/format";
 import type { Ticket, TicketStatus } from "@/lib/contract";
-import { ResetTicketButton } from "./ResetTicketButton";
+import { DeleteTicketButton } from "./DeleteTicketButton";
 
 export function QueueList({
   audience,
@@ -149,7 +149,7 @@ export function QueueList({
                     }}
                   >
                     {audience === "dispatcher" && (
-                      <ResetTicketButton ticketId={t.id} label="Reset" />
+                      <DeleteTicketButton ticketId={t.id} />
                     )}
                     <span style={{ fontSize: 16, color: "var(--mta)" }}>→</span>
                   </span>

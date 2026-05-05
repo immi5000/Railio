@@ -2,6 +2,7 @@ import { getSql } from "./db";
 import { buildInitialForms } from "./forms/pre-fill";
 import type { Asset, Form, FormType, Severity, Ticket, TicketDetail, TicketPart, TicketStatus } from "@contract/contract";
 import { listMessages } from "./messages-repo";
+import { generatePreArrivalSummary } from "./pre-arrival";
 
 export async function getAsset(id: number): Promise<Asset | null> {
   const sql = getSql();
@@ -91,45 +92,19 @@ export type CreateTicketInput = {
   severity?: Severity;
 };
 
-// Demo-only: rewind a ticket so a dispatcher can run the same scenario again.
-export async function resetTicket(id: number): Promise<Ticket | null> {
+// Permanently delete a ticket and all of its dependents (messages, parts,
+// forms). Returns true if a row was removed.
+export async function deleteTicket(id: number): Promise<boolean> {
   const sql = getSql();
-  const ticketRows = await sql<any[]>`SELECT * FROM tickets WHERE id = ${id}`;
-  const t = ticketRows[0];
-  if (!t) return null;
-  const asset = await getAsset(t.asset_id);
-  if (!asset) return null;
-
-  const initial = buildInitialForms({
-    ticket_id: id,
-    asset,
-    opened_at: t.opened_at,
-    initial_error_codes: t.initial_error_codes,
-    initial_symptoms: t.initial_symptoms,
-    opened_by: "dispatcher",
-  });
-  const now = new Date().toISOString();
-
+  const existing = await sql<{ id: number }[]>`SELECT id FROM tickets WHERE id = ${id}`;
+  if (existing.length === 0) return false;
   await sql.begin(async (tx) => {
     await tx`DELETE FROM messages WHERE ticket_id = ${id}`;
     await tx`DELETE FROM ticket_parts WHERE ticket_id = ${id}`;
     await tx`DELETE FROM forms WHERE ticket_id = ${id}`;
-    await tx`
-      UPDATE tickets
-      SET status = 'AWAITING_TECH', closed_at = NULL, fault_dump_parsed = NULL, pre_arrival_summary = NULL
-      WHERE id = ${id}
-    `;
-    await tx`
-      INSERT INTO forms (ticket_id, form_type, payload, status, updated_at)
-      VALUES (${id}, 'F6180_49A', ${tx.json(initial.F6180_49A as any)}, 'draft', ${now})
-    `;
-    await tx`
-      INSERT INTO forms (ticket_id, form_type, payload, status, updated_at)
-      VALUES (${id}, 'DAILY_INSPECTION_229_21', ${tx.json(initial.DAILY_INSPECTION_229_21 as any)}, 'draft', ${now})
-    `;
+    await tx`DELETE FROM tickets WHERE id = ${id}`;
   });
-
-  return getTicket(id);
+  return true;
 }
 
 export async function createTicket(inp: CreateTicketInput): Promise<Ticket> {
@@ -170,6 +145,25 @@ export async function createTicket(inp: CreateTicketInput): Promise<Ticket> {
     INSERT INTO forms (ticket_id, form_type, payload, status, updated_at)
     VALUES (${ticket_id}, 'DAILY_INSPECTION_229_21', ${sql.json(initial.DAILY_INSPECTION_229_21 as any)}, 'draft', ${opened_at})
   `;
+
+  // Auto-generate the pre-arrival brief from intake. Best-effort: a generation
+  // failure must not break ticket creation, so we swallow errors and continue.
+  try {
+    const summary = await generatePreArrivalSummary({
+      asset,
+      severity: inp.severity ?? "major",
+      initial_symptoms: inp.initial_symptoms ?? null,
+      initial_error_codes: inp.initial_error_codes ?? null,
+      fault_dump_raw: inp.fault_dump_raw ?? null,
+    });
+    if (summary) {
+      await sql`
+        UPDATE tickets SET pre_arrival_summary = ${summary} WHERE id = ${ticket_id}
+      `;
+    }
+  } catch (e) {
+    console.error("[createTicket] pre-arrival generation failed:", e);
+  }
 
   return (await getTicket(ticket_id))!;
 }

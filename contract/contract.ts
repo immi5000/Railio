@@ -32,14 +32,10 @@ export type SendMessageBody = {
 };
 
 /**
- * POST /api/tickets/:id/reset — dispatcher-only demo helper.
- * Wipes all messages, resets the four forms back to their initial pre-fill,
- * clears ticket_parts, pre_arrival_summary, fault_dump_parsed, and closed_at,
- * and sets status back to AWAITING_TECH. Returns the freshened ticket.
- *
- * Frontend-only contract for now; backend implementation is a TODO.
+ * DELETE /api/tickets/:id — permanently delete a ticket and all dependents
+ * (messages, ticket_parts, forms). Dispatcher-side action.
  */
-export type ResetTicketResponse = { ticket: Ticket };
+export type DeleteTicketResponse = { deleted: true };
 
 /**
  * GET /api/corpus/chunks — browsable knowledge library.

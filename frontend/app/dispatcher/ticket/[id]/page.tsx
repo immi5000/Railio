@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { getTicket } from "@/lib/api";
 import { ChatPane } from "@/components/ChatPane";
-import { ResetTicketButton } from "@/components/ResetTicketButton";
 import { formatDate, statusLabel, statusPillClass } from "@/lib/format";
 import type { TicketStatus } from "@/lib/contract";
 
@@ -57,7 +56,6 @@ export default function DispatcherTicketPage({
               <span className={statusPillClass(ticket.status as TicketStatus)}>
                 {statusLabel(ticket.status as TicketStatus)}
               </span>
-              <ResetTicketButton ticketId={ticketId} />
             </div>
           )}
         </div>

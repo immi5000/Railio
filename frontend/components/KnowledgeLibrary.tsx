@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { listCorpusChunks } from "@/lib/api";
 import type { CorpusChunk, DocClass } from "@/lib/contract";
 import { CitationDrawer } from "./CitationDrawer";
+import { techNameForChunk } from "@/lib/techNames";
 
 type DocGroup = {
   doc_id: string;
@@ -241,7 +242,9 @@ function DocBlock({
         </span>
       </div>
       <div>
-        {group.chunks.map((c) => (
+        {group.chunks.map((c) => {
+          const author = isTribal ? techNameForChunk(c) : null;
+          return (
           <button
             key={c.id}
             type="button"
@@ -294,6 +297,27 @@ function DocBlock({
                   Page {c.page}
                 </div>
               )}
+              {author && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--mta)",
+                    marginTop: 4,
+                    fontWeight: 700,
+                  }}
+                >
+                  By {author.name}
+                  <span
+                    style={{
+                      color: "var(--muted)",
+                      fontWeight: 400,
+                      marginLeft: 4,
+                    }}
+                  >
+                    · {author.shift}
+                  </span>
+                </div>
+              )}
             </div>
             <div
               style={{
@@ -319,7 +343,8 @@ function DocBlock({
               →
             </span>
           </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

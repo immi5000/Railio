@@ -1,11 +1,11 @@
 import type {
   CreateTicketBody,
+  DeleteTicketResponse,
   Form,
   FormType,
   ListCorpusChunksResponse,
   Part,
   ParsedFault,
-  ResetTicketResponse,
   Ticket,
   TicketDetail,
   CorpusChunk,
@@ -72,10 +72,10 @@ export async function patchTicket(
   });
 }
 
-/** Wipe messages/forms/state on a ticket so the demo flow can be re-played. */
-export async function resetTicket(id: number): Promise<ResetTicketResponse> {
-  return jsonFetch<ResetTicketResponse>(`/api/tickets/${id}/reset`, {
-    method: "POST",
+/** Permanently delete a ticket and all of its messages/forms/parts. */
+export async function deleteTicket(id: number): Promise<DeleteTicketResponse> {
+  return jsonFetch<DeleteTicketResponse>(`/api/tickets/${id}`, {
+    method: "DELETE",
   });
 }
 

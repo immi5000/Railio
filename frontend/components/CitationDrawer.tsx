@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getCorpusChunk } from "@/lib/api";
+import { techNameForChunk } from "@/lib/techNames";
 
 export function CitationDrawer({
   chunkId,
@@ -75,11 +76,37 @@ export function CitationDrawer({
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
                 color: "var(--muted)",
-                marginBottom: 24,
+                marginBottom: data.doc_class === "tribal_knowledge" ? 8 : 24,
               }}
             >
               {data.source_label}
             </div>
+            {data.doc_class === "tribal_knowledge" && (() => {
+              const author = techNameForChunk(data);
+              return (
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    color: "var(--mta)",
+                    marginBottom: 24,
+                  }}
+                >
+                  By {author.name}
+                  <span
+                    style={{
+                      color: "var(--muted)",
+                      fontWeight: 400,
+                      marginLeft: 6,
+                    }}
+                  >
+                    · {author.shift}
+                  </span>
+                </div>
+              );
+            })()}
             <p
               style={{
                 fontSize: 14,
