@@ -1,0 +1,34 @@
+[
+  {
+    "doc_class": "tribal_knowledge",
+    "doc_id": "repair_bnsf_7670_2026_02_19",
+    "doc_title": "Repair Record — BNSF ES44DC 7670",
+    "source_label": "Repair Record — BNSF ES44DC 7670 — 2026-02-19 — Fuel rail transducer replacement",
+    "page": null,
+    "text": "Ticket #4471 (closed 2026-02-19). Unit: BNSF ES44DC 7670. Symptoms: smoke from #3 power assembly during notch 7. Codes: EOA-3, FUEL-PRESS-LOW, SMOKE-DET-3. Root cause: fuel rail pressure transducer (84A220119P3) reporting low; EMS overshot fuel duty cycle and drowned #3 with diesel. Repair: replaced transducer. Verified at notch 7 — rail pressure 1455 bar, no smoke. Inspector: Bob Carlson. Parts used: 84A220119P3 (qty 1)."
+  },
+  {
+    "doc_class": "tribal_knowledge",
+    "doc_id": "repair_bnsf_7695_2026_03_30",
+    "doc_title": "Repair Record — BNSF ES44DC 7695",
+    "source_label": "Repair Record — BNSF ES44DC 7695 — 2026-03-30 — CCBII relay valve replacement",
+    "page": null,
+    "text": "Ticket #4503 (closed 2026-03-30). Unit: BNSF ES44DC 7695. Symptoms: brake pipe leakage 6.4 psi/min on Class I test. Codes: BP-LEAK-HI. Root cause: cracked diaphragm in CCBII relay valve, leaking through to atmosphere. Repair: replaced CCBII-RELAY, bench-tested prior to install. Post-repair leakage test: 1.8 psi/min — pass. Inspector: Tomás Ortiz. Parts used: CCBII-RELAY (qty 1)."
+  },
+  {
+    "doc_class": "tribal_knowledge",
+    "doc_id": "repair_bnsf_7720_2026_01_14",
+    "doc_title": "Repair Record — BNSF ES44DC 7720",
+    "source_label": "Repair Record — BNSF ES44DC 7720 — 2026-01-14 — Primary fuel filter swap",
+    "page": null,
+    "text": "Ticket #4382 (closed 2026-01-14). Unit: BNSF ES44DC 7720. Symptoms: FUEL-PRESS-LOW alarms at notch 5 and above, EMS paging the transfer pump. Root cause: primary fuel filter clogged with debris from recent tank cleaning. Repair: replaced primary fuel filter; rail pressure restored to 1450 bar at notch 6 within 90 seconds. Did not need to replace the transfer pump (EMS diagnostic was misleading). Inspector: Devan Reeves. Parts used: GE-FUEL-FILT (qty 1)."
+  },
+  {
+    "doc_class": "tribal_knowledge",
+    "doc_id": "repair_bnsf_7670_2026_03_12",
+    "doc_title": "Repair Record — BNSF ES44DC 7670",
+    "source_label": "Repair Record — BNSF ES44DC 7670 — 2026-03-12 — Traction motor brush set",
+    "page": null,
+    "text": "Ticket #4495 (closed 2026-03-12). Unit: BNSF ES44DC 7670. Symptoms: intermittent ground-fault derate at notch 6+, no single trip but recurring SDIS 'GROUND CURRENT 0.6 A' messages. Root cause: corroded pigtails on two brushes in #4 traction motor. Repair: replaced full brush set on #4 motor. Post-repair ground current at notch 8: 0.12 A — within limits. Inspector: Priya Singh. Parts used: 5GEB752-BRUSH (qty 1 set = 6 brushes)."
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "doc_class": "tribal_knowledge",
+    "doc_id": "tribal_bob_carlson_2026q2",
+    "doc_title": "Senior-tech notes — Bob Carlson (BNSF ES44DC fleet)",
+    "source_label": "Senior-tech note (BNSF ES44DC) — Bob Carlson, 2026-04-15",
+    "page": null,
+    "text": "On ES44DCs, before pulling an injector for an oil-soaked power assembly, check the fuel rail pressure transducer (84A220119P3) reading at idle. Nine times out of ten the transducer reports low and the EMS overshoots fuel duty cycle, drowning the assembly. Saved a power-pack swap twice last summer doing this. Cross-check with §SDIS Operation Screen (p.22) — if the SDIS shows rail pressure under 1400 bar at notch 6, the transducer is the more likely culprit than a stuck injector."
+  },
+  {
+    "doc_class": "tribal_knowledge",
+    "doc_id": "tribal_john_mendoza_2026q2",
+    "doc_title": "Senior-tech notes — John Mendoza (BNSF ES44DC fleet)",
+    "source_label": "Senior-tech note (BNSF ES44DC) — John Mendoza, 2026-04-22",
+    "page": null,
+    "text": "EOA-3 on an ES44DC that just came out of a long idle session: leave it for 20 minutes and re-probe. The aeration sensor reads false-positive when the sump return line is still hot from idle and the oil hasn't fully de-aerated. Don't tear into it on the first read. AESS auto-stop (§AESS, p.125) often masks this because the engine shuts before the oil settles."
+  },
+  {
+    "doc_class": "tribal_knowledge",
+    "doc_id": "tribal_devan_reeves_2026q2",
+    "doc_title": "Senior-tech notes — Devan Reeves (BNSF ES44DC fleet)",
+    "source_label": "Senior-tech note (BNSF ES44DC) — Devan Reeves, 2026-04-08",
+    "page": null,
+    "text": "On FUEL-PRESS-LOW, change the primary fuel filter (GE-FUEL-FILT) and re-probe before swapping the transfer pump (GE-FUEL-PUMP). The EMS pump diagnostics aren't precise — they'll page you to the pump even when the filter is clogged. Five-minute filter swap saves a two-hour pump R&R."
+  },
+  {
+    "doc_class": "tribal_knowledge",
+    "doc_id": "tribal_tomas_ortiz_2026q2",
+    "doc_title": "Senior-tech notes — Tomás Ortiz (BNSF ES44DC fleet)",
+    "source_label": "Senior-tech note (BNSF ES44DC) — Tomás Ortiz, 2026-04-26",
+    "page": null,
+    "text": "CCBII relay valve replacements (CCBII-RELAY): bench-test before installing. Out-of-box failure rate last year was about 1 in 8. After install, charge the brake pipe to 90 psi and run the 1-minute leakage test per §Before Moving (p.75) — if leakage is over 5 psi/min you have a bad relay or a piped joint. Don't release the unit until that test passes."
+  },
+  {
+    "doc_class": "tribal_knowledge",
+    "doc_id": "tribal_priya_singh_2026q2",
+    "doc_title": "Senior-tech notes — Priya Singh (BNSF ES44DC fleet)",
+    "source_label": "Senior-tech note (BNSF ES44DC) — Priya Singh, 2026-03-12",
+    "page": null,
+    "text": "5GEB752AH DC traction motor brushes (5GEB752-BRUSH) that look fine at <50% wear can still cause intermittent ground faults if the pigtails are corroded. Pull each brush, inspect the lead, replace the whole set if any pigtail shows green. The §Ground Cut-Out (p.55) thresholds will trip on this before the brush wear flag does. Don't half-swap — wear pattern goes uneven fast."
+  }
+]

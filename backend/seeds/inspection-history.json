@@ -1,0 +1,26 @@
+[
+  {
+    "doc_class": "tribal_knowledge",
+    "doc_id": "inspection_bnsf_7670_2026_04_15",
+    "doc_title": "Inspection Record — BNSF ES44DC 7670",
+    "source_label": "Inspection Record — BNSF ES44DC 7670 — Daily 49 CFR §229.21 — 2026-04-15 (passed)",
+    "page": null,
+    "text": "Daily Locomotive Inspection per 49 CFR §229.21. Unit: BNSF ES44DC 7670. Inspector: Bob Carlson. All 26 items pass. Brake pipe leakage 1.4 psi/min (limit 5.0). Sanders functional, both ends. Horn audible. Alerter resets normally. EPB applies and releases via SDIS. No exceptions. Returned to service 2026-04-15 09:15."
+  },
+  {
+    "doc_class": "tribal_knowledge",
+    "doc_id": "inspection_bnsf_7695_2026_04_22",
+    "doc_title": "Inspection Record — BNSF ES44DC 7695",
+    "source_label": "Inspection Record — BNSF ES44DC 7695 — Daily 49 CFR §229.21 — 2026-04-22 (1 exception)",
+    "page": null,
+    "text": "Daily Locomotive Inspection per 49 CFR §229.21. Unit: BNSF ES44DC 7695. Inspector: Tomás Ortiz. 25 of 26 items pass. Exception: rear-end sander discharging intermittently (CFR §229.131). Tagged as non-emergency defect; unit released to service with sander bad-ordered, repair scheduled for next 92-day inspection."
+  },
+  {
+    "doc_class": "tribal_knowledge",
+    "doc_id": "inspection_bnsf_7720_2026_04_10",
+    "doc_title": "Inspection Record — BNSF ES44DC 7720",
+    "source_label": "Inspection Record — BNSF ES44DC 7720 — Daily 49 CFR §229.21 — 2026-04-10 (passed)",
+    "page": null,
+    "text": "Daily Locomotive Inspection per 49 CFR §229.21. Unit: BNSF ES44DC 7720. Inspector: Devan Reeves. All 26 items pass. Brake pipe leakage 2.1 psi/min. Event recorder functional. Cab signal operating. Wipers functional. No exceptions."
+  }
+]

@@ -19,7 +19,7 @@ This repo is the v0 localhost MVP — a working end-to-end demo on `http://local
 7. **Status transitions** through `AWAITING_TECH → IN_PROGRESS → AWAITING_REVIEW` happen automatically as the conversation progresses.
 8. **Export.** When the tech is done, the two forms can be rendered to PDF (FRA-styled) and the ticket is ready for review.
 
-The whole conversation is an append-only log with a sha256 hash chain, so the audit trail is verifiable (`npm run verify-chain`).
+The whole conversation is an append-only log with a sha256 hash chain, so the audit trail is verifiable (`python -m scripts.verify_chain`).
 
 ---
 
@@ -44,7 +44,7 @@ The "manual" half of the corpus is **real, public-domain federal rail regulation
 - **49 CFR Part 232** — Brake System Safety Standards
 - **49 CFR Part 218** — Railroad Operating Practices
 
-The fetch script (`backend/scripts/corpus-fetch.ts`) downloads the XML; the build script (`backend/scripts/corpus-build.ts`) walks the `<DIV8>` section nodes, sub-splits anything over ~6000 chars at paragraph boundaries, embeds with OpenAI `text-embedding-3-large` truncated to 1024 dims, and stores everything in a `sqlite-vec` virtual table for KNN.
+The fetch script (`backend/scripts/corpus_fetch.py`) downloads the XML; the build script (`backend/scripts/corpus_build.py`) walks the `<DIV8>` section nodes, sub-splits anything over ~6000 chars at paragraph boundaries, embeds with OpenAI `text-embedding-3-large` truncated to 1024 dims, and stores everything in Postgres with a `pgvector` HNSW index for KNN.
 
 The "tribal" half is a small file of hand-written senior-tech notes in [backend/seeds/corpus-tribal.json](backend/seeds/corpus-tribal.json) — heuristics, war stories, "always check X before Y on this unit." In production these would come from SME recording sessions; for the demo they're written by hand and clearly labelled (`👤 Senior-tech note`).
 
@@ -86,14 +86,14 @@ There is no separate dispatcher/tech log. The conversation is single, append-onl
 ├── MVP.md                 v1 product spec (mobile, voice, multi-tenant)
 ├── MVP_v0.md              v0 validation spec (localhost web build)
 │
-├── contract/              shared TypeScript types + API surface
-│   └── contract.ts        single source of truth for both apps
+├── contract/              shared TypeScript types for the frontend
+│   └── contract.ts        Pydantic mirror lives in backend/railio/contract.py
 │
-├── backend/               Next.js app on :3001 — API, SQLite, AI tools, PDFs
+├── backend/               FastAPI app on :3001 — API, Postgres, AI tools, PDFs
 │   ├── RUN.md             how to install, seed, and start the backend
-│   ├── app/api/           tickets, messages (SSE), forms, photos, parts, corpus
-│   ├── lib/               chat loop, tools, embeddings, forms (pre-fill + PDF)
-│   ├── scripts/           db:migrate, db:seed, corpus:fetch, db:seed-corpus, e2e
+│   ├── pyproject.toml     Python deps
+│   ├── railio/            FastAPI app, routers, AI tools, DB models, PDF templates
+│   ├── scripts/           migrate, seed, corpus_fetch, corpus_build, verify_chain, e2e
 │   ├── seeds/             assets.json, parts.json, demo-tickets.json, corpus-tribal.json
 │   └── corpus-sources/    sources.json manifest + (gitignored) raw/ XML payloads
 │
@@ -107,35 +107,51 @@ There is no separate dispatcher/tech log. The conversation is single, append-onl
 
 ## Stack
 
-- **Next.js 15** App Router, two apps (backend on `:3001`, frontend on `:3000`) talking over CORS
-- **SQLite** via `better-sqlite3` + `sqlite-vec` for KNN over chunk embeddings
-- **OpenAI** Chat Completions (streaming with tool-call accumulation by index, vision via base64 image parts) + `text-embedding-3-large` truncated to 1024 dims
-- **Drizzle ORM** for typed schema
-- **@react-pdf/renderer** for the FRA-styled form PDFs
-- **SSE** for streaming chat tokens, tool events, and form updates back to the UI
-- **fast-xml-parser** + **pdf-parse** for corpus ingest
+- **Backend**: Python 3.11+, **FastAPI** + **uvicorn** on `:3001`
+- **Frontend**: **Next.js 16** App Router on `:3000`, talking to the backend over CORS
+- **Database**: **Postgres** (Supabase) via SQLAlchemy 2 async + asyncpg; **pgvector** with an HNSW index for KNN over chunk embeddings
+- **LLM**: **OpenAI** async SDK — streaming Chat Completions with tool-call accumulation by index, vision via base64 image parts, plus `text-embedding-3-large` truncated to 1024 dims (Matryoshka)
+- **PDFs**: **reportlab** for the FRA-styled forms
+- **Storage**: **Supabase Storage** for uploaded photos (`railio-uploads` bucket)
+- **Streaming**: **Server-Sent Events** for chat tokens, tool events, and form updates back to the UI
+- **Corpus ingest**: **httpx** + stdlib `xml.etree.ElementTree` (eCFR XML)
 
 ---
 
 ## Running it
 
-See [backend/RUN.md](backend/RUN.md) for the full sequence. Short version:
+You'll need **Python 3.11+**, **Node 20+**, and a **Postgres** database with the **pgvector** extension available (Supabase works out of the box). See [backend/RUN.md](backend/RUN.md) for the full sequence and env-var details. Short version:
 
 ```bash
-# backend
+# backend (terminal 1)
 cd backend
-npm install
-npm run db:migrate && npm run db:seed
-npm run corpus:fetch && npm run db:seed-corpus
-npm run dev               # :3001
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
+cp .env.example .env       # fill in OPENAI_API_KEY, DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+python -m scripts.migrate
+python -m scripts.seed                                          # or: SEED_BUNDLE=MVP_test_data_GE_ES44AC python -m scripts.seed
+python -m scripts.corpus_fetch && python -m scripts.corpus_build
+uvicorn railio.main:app --reload --port 3001
 
-# frontend (separate terminal)
+# frontend (terminal 2)
 cd frontend
 npm install
-npm run dev               # :3000
+npm run dev                # :3000
 ```
 
-Open `http://localhost:3000`. The seed loads 5 assets, 30 parts, and 3 demo tickets ready to walk through.
+Open `http://localhost:3000`. The seed loads assets, parts, and demo tickets ready to walk through. The `MVP_test_data_GE_ES44AC` bundle is a focused GE ES44AC demo set.
+
+To verify the audit trail at any point:
+
+```bash
+cd backend && python -m scripts.verify_chain
+```
+
+To run an end-to-end smoke test against a running backend:
+
+```bash
+cd backend && python -m scripts.e2e
+```
 
 ---
 
@@ -144,4 +160,4 @@ Open `http://localhost:3000`. The seed loads 5 assets, 30 parts, and 3 demo tick
 - No auth, no multi-tenant, no mobile-native client (the v1 spec in [MVP.md](MVP.md) covers all of these).
 - Only two forms (the federally-required ones). Defect cards and parts requisitions were intentionally cut after the spec review — `ticket_parts` covers the parts-tracking need without inventing a non-federal document.
 - Tribal corpus is hand-written; production would record real SMEs.
-- No background jobs, no remote storage; everything is local files + SQLite.
+- No background jobs; storage is just Postgres + Supabase Storage for photos.

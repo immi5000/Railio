@@ -59,8 +59,7 @@ export function PartsAdmin() {
             onChange={(e) => setUnit(e.target.value as UnitModel | "")}
           >
             <option value="">All units</option>
-            <option value="ES44AC">ES44AC</option>
-            <option value="ET44AC">ET44AC</option>
+            <option value="ES44DC">ES44DC</option>
           </select>
           <span
             className="micro"
@@ -198,9 +197,7 @@ function PartRow({
               compatible_units: v
                 .split(",")
                 .map((s) => s.trim())
-                .filter((s): s is UnitModel =>
-                  s === "ES44AC" || s === "ET44AC",
-                ),
+                .filter((s): s is UnitModel => s === "ES44DC"),
             })
           }
         />

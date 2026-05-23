@@ -3,7 +3,7 @@
 // See ../backend/MVP_v0_BACKEND.md and ../frontend/MVP_v0_FRONTEND.md §4.
 
 // === Core enums ===
-export type UnitModel = "ES44AC" | "ET44AC";
+export type UnitModel = "ES44DC";
 export type TicketStatus =
   | "AWAITING_TECH"
   | "IN_PROGRESS"
