@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse, Response
 
 from .config import get_settings
 from .db import close_engine, get_engine
-from .routers import corpus, forms, messages, parse_fault_dump, parts, photos, tickets, uploads
+from .routers import corpus, messages, parse_fault_dump, parts, photos, tickets, uploads
 
 
 @asynccontextmanager
@@ -59,7 +59,6 @@ def create_app() -> FastAPI:
     app.include_router(tickets.router, prefix="/api/tickets", tags=["tickets"])
     app.include_router(messages.router, prefix="/api/tickets", tags=["messages"])
     app.include_router(parse_fault_dump.router, prefix="/api/tickets", tags=["parse_fault_dump"])
-    app.include_router(forms.router, prefix="/api/tickets", tags=["forms"])
     app.include_router(photos.router, prefix="/api/tickets", tags=["photos"])
     app.include_router(parts.router, prefix="/api/parts", tags=["parts"])
     app.include_router(corpus.router, prefix="/api/corpus", tags=["corpus"])

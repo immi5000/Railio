@@ -85,21 +85,7 @@ _STATEMENTS = [
         added_at text NOT NULL
     )
     """,
-    """
-    CREATE TABLE IF NOT EXISTS forms (
-        id serial PRIMARY KEY,
-        ticket_id integer REFERENCES tickets(id),
-        form_type text NOT NULL,
-        payload jsonb NOT NULL,
-        status text NOT NULL,
-        pdf_path text,
-        updated_at text NOT NULL
-    )
-    """,
-    """
-    CREATE UNIQUE INDEX IF NOT EXISTS forms_ticket_form_unique
-    ON forms (ticket_id, form_type)
-    """,
+    "DROP TABLE IF EXISTS forms",
     """
     CREATE TABLE IF NOT EXISTS corpus_chunks (
         id serial PRIMARY KEY,

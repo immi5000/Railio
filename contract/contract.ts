@@ -10,10 +10,8 @@ export type TicketStatus =
   | "AWAITING_REVIEW"
   | "CLOSED";
 export type Role = "dispatcher" | "tech" | "assistant" | "system" | "tool";
-export type FormType = "F6180_49A" | "DAILY_INSPECTION_229_21";
 export type DocClass = "manual" | "tribal_knowledge";
 export type Severity = "minor" | "major" | "critical";
-export type FormStatus = "draft" | "tech_signed" | "exported";
 
 // === API request bodies ===
 export type CreateTicketBody = {
@@ -119,7 +117,6 @@ export type Ticket = {
 
 export type TicketDetail = Ticket & {
   messages: Message[];
-  forms: Form[];
   ticket_parts: TicketPart[];
 };
 
@@ -155,121 +152,6 @@ export type CorpusChunk = {
   text: string;
 };
 
-// === Form payloads ===
-
-// FRA Form F 6180.49A — Locomotive Inspection and Repair Record.
-// Federally mandated periodic inspection (92-day, annual, biennial).
-// Field set mirrors the actual federal form sections: identification,
-// inspection details, items checklist, defects, repairs, brake test,
-// out-of-service, certification.
-export type InspectionType = "92_day" | "annual" | "biennial" | "after_repair";
-export type ItemResult = "pass" | "fail" | "na";
-
-export type F6180_49A = {
-  // Section A — Locomotive identification
-  reporting_mark: string;
-  road_number: string;
-  unit_model: UnitModel;
-  build_date?: string;
-
-  // Section B — Inspection details
-  inspection_type: InspectionType;
-  inspection_date: string;
-  previous_inspection_date?: string;
-  place_inspected: string;
-  inspector_name: string;
-  inspector_qualification?: string;
-
-  // Section C — Items checklist (each item maps to a CFR §229 sub-section)
-  items: {
-    code: string;          // e.g. "229.45" (general condition), "229.55" (suspension)
-    label: string;         // human label
-    result: ItemResult;
-    note?: string;
-  }[];
-
-  // Section D — Defects discovered
-  defects: {
-    fra_part: string;      // e.g. "229.59" for leakage
-    description: string;
-    location: string;
-    severity: Severity;
-  }[];
-
-  // Section E — Repairs performed
-  repairs: {
-    description: string;
-    parts_replaced?: string[];
-    completed_at: string;
-  }[];
-
-  // Section F — Air brake test (if performed during inspection)
-  air_brake_test?: {
-    test_type: "Class I" | "Class IA";
-    pass: boolean;
-    readings: Record<string, number>;
-  };
-
-  // Section G — Status
-  out_of_service: boolean;
-  out_of_service_at?: string;
-  returned_to_service_at?: string;
-
-  // Section H — Certification
-  signature?: { name: string; signed_at: string };
-};
-
-// Daily Locomotive Inspection per 49 CFR §229.21.
-// Required for every locomotive in use, every calendar day.
-// Items list is pre-populated from §229.21 + cross-referenced sections.
-export type DailyInspection_229_21 = {
-  unit: { reporting_mark: string; road_number: string; unit_model: UnitModel };
-  inspector_name: string;
-  inspector_qualification?: string;
-  inspected_at: string;
-  place_inspected?: string;
-  previous_daily_inspection_at?: string;
-
-  // Each item is a regulatory inspection point. The items array is pre-filled
-  // on ticket creation; the tech/AI updates `result` and optional `note`.
-  items: {
-    code: string;          // e.g. "cab_safety", "sanders", "horn"
-    cfr_ref: string;       // e.g. "§229.45", "§229.129"
-    label: string;
-    result: ItemResult;
-    note?: string;
-    photo_path?: string;
-  }[];
-
-  // Failed items get summarized here for the bad-order tag flow.
-  exceptions: string[];
-
-  signature?: { name: string; signed_at: string };
-};
-
-export type FormPayloadByType = {
-  F6180_49A: F6180_49A;
-  DAILY_INSPECTION_229_21: DailyInspection_229_21;
-};
-
-export type Form =
-  | {
-      ticket_id: number;
-      form_type: "F6180_49A";
-      payload: F6180_49A;
-      status: FormStatus;
-      pdf_path: string | null;
-      updated_at: string;
-    }
-  | {
-      ticket_id: number;
-      form_type: "DAILY_INSPECTION_229_21";
-      payload: DailyInspection_229_21;
-      status: FormStatus;
-      pdf_path: string | null;
-      updated_at: string;
-    };
-
 // === Streaming events on POST /api/tickets/:id/messages ===
 export type StreamEvent =
   | { type: "user_message_persisted"; message: Message }
@@ -286,11 +168,6 @@ export type StreamEvent =
       output: Record<string, unknown>;
     }
   | { type: "request_photo"; prompt: string; reason: string }
-  | {
-      type: "form_updated";
-      form_type: FormType;
-      payload: Record<string, unknown>;
-    }
   | { type: "assistant_message_persisted"; message: Message }
   | { type: "done" }
   | { type: "error"; error: string };

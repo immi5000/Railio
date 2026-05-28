@@ -97,14 +97,6 @@ async def main() -> None:
             {"role": "tech", "content": "Pressure looks normal. Need part for the injector."},
         )
 
-        for ft in ("F6180_49A", "DAILY_INSPECTION_229_21"):
-            out = await _json(
-                client,
-                "POST",
-                f"/api/tickets/{ticket['id']}/forms/{ft}/export",
-            )
-            print("exported", ft, "→", out["pdf_path"])
-
     print("e2e: done. Run `python -m scripts.verify_chain` to validate the hash chain.")
 
 

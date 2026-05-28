@@ -9,7 +9,6 @@ from .parse_fault_dump import parse_fault_dump
 from .record_part_used import record_part_used
 from .search_corpus import search_corpus
 from .set_ticket_status import set_ticket_status
-from .update_form_field import update_form_field
 
 # OpenAI Chat Completions tool definitions (function calling).
 TOOL_DEFS: list[dict[str, Any]] = [
@@ -103,8 +102,8 @@ TOOL_DEFS: list[dict[str, Any]] = [
         "function": {
             "name": "record_part_used",
             "description": (
-                "Record a part as used on this repair. Writes to ticket_parts and adds the "
-                "part_number to F6180_49A.repairs[<last>].parts_replaced if a repair entry exists."
+                "Record a part as used on this repair. Writes to ticket_parts so the "
+                "sidebar and parts history reflect what the tech consumed."
             ),
             "parameters": {
                 "type": "object",
@@ -114,38 +113,6 @@ TOOL_DEFS: list[dict[str, Any]] = [
                     "qty": {"type": "number"},
                 },
                 "required": ["ticket_id", "part_id", "qty"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "update_form_field",
-            "description": (
-                "Update one field on one of the two forms for this ticket. Examples: "
-                "form_type='F6180_49A' field_path='items[2].result' value='pass'; or "
-                "form_type='DAILY_INSPECTION_229_21' field_path='items[5].note' "
-                "value='oil sheen at #3'."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "ticket_id": {"type": "number"},
-                    "form_type": {
-                        "type": "string",
-                        "enum": ["F6180_49A", "DAILY_INSPECTION_229_21"],
-                    },
-                    "field_path": {"type": "string"},
-                    "value": {},
-                    "source_message_id": {"type": "number"},
-                },
-                "required": [
-                    "ticket_id",
-                    "form_type",
-                    "field_path",
-                    "value",
-                    "source_message_id",
-                ],
             },
         },
     },
@@ -193,8 +160,6 @@ async def execute_tool(
         return await lookup_parts(**inp)
     if name == "record_part_used":
         return await record_part_used(emit=emit, **inp)
-    if name == "update_form_field":
-        return await update_form_field(emit=emit, **inp)
     if name == "set_ticket_status":
         return await set_ticket_status(**inp)
     return {"error": f"unknown tool: {name}"}

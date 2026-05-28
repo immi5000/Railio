@@ -15,7 +15,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import (
@@ -102,21 +101,6 @@ class TicketPart(Base):
     qty = Column(Integer, nullable=False)
     added_via = Column(Text, nullable=False)
     added_at = Column(Text, nullable=False)
-
-
-class Form(Base):
-    __tablename__ = "forms"
-    __table_args__ = (
-        UniqueConstraint("ticket_id", "form_type", name="forms_ticket_form_unique"),
-    )
-
-    id = Column(Integer, primary_key=True)
-    ticket_id = Column(Integer, ForeignKey("tickets.id"))
-    form_type = Column(Text, nullable=False)
-    payload = Column(JSONB, nullable=False)
-    status = Column(Text, nullable=False)
-    pdf_path = Column(Text)
-    updated_at = Column(Text, nullable=False)
 
 
 class CorpusChunk(Base):

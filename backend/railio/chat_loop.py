@@ -89,35 +89,6 @@ async def _build_ticket_context(ticket_id: int) -> str | None:
         for tp in t.ticket_parts:
             lines.append(f"  - part_id={tp.part_id} qty={tp.qty}")
 
-    fra = next((f for f in t.forms if f.form_type == "F6180_49A"), None)
-    if fra and fra.payload:
-        fp = fra.payload
-        defects = fp.get("defects") or []
-        if defects:
-            lines.append("Open defects on F6180_49A:")
-            for d in defects:
-                lines.append(
-                    f"  - {d.get('fra_part','?')} @ {d.get('location','?')} "
-                    f"({d.get('severity','?')}) — {d.get('description','')}"
-                )
-        repairs = fp.get("repairs") or []
-        if repairs:
-            lines.append("Repairs already recorded on F6180_49A:")
-            for r in repairs:
-                pr = r.get("parts_replaced") or []
-                pr_str = f" [{', '.join(pr)}]" if pr else ""
-                lines.append(f"  - {r.get('description','')} @ {r.get('completed_at','')}{pr_str}")
-
-    daily = next((f for f in t.forms if f.form_type == "DAILY_INSPECTION_229_21"), None)
-    if daily and daily.payload:
-        items = daily.payload.get("items") or []
-        failed = [i for i in items if i.get("result") == "fail"]
-        if failed:
-            lines.append("Failed items on Daily §229.21 inspection:")
-            for it in failed:
-                note = f" ({it['note']})" if it.get("note") else ""
-                lines.append(f"  - {it.get('cfr_ref','')} {it.get('label','')}{note}")
-
     lines.append("======================")
     return "\n".join(lines)
 

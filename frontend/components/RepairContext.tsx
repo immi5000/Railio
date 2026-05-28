@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getTicket, listForms, listParts, fileUrl } from "@/lib/api";
-import type { Citation, Form, Part, TicketDetail, TicketStatus } from "@/lib/contract";
+import { getTicket, listParts, fileUrl } from "@/lib/api";
+import type { Citation, Part, TicketDetail, TicketStatus } from "@/lib/contract";
 import { formatDate, formatDateOnly, severityClass, statusLabel, statusPillClass } from "@/lib/format";
 import { CitationDrawer } from "./CitationDrawer";
 import { useState } from "react";
@@ -15,19 +14,12 @@ export function RepairContext({ ticketId }: { ticketId: number }) {
     queryFn: () => getTicket(ticketId),
   });
 
-  const { data: forms } = useQuery({
-    queryKey: ["forms", ticketId],
-    queryFn: () => listForms(ticketId),
-  });
-
   const { data: parts } = useQuery({
     queryKey: ["parts", "all"],
     queryFn: () => listParts(),
   });
 
   const [openChunk, setOpenChunk] = useState<number | null>(null);
-
-  const formCount = useFormReadyCount(forms);
 
   const dedupedCitations: Citation[] = useMemo(() => {
     if (!ticket) return [];
@@ -76,22 +68,8 @@ export function RepairContext({ ticketId }: { ticketId: number }) {
         padding: 24,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 16,
-        }}
-      >
+      <div style={{ marginBottom: 16 }}>
         <span className="sect-eyebrow">Repair context</span>
-        <Link
-          href={`/tech/ticket/${ticketId}/forms`}
-          className="pill pill-blue"
-          style={{ textDecoration: "none" }}
-        >
-          Forms ({formCount}/2)
-        </Link>
       </div>
 
       <TicketCard ticket={ticket} />
@@ -468,31 +446,3 @@ function SuggestedParts({
   );
 }
 
-function useFormReadyCount(forms: Form[] | undefined): number {
-  if (!forms) return 0;
-  let count = 0;
-  for (const f of forms) {
-    if (hasMeaningfulPayload(f)) count++;
-  }
-  return count;
-}
-
-function hasMeaningfulPayload(f: Form): boolean {
-  // Heuristic: any non-empty array / string outside of pre-fill identity fields signals readiness.
-  switch (f.form_type) {
-    case "F6180_49A":
-      return (
-        (f.payload.defects?.length ?? 0) > 0 ||
-        (f.payload.repairs?.length ?? 0) > 0 ||
-        f.payload.air_brake_test != null ||
-        f.payload.out_of_service ||
-        !!f.payload.signature
-      );
-    case "DAILY_INSPECTION_229_21":
-      return (
-        (f.payload.items?.some((it) => it.result !== "na") ?? false) ||
-        (f.payload.exceptions?.length ?? 0) > 0 ||
-        !!f.payload.signature
-      );
-  }
-}

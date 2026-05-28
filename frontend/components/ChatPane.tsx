@@ -30,8 +30,6 @@ type Props = {
   role: "dispatcher" | "tech";
   /** Render an empty-state hint when there are no messages yet. */
   emptyHint?: string;
-  /** Notify parent when a `form_updated` event fires. */
-  onFormUpdated?: (formType: string) => void;
   /** Inline upload UI handler — defaults to opening the file picker. */
   onRequestPhoto?: (prompt: string) => void;
 };
@@ -40,7 +38,6 @@ export function ChatPane({
   ticketId,
   role,
   emptyHint,
-  onFormUpdated,
 }: Props) {
   const qc = useQueryClient();
   const { data } = useQuery({
@@ -175,9 +172,6 @@ export function ChatPane({
               }
             : prev,
         );
-        if (ev.name === "update_form_field") {
-          setToast("Form updated");
-        }
         break;
       case "tool_call_completed": {
         setLive((prev) =>
@@ -217,11 +211,6 @@ export function ChatPane({
                 requestPhoto: { prompt: ev.prompt, reason: ev.reason },
               },
         );
-        break;
-      case "form_updated":
-        qc.invalidateQueries({ queryKey: ["forms", ticketId] });
-        onFormUpdated?.(ev.form_type);
-        setToast("Form updated");
         break;
       case "done":
         setStreaming(false);
@@ -642,10 +631,6 @@ function describeTool(tc: ToolCall): string {
       return "Checking the manual...";
     case "lookup_parts":
       return "Looking up parts...";
-    case "append_part_to_requisition":
-      return "Adding part to requisition";
-    case "update_form_field":
-      return "Updating form";
     case "parse_fault_dump":
       return "Parsing fault codes";
     case "request_photo":

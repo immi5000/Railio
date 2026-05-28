@@ -1,8 +1,6 @@
 import type {
   CreateTicketBody,
   DeleteTicketResponse,
-  Form,
-  FormType,
   ListCorpusChunksResponse,
   Part,
   ParsedFault,
@@ -72,7 +70,7 @@ export async function patchTicket(
   });
 }
 
-/** Permanently delete a ticket and all of its messages/forms/parts. */
+/** Permanently delete a ticket and all of its messages/parts. */
 export async function deleteTicket(id: number): Promise<DeleteTicketResponse> {
   return jsonFetch<DeleteTicketResponse>(`/api/tickets/${id}`, {
     method: "DELETE",
@@ -102,32 +100,6 @@ export async function uploadPhotos(
   });
   if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
   return (await res.json()) as { attachments: Attachment[] };
-}
-
-// === Forms ===
-export async function listForms(ticketId: number): Promise<Form[]> {
-  return jsonFetch<Form[]>(`/api/tickets/${ticketId}/forms`);
-}
-
-export async function patchForm(
-  ticketId: number,
-  formType: FormType,
-  payload: Record<string, unknown>,
-): Promise<Form> {
-  return jsonFetch<Form>(`/api/tickets/${ticketId}/forms/${formType}`, {
-    method: "PATCH",
-    body: JSON.stringify({ payload }),
-  });
-}
-
-export async function exportForm(
-  ticketId: number,
-  formType: FormType,
-): Promise<{ pdf_path: string }> {
-  return jsonFetch<{ pdf_path: string }>(
-    `/api/tickets/${ticketId}/forms/${formType}/export`,
-    { method: "POST" },
-  );
 }
 
 // === Parts ===

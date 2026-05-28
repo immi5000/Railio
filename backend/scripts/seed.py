@@ -28,14 +28,13 @@ async def main() -> None:
     async with engine.begin() as conn:
         for stmt in (
             "DELETE FROM ticket_parts",
-            "DELETE FROM forms",
             "DELETE FROM messages",
             "DELETE FROM tickets",
             "DELETE FROM parts",
             "DELETE FROM assets",
         ):
             await conn.execute(text(stmt))
-        for t in ("assets", "parts", "tickets", "messages", "ticket_parts", "forms"):
+        for t in ("assets", "parts", "tickets", "messages", "ticket_parts"):
             await conn.execute(
                 text("SELECT setval(pg_get_serial_sequence(:t, 'id'), 1, false)"),
                 {"t": t},

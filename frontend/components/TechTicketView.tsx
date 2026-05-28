@@ -87,12 +87,6 @@ export function TechTicketView({ ticketId }: { ticketId: number }) {
                 {closeMut.isPending ? "Closing…" : "Close ticket"}
               </button>
             )}
-            <Link
-              href={`/tech/ticket/${ticketId}/forms`}
-              className="btn btn-ghost btn-sm"
-            >
-              Open forms →
-            </Link>
           </div>
         </div>
       </div>

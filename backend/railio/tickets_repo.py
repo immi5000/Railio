@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from typing import Optional
 
-from sqlalchemy import bindparam, text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import text
 
 from .contract import (
     Asset,
-    Form,
-    FormType,
     Severity,
     Ticket,
     TicketDetail,
@@ -21,7 +18,6 @@ from .contract import (
 from .db import session_scope
 from .messages_repo import _iso_now, list_messages
 from .pre_arrival import generate_pre_arrival_summary
-from .pre_fill import build_initial_forms
 
 
 async def get_asset(asset_id: int) -> Optional[Asset]:
@@ -71,9 +67,8 @@ async def get_ticket_detail(ticket_id: int) -> Optional[TicketDetail]:
     if not t:
         return None
     messages = await list_messages(ticket_id)
-    forms = await list_forms(ticket_id)
     ticket_parts = await list_ticket_parts(ticket_id)
-    return TicketDetail(**t.model_dump(), messages=messages, forms=forms, ticket_parts=ticket_parts)
+    return TicketDetail(**t.model_dump(), messages=messages, ticket_parts=ticket_parts)
 
 
 async def _row_to_ticket(r) -> Ticket:
@@ -98,27 +93,6 @@ async def _row_to_ticket(r) -> Ticket:
         pre_arrival_summary=r.get("pre_arrival_summary"),
         closed_at=r.get("closed_at"),
     )
-
-
-async def list_forms(ticket_id: int) -> list[Form]:
-    async with session_scope() as session:
-        rows = (
-            await session.execute(
-                text("SELECT * FROM forms WHERE ticket_id = :tid ORDER BY form_type ASC"),
-                {"tid": ticket_id},
-            )
-        ).mappings().all()
-    return [
-        Form(
-            ticket_id=r["ticket_id"],
-            form_type=r["form_type"],
-            payload=r["payload"],
-            status=r["status"],
-            pdf_path=r.get("pdf_path"),
-            updated_at=r["updated_at"],
-        )
-        for r in rows
-    ]
 
 
 async def list_ticket_parts(ticket_id: int) -> list[TicketPart]:
@@ -153,7 +127,6 @@ async def delete_ticket(ticket_id: int) -> bool:
         for stmt in (
             "DELETE FROM messages WHERE ticket_id = :id",
             "DELETE FROM ticket_parts WHERE ticket_id = :id",
-            "DELETE FROM forms WHERE ticket_id = :id",
             "DELETE FROM tickets WHERE id = :id",
         ):
             await session.execute(text(stmt), {"id": ticket_id})
@@ -200,29 +173,6 @@ async def create_ticket(
                 },
             )
         ).scalar_one()
-
-        initial = build_initial_forms(
-            ticket_id=int(ticket_id),
-            asset=asset,
-            opened_at=opened_at,
-            initial_error_codes=initial_error_codes,
-            initial_symptoms=initial_symptoms,
-            opened_by="dispatcher",
-        )
-        for form_type, payload in initial.items():
-            stmt = (
-                text(
-                    """
-                    INSERT INTO forms (ticket_id, form_type, payload, status, updated_at)
-                    VALUES (:tid, :ft, :payload, 'draft', :now)
-                    """
-                )
-                .bindparams(bindparam("payload", type_=JSONB))
-            )
-            await session.execute(
-                stmt,
-                {"tid": int(ticket_id), "ft": form_type, "payload": payload, "now": opened_at},
-            )
 
     # Best-effort pre-arrival brief. Failure must not break ticket creation.
     try:

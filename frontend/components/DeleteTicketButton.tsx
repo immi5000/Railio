@@ -30,7 +30,6 @@ export function DeleteTicketButton({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tickets"] });
       qc.removeQueries({ queryKey: ["ticket", ticketId] });
-      qc.removeQueries({ queryKey: ["forms", ticketId] });
       setConfirming(false);
       onDeleted?.();
     },
