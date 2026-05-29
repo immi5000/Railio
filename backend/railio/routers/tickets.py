@@ -13,6 +13,7 @@ from ..tickets_repo import (
     delete_ticket,
     get_ticket_detail,
     list_tickets,
+    reset_ticket,
 )
 from ..db import session_scope
 from sqlalchemy import text
@@ -88,3 +89,11 @@ async def delete_ticket_route(ticket_id: int) -> JSONResponse:
     if not ok:
         raise HTTPException(status_code=404, detail="not found")
     return JSONResponse({"deleted": True})
+
+
+@router.post("/{ticket_id}/reset")
+async def reset_ticket_route(ticket_id: int) -> JSONResponse:
+    ok = await reset_ticket(ticket_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="not found")
+    return JSONResponse({"reset": True})

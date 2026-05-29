@@ -7,6 +7,7 @@ import { listTickets } from "@/lib/api";
 import { formatDate, statusLabel, statusPillClass } from "@/lib/format";
 import type { Ticket, TicketStatus } from "@/lib/contract";
 import { DeleteTicketButton } from "./DeleteTicketButton";
+import { ResetTicketButton } from "./ResetTicketButton";
 
 export function QueueList({
   audience,
@@ -149,7 +150,13 @@ export function QueueList({
                     }}
                   >
                     {audience === "dispatcher" && (
-                      <DeleteTicketButton ticketId={t.id} />
+                      <>
+                        <ResetTicketButton
+                          ticketId={t.id}
+                          disabled={!!t.is_pristine}
+                        />
+                        <DeleteTicketButton ticketId={t.id} />
+                      </>
                     )}
                     <span style={{ fontSize: 16, color: "var(--mta)" }}>→</span>
                   </span>

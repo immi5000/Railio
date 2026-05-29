@@ -77,6 +77,7 @@ class Ticket(BaseModel):
     fault_dump_parsed: Optional[list[ParsedFault]] = None
     pre_arrival_summary: Optional[str] = None
     closed_at: Optional[str] = None
+    is_pristine: Optional[bool] = None
 
 
 class Part(BaseModel):

@@ -36,6 +36,13 @@ export type SendMessageBody = {
 export type DeleteTicketResponse = { deleted: true };
 
 /**
+ * POST /api/tickets/:id/reset — demo-only. Wipes the conversation
+ * (messages, ticket_parts) and restores the ticket to its original
+ * AWAITING_TECH state, preserving intake fields and the pre-arrival summary.
+ */
+export type ResetTicketResponse = { reset: true };
+
+/**
  * GET /api/corpus/chunks — browsable knowledge library.
  * Lists every chunk the AI can cite (manual + tribal_knowledge), optionally
  * filtered by `doc_class` and free-text `q`. Used by the /knowledge page so
@@ -113,6 +120,7 @@ export type Ticket = {
   fault_dump_parsed: ParsedFault[] | null;
   pre_arrival_summary: string | null;
   closed_at: string | null;
+  is_pristine: boolean | null;
 };
 
 export type TicketDetail = Ticket & {

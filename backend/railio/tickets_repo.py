@@ -71,6 +71,25 @@ async def get_ticket_detail(ticket_id: int) -> Optional[TicketDetail]:
     return TicketDetail(**t.model_dump(), messages=messages, ticket_parts=ticket_parts)
 
 
+async def _ticket_is_pristine(ticket_id: int, status: str, has_parsed: bool) -> bool:
+    if status != "AWAITING_TECH" or has_parsed:
+        return False
+    async with session_scope() as session:
+        counts = (
+            await session.execute(
+                text(
+                    """
+                    SELECT
+                        (SELECT count(*) FROM messages WHERE ticket_id = :id) AS msgs,
+                        (SELECT count(*) FROM ticket_parts WHERE ticket_id = :id) AS parts
+                    """
+                ),
+                {"id": ticket_id},
+            )
+        ).mappings().first()
+    return counts["msgs"] == 0 and counts["parts"] == 0
+
+
 async def _row_to_ticket(r) -> Ticket:
     asset = await get_asset(r["asset_id"])
     assert asset is not None
@@ -80,6 +99,9 @@ async def _row_to_ticket(r) -> Ticket:
             fault_dump_parsed = json.loads(r["fault_dump_parsed"])
         except (TypeError, ValueError):
             fault_dump_parsed = None
+    is_pristine = await _ticket_is_pristine(
+        r["id"], r["status"], bool(r.get("fault_dump_parsed"))
+    )
     return Ticket(
         id=r["id"],
         asset=asset,
@@ -92,6 +114,7 @@ async def _row_to_ticket(r) -> Ticket:
         fault_dump_parsed=fault_dump_parsed,
         pre_arrival_summary=r.get("pre_arrival_summary"),
         closed_at=r.get("closed_at"),
+        is_pristine=is_pristine,
     )
 
 
@@ -130,6 +153,35 @@ async def delete_ticket(ticket_id: int) -> bool:
             "DELETE FROM tickets WHERE id = :id",
         ):
             await session.execute(text(stmt), {"id": ticket_id})
+    return True
+
+
+async def reset_ticket(ticket_id: int) -> bool:
+    """Demo-only: wipe the conversation and restore the ticket's original state."""
+    async with session_scope() as session:
+        exists = (
+            await session.execute(
+                text("SELECT id FROM tickets WHERE id = :id"), {"id": ticket_id}
+            )
+        ).scalar_one_or_none()
+        if not exists:
+            return False
+        await session.execute(
+            text("DELETE FROM messages WHERE ticket_id = :id"), {"id": ticket_id}
+        )
+        await session.execute(
+            text("DELETE FROM ticket_parts WHERE ticket_id = :id"), {"id": ticket_id}
+        )
+        await session.execute(
+            text(
+                """
+                UPDATE tickets
+                SET status = 'AWAITING_TECH', fault_dump_parsed = NULL, closed_at = NULL
+                WHERE id = :id
+                """
+            ),
+            {"id": ticket_id},
+        )
     return True
 
 

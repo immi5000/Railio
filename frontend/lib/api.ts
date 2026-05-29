@@ -1,6 +1,7 @@
 import type {
   CreateTicketBody,
   DeleteTicketResponse,
+  ResetTicketResponse,
   ListCorpusChunksResponse,
   Part,
   ParsedFault,
@@ -74,6 +75,13 @@ export async function patchTicket(
 export async function deleteTicket(id: number): Promise<DeleteTicketResponse> {
   return jsonFetch<DeleteTicketResponse>(`/api/tickets/${id}`, {
     method: "DELETE",
+  });
+}
+
+/** Demo-only: wipe the chat and restore the ticket to its original state. */
+export async function resetTicket(id: number): Promise<ResetTicketResponse> {
+  return jsonFetch<ResetTicketResponse>(`/api/tickets/${id}/reset`, {
+    method: "POST",
   });
 }
 
