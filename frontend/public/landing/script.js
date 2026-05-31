@@ -69,15 +69,14 @@
       ]}
     },
     {
-      num: '03', k: 'Document',
-      title: 'The paperwork files itself.',
-      sub: 'FRA F6180.49A and your CMMS work order drafted from the voice transcript and steps actually completed. Sign off in 30 seconds.',
-      panel: { kind: 'form', left: 'FRA F6180.49A', right: 'DRAFT — READY', rows: [
-        ['Unit',    '4423'],
-        ['Defect',  'Air brake — gasket leak, car 6 B-end'],
-        ['Repair',  'Replaced gasket P/N 9120-44A'],
-        ['Tested',  '90 PSI · 60s · pass'],
-        ['Filed',   '02:24 — auto from session']
+      num: '03', k: 'Capture',
+      title: 'Capture what you learn.',
+      sub: 'Tech says the trick that worked. Railio writes it to tribal notes — searchable and cite-able for the next tech who hits the same fault.',
+      panel: { kind: 'kv', left: 'TRIBAL NOTE', right: 'SAVED ✓', rows: [
+        ['Lesson',       'Check fuel rail transducer voltage before swapping injectors on ES44DC'],
+        ['From',         'Tech JM · 32 yrs on the floor'],
+        ['Saved to',     'Tribal notes · ES44DC family'],
+        ['Surfaces on',  'Next similar fault']
       ]}
     },
   ];
@@ -103,13 +102,6 @@
         inner += '<div class="' + cls + '"><span class="b"></span><span class="lbl">' + escHtml(c.label) + '</span>'
               + (c.now ? '<span class="now-tag">Now</span>' : '') + '</div>';
       });
-      inner += '</div>';
-    } else if (p.kind === 'form') {
-      inner += '<div class="formdoc">';
-      p.rows.forEach(function (r) {
-        inner += '<div class="frow"><span class="k">' + escHtml(r[0]) + '</span><span>' + escHtml(r[1]) + '</span></div>';
-      });
-      inner += '<div class="stamp"><span style="color:#6B6B6B">Signed · Tech JM · 02:24</span><span class="ok">Filed ✓</span></div>';
       inner += '</div>';
     }
     return '<div class="dossier">'

@@ -193,11 +193,6 @@ footer{position:relative}
 .checks .c .lbl{flex:1}
 .checks .c .now-tag{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--mta);text-transform:uppercase}
 
-.formdoc .frow{display:grid;grid-template-columns:130px 1fr;padding:10px 0;border-bottom:1px dashed var(--border);font-size:13.5px}
-.formdoc .frow .k{color:#6B6B6B;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;align-self:center}
-.formdoc .stamp{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
-.formdoc .stamp .ok{padding:6px 12px;background:#000;color:#fff}
-
 .metrics{display:grid;grid-template-columns:repeat(12,1fr);gap:0;border-top:1px solid #2A2A2A;border-left:1px solid #2A2A2A}
 .m{grid-column:span 4;border-right:1px solid #2A2A2A;border-bottom:1px solid #2A2A2A;padding:40px 32px;display:flex;flex-direction:column;gap:14px;min-height:240px;justify-content:space-between}
 .m.blue{background:var(--mta);color:#fff}
