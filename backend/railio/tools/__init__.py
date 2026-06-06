@@ -90,7 +90,13 @@ TOOL_DEFS: list[dict[str, Any]] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "unit_model": {"type": "string", "enum": ["ES44DC"]},
+                    "unit_model": {
+                        "type": "string",
+                        "description": (
+                            "The locomotive unit model to filter parts by. Use the model named "
+                            "in the ticket context."
+                        ),
+                    },
                     "query": {"type": "string"},
                 },
                 "required": ["unit_model", "query"],
@@ -141,10 +147,19 @@ ToolEmit = Callable[[dict[str, Any]], None]
 
 
 async def execute_tool(
-    name: str, inp: dict[str, Any], emit: ToolEmit
+    name: str,
+    inp: dict[str, Any],
+    emit: ToolEmit,
+    scope: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if name == "search_corpus":
-        return await search_corpus(**inp)
+        # Scope is bound by the runtime from the ticket's asset and OVERRIDES any
+        # unit_model/asset_id the model might pass — the model must not pick scope.
+        args = {k: v for k, v in inp.items() if k not in ("unit_model", "asset_id")}
+        if scope:
+            args["unit_model"] = scope.get("unit_model")
+            args["asset_id"] = scope.get("asset_id")
+        return await search_corpus(**args)
     if name == "parse_fault_dump":
         return await parse_fault_dump(**inp)
     if name == "request_photo":

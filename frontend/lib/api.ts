@@ -1,8 +1,13 @@
 import type {
   CreateTicketBody,
+  CreateAssetBody,
+  AttachDocumentBody,
   DeleteTicketResponse,
   ResetTicketResponse,
   ListCorpusChunksResponse,
+  WrapUpDraft,
+  FinalizeWrapUpBody,
+  Asset,
   Part,
   ParsedFault,
   Ticket,
@@ -85,6 +90,22 @@ export async function resetTicket(id: number): Promise<ResetTicketResponse> {
   });
 }
 
+/** AI-drafted repair record (summary + notes) for the post-ticket wrap-up. */
+export async function getWrapUpDraft(id: number): Promise<WrapUpDraft> {
+  return jsonFetch<WrapUpDraft>(`/api/tickets/${id}/wrap-up/draft`);
+}
+
+/** File the repair record into the unit's corpus and close the ticket. */
+export async function finalizeWrapUp(
+  id: number,
+  body: FinalizeWrapUpBody,
+): Promise<{ chunk_id: number; ticket: TicketDetail }> {
+  return jsonFetch<{ chunk_id: number; ticket: TicketDetail }>(
+    `/api/tickets/${id}/wrap-up`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+}
+
 export async function parseFaultDump(
   ticketId: number,
   raw: string,
@@ -108,6 +129,28 @@ export async function uploadPhotos(
   });
   if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
   return (await res.json()) as { attachments: Attachment[] };
+}
+
+// === Assets (fleet roster) ===
+export async function listAssets(): Promise<Asset[]> {
+  return jsonFetch<Asset[]>(`/api/assets`);
+}
+
+export async function createAsset(body: CreateAssetBody): Promise<Asset> {
+  return jsonFetch<Asset>(`/api/assets`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function attachAssetDocument(
+  assetId: number,
+  body: AttachDocumentBody,
+): Promise<{ chunk_id: number }> {
+  return jsonFetch<{ chunk_id: number }>(`/api/assets/${assetId}/documents`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 // === Parts ===

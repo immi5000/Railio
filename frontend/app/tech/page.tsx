@@ -1,5 +1,14 @@
-import { QueueList } from "@/components/QueueList";
+"use client";
 
-export default function TechQueuePage() {
-  return <QueueList audience="tech" />;
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { setRoleCookie } from "@/lib/role";
+
+export default function TechQueueRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    setRoleCookie("tech");
+    router.replace("/work");
+  }, [router]);
+  return null;
 }

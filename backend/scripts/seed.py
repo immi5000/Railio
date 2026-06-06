@@ -28,9 +28,13 @@ async def main() -> None:
     async with engine.begin() as conn:
         for stmt in (
             "DELETE FROM ticket_parts",
+            "DELETE FROM tribal_capture",
             "DELETE FROM messages",
             "DELETE FROM tickets",
             "DELETE FROM parts",
+            # corpus_chunks.asset_id FKs assets — clear the refs before deleting
+            # assets. corpus_build fully rebuilds corpus_chunks afterward.
+            "UPDATE corpus_chunks SET asset_id = NULL",
             "DELETE FROM assets",
         ):
             await conn.execute(text(stmt))

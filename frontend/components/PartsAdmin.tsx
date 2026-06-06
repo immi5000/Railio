@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { listParts, patchPart } from "@/lib/api";
+import { listAssets, listParts, patchPart } from "@/lib/api";
 import type { Part, UnitModel } from "@/lib/contract";
 
 export function PartsAdmin() {
@@ -15,6 +15,15 @@ export function PartsAdmin() {
     queryFn: () =>
       listParts({ q: q || undefined, unit_model: unit || undefined }),
   });
+
+  // Unit-model filter options come from the live fleet roster, not a literal.
+  const { data: assets } = useQuery({
+    queryKey: ["assets"],
+    queryFn: () => listAssets(),
+  });
+  const unitModels = Array.from(
+    new Set((assets || []).map((a) => a.unit_model)),
+  ).sort();
 
   return (
     <section style={{ padding: "32px 0 96px" }}>
@@ -59,7 +68,11 @@ export function PartsAdmin() {
             onChange={(e) => setUnit(e.target.value as UnitModel | "")}
           >
             <option value="">All units</option>
-            <option value="ES44DC">ES44DC</option>
+            {unitModels.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
           </select>
           <span
             className="micro"
@@ -197,7 +210,7 @@ function PartRow({
               compatible_units: v
                 .split(",")
                 .map((s) => s.trim())
-                .filter((s): s is UnitModel => s === "ES44DC"),
+                .filter((s) => s.length > 0),
             })
           }
         />

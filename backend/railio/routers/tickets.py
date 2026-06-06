@@ -7,10 +7,17 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
 
-from ..contract import CreateTicketBody, PatchTicketBody, TicketStatus
+from ..contract import (
+    CreateTicketBody,
+    FinalizeWrapUpBody,
+    PatchTicketBody,
+    TicketStatus,
+)
+from ..post_repair import draft_repair_record
 from ..tickets_repo import (
     create_ticket,
     delete_ticket,
+    finalize_wrap_up,
     get_ticket_detail,
     list_tickets,
     reset_ticket,
@@ -89,6 +96,33 @@ async def delete_ticket_route(ticket_id: int) -> JSONResponse:
     if not ok:
         raise HTTPException(status_code=404, detail="not found")
     return JSONResponse({"deleted": True})
+
+
+@router.get("/{ticket_id}/wrap-up/draft")
+async def wrap_up_draft_route(ticket_id: int) -> JSONResponse:
+    t = await get_ticket_detail(ticket_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="not found")
+    draft = await draft_repair_record(ticket_id)
+    return JSONResponse(draft)
+
+
+@router.post("/{ticket_id}/wrap-up")
+async def wrap_up_finalize_route(
+    ticket_id: int, body: FinalizeWrapUpBody
+) -> JSONResponse:
+    if not body.summary.strip():
+        raise HTTPException(status_code=400, detail="summary required")
+    chunk_id = await finalize_wrap_up(
+        ticket_id,
+        summary=body.summary,
+        notes=body.notes,
+        author=body.author,
+    )
+    if chunk_id is None:
+        raise HTTPException(status_code=404, detail="ticket not found")
+    t = await get_ticket_detail(ticket_id)
+    return JSONResponse({"chunk_id": chunk_id, "ticket": t.model_dump(by_alias=True)})
 
 
 @router.post("/{ticket_id}/reset")

@@ -44,6 +44,41 @@ MAX_CHARS_PER_CHUNK = 6000
 EMBED_BATCH = 96
 SKIP_KEYS = {"HEAD", "AUTH", "CITA", "SOURCE", "EFFDATE", "EDNOTE", "RESERVED", "EAR"}
 
+# Default model for the v0 fleet. Manual + tribal + history chunks are ES44DC;
+# CFR is shared (unit_model stays null). Multi-model later: tag per source file.
+DEFAULT_UNIT_MODEL = "ES44DC"
+
+
+async def _road_number_to_asset_id() -> dict[str, int]:
+    """Map road_number -> asset id so unit-specific history chunks can be scoped."""
+    from railio.db import session_scope
+
+    out: dict[str, int] = {}
+    async with session_scope() as s:
+        rows = (await s.execute(text("SELECT id, road_number FROM assets"))).mappings().all()
+        for r in rows:
+            out[str(r["road_number"])] = r["id"]
+    return out
+
+
+def _scope_for_chunk(chunk: dict[str, Any], road_to_asset: dict[str, int]) -> dict[str, Any]:
+    """Decide unit_model + asset_id for a corpus chunk from its doc_id convention.
+
+    - cfr_*            -> shared (unit_model null, asset_id null)
+    - ge_es44dc_*      -> ES44DC manual (asset_id null)
+    - tribal_*         -> ES44DC fleet wisdom, cross-unit (asset_id null)
+    - inspection_*/repair_* with a road number -> ES44DC, scoped to that asset
+    """
+    doc_id = chunk.get("doc_id", "")
+    if doc_id.startswith("cfr_"):
+        return {"unit_model": None, "asset_id": None}
+    asset_id = None
+    for rn, aid in road_to_asset.items():
+        if rn and rn in doc_id:
+            asset_id = aid
+            break
+    return {"unit_model": DEFAULT_UNIT_MODEL, "asset_id": asset_id}
+
 
 def _walk(node: ET.Element) -> Iterator[ET.Element]:
     yield node
@@ -157,6 +192,10 @@ async def main() -> None:
         else:
             print(f"unsupported kind {s['kind']} ({s['out_filename']}); skipping")
 
+    road_to_asset = await _road_number_to_asset_id()
+    for c in chunks:
+        c.update(_scope_for_chunk(c, road_to_asset))
+
     print(f"\ntotal: {len(chunks)} chunks. Embedding…")
     engine = get_engine()
     async with engine.begin() as conn:
@@ -169,10 +208,11 @@ async def main() -> None:
         stmt = text(
             """
             INSERT INTO corpus_chunks
-                (doc_class, doc_id, doc_title, source_label, page, text, embedding)
+                (doc_class, doc_id, doc_title, source_label, page, text,
+                 unit_model, asset_id, embedding)
             VALUES
                 (:doc_class, :doc_id, :doc_title, :source_label, :page, :text,
-                 CAST(:embedding AS vector))
+                 :unit_model, :asset_id, CAST(:embedding AS vector))
             """
         )
         for i in range(0, len(chunks), EMBED_BATCH):
@@ -188,6 +228,8 @@ async def main() -> None:
                         "source_label": c["source_label"],
                         "page": c.get("page"),
                         "text": c["text"],
+                        "unit_model": c.get("unit_model"),
+                        "asset_id": c.get("asset_id"),
                         "embedding": "[" + ",".join(str(x) for x in v) + "]",
                     },
                 )

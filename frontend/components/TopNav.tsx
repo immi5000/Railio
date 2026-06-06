@@ -1,29 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { clearRoleCookie, getRoleCookie } from "@/lib/role";
 
 export function TopNav() {
   const pathname = usePathname();
-  const router = useRouter();
-  const [role, setRole] = useState<"dispatcher" | "tech" | null>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    setRole(getRoleCookie());
     setOpen(false);
   }, [pathname]);
-
-  // The role picker page is fullscreen — hide the nav there.
-  if (pathname === "/app") return null;
-
-  function switchRole() {
-    clearRoleCookie();
-    setOpen(false);
-    router.push("/app");
-  }
 
   const isAdmin = pathname?.startsWith("/admin");
 
@@ -36,40 +23,22 @@ export function TopNav() {
       >
         ← Landing
       </a>
-      {role === "dispatcher" && (
-        <>
-          <Link
-            href="/dispatcher"
-            style={navLinkStyle(pathname === "/dispatcher")}
-          >
-            Queue
-          </Link>
-          <Link
-            href="/dispatcher/new"
-            style={navLinkStyle(pathname === "/dispatcher/new")}
-          >
-            New ticket
-          </Link>
-        </>
-      )}
-      {role === "tech" && (
-        <Link href="/tech" style={navLinkStyle(pathname === "/tech")}>
-          Queue
-        </Link>
-      )}
+      <Link
+        href="/work"
+        style={navLinkStyle(pathname?.startsWith("/work") ?? false)}
+      >
+        Tickets
+      </Link>
       <Link
         href="/knowledge"
         style={navLinkStyle(pathname?.startsWith("/knowledge") ?? false)}
-        title="Browse what the LLM cites"
+        title="Browse what the copilot cites"
       >
         Knowledge
       </Link>
       <Link href="/admin/parts" style={navLinkStyle(!!isAdmin)}>
-        Parts admin
+        Parts
       </Link>
-      <button onClick={switchRole} className="btn btn-ghost btn-sm">
-        {role ? `${role} · switch` : "Pick role"}
-      </button>
     </>
   );
 
@@ -92,7 +61,7 @@ export function TopNav() {
           height: 56,
         }}
       >
-        <Link href={role === "tech" ? "/tech" : "/dispatcher"} className="brand">
+        <Link href="/work" className="brand">
           <span className="mk">
             <i />
           </span>

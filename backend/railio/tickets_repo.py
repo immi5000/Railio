@@ -15,6 +15,7 @@ from .contract import (
     TicketPart,
     TicketStatus,
 )
+from .corpus_repo import insert_corpus_chunk
 from .db import session_scope
 from .messages_repo import _iso_now, list_messages
 from .pre_arrival import generate_pre_arrival_summary
@@ -172,6 +173,21 @@ async def reset_ticket(ticket_id: int) -> bool:
         await session.execute(
             text("DELETE FROM ticket_parts WHERE ticket_id = :id"), {"id": ticket_id}
         )
+        # Remove any wrap-up artifacts so re-running the demo scenario is clean.
+        await session.execute(
+            text(
+                """
+                DELETE FROM corpus_chunks WHERE id IN (
+                    SELECT promoted_chunk_id FROM tribal_capture
+                    WHERE ticket_id = :id AND promoted_chunk_id IS NOT NULL
+                )
+                """
+            ),
+            {"id": ticket_id},
+        )
+        await session.execute(
+            text("DELETE FROM tribal_capture WHERE ticket_id = :id"), {"id": ticket_id}
+        )
         await session.execute(
             text(
                 """
@@ -183,6 +199,97 @@ async def reset_ticket(ticket_id: int) -> bool:
             {"id": ticket_id},
         )
     return True
+
+
+async def finalize_wrap_up(
+    ticket_id: int,
+    *,
+    summary: str,
+    notes: Optional[str],
+    author: Optional[str] = None,
+) -> Optional[int]:
+    """File a closed ticket's repair record into the unit's corpus.
+
+    Writes a tribal_knowledge chunk scoped to the asset (so it surfaces in that
+    unit's future chats), records the capture in tribal_capture with a link to
+    the new chunk, and closes the ticket. Returns the new chunk id.
+    """
+    t = await get_ticket_detail(ticket_id)
+    if not t:
+        return None
+    a = t.asset
+
+    parts_lines = []
+    async with session_scope() as session:
+        rows = (
+            await session.execute(
+                text(
+                    """
+                    SELECT p.part_number, p.name, tp.qty
+                    FROM ticket_parts tp JOIN parts p ON p.id = tp.part_id
+                    WHERE tp.ticket_id = :tid ORDER BY tp.id
+                    """
+                ),
+                {"tid": ticket_id},
+            )
+        ).mappings().all()
+        for r in rows:
+            parts_lines.append(f"{r['qty']}× {r['name']} ({r['part_number']})")
+
+    now = _iso_now()
+    date = now[:10]
+    body_parts = [
+        f"Ticket #{ticket_id} (closed {date}). "
+        f"Unit: {a.reporting_mark} {a.unit_model} {a.road_number}.",
+        f"Symptoms: {t.initial_symptoms or '—'}.",
+        f"Error codes: {t.initial_error_codes or '—'}.",
+        summary.strip(),
+    ]
+    if notes and notes.strip() and notes.strip() != "- No additional notes.":
+        body_parts.append(f"Tech notes: {notes.strip()}")
+    if parts_lines:
+        body_parts.append("Parts used: " + "; ".join(parts_lines) + ".")
+    text_body = "\n".join(body_parts)
+
+    source_label = (
+        f"Repair Record — {a.reporting_mark} {a.unit_model} {a.road_number} — "
+        f"{date} — Ticket #{ticket_id}"
+    )
+    doc_id = f"repair_{a.reporting_mark}_{a.road_number}_{date}_t{ticket_id}".lower().replace(" ", "_")
+
+    chunk_id = await insert_corpus_chunk(
+        doc_class="tribal_knowledge",
+        doc_id=doc_id,
+        doc_title=f"Repair Record — {a.reporting_mark} {a.unit_model} {a.road_number}",
+        source_label=source_label,
+        text_body=text_body,
+        unit_model=a.unit_model,
+        asset_id=a.id,
+    )
+
+    async with session_scope() as session:
+        await session.execute(
+            text(
+                """
+                INSERT INTO tribal_capture (ticket_id, author, text, captured_at, promoted_chunk_id)
+                VALUES (:tid, :author, :text, :at, :chunk)
+                """
+            ),
+            {
+                "tid": ticket_id,
+                "author": author,
+                "text": text_body,
+                "at": now,
+                "chunk": chunk_id,
+            },
+        )
+        await session.execute(
+            text(
+                "UPDATE tickets SET status = 'CLOSED', closed_at = :at WHERE id = :id"
+            ),
+            {"at": now, "id": ticket_id},
+        )
+    return chunk_id
 
 
 async def create_ticket(

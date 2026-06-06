@@ -4,19 +4,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  createAsset,
   createTicket,
-  listTickets,
+  listAssets,
   parseFaultDump,
   patchTicket,
 } from "@/lib/api";
-import type { ParsedFault, Severity, Ticket } from "@/lib/contract";
+import type { Asset, ParsedFault, Severity, Ticket } from "@/lib/contract";
 import { ChatPane } from "./ChatPane";
 import { severityClass } from "@/lib/format";
-
-// Until the backend exposes a /api/assets list, allow the dispatcher to
-// type a unit number; we synthesize a payload aligned with CreateTicketBody.
-// See contract.ts: CreateTicketBody.asset_id is required.
-type AssetSeed = { id: number; reporting_mark: string; road_number: string };
 
 export function DispatcherIntake() {
   const router = useRouter();
@@ -29,25 +25,31 @@ export function DispatcherIntake() {
   const [errorCodes, setErrorCodes] = useState("");
   const [faultDump, setFaultDump] = useState("");
   const [severity, setSeverity] = useState<Severity>("major");
+  const [addingAsset, setAddingAsset] = useState(false);
+  const [newUnitModel, setNewUnitModel] = useState("ES44DC");
 
-  // Existing tickets are used to seed the asset selector with anything we already know.
-  const { data: existing } = useQuery({
-    queryKey: ["tickets", "all-for-asset-seed"],
-    queryFn: () => listTickets(),
+  // The fleet roster is the source of truth for the asset selector.
+  const { data: assets } = useQuery({
+    queryKey: ["assets"],
+    queryFn: () => listAssets(),
   });
-  const knownAssets: AssetSeed[] = (existing || []).reduce<AssetSeed[]>(
-    (acc, t) => {
-      if (!acc.some((a) => a.id === t.asset.id)) {
-        acc.push({
-          id: t.asset.id,
-          reporting_mark: t.asset.reporting_mark,
-          road_number: t.asset.road_number,
-        });
-      }
-      return acc;
+  const knownAssets: Asset[] = assets || [];
+
+  const addAssetMut = useMutation({
+    mutationFn: () =>
+      createAsset({
+        reporting_mark: reportingMark.trim(),
+        road_number: roadNumber.trim(),
+        unit_model: newUnitModel.trim() || "ES44DC",
+      }),
+    onSuccess: (a) => {
+      qc.invalidateQueries({ queryKey: ["assets"] });
+      setAssetId(a.id);
+      setReportingMark(a.reporting_mark);
+      setRoadNumber(a.road_number);
+      setAddingAsset(false);
     },
-    [],
-  );
+  });
 
   const [createdTicket, setCreatedTicket] = useState<Ticket | null>(null);
   const [parsed, setParsed] = useState<ParsedFault[] | null>(null);
@@ -91,7 +93,7 @@ export function DispatcherIntake() {
     if (!createdTicket) return;
     await patchTicket(createdTicket.id, { status: "AWAITING_TECH" });
     qc.invalidateQueries({ queryKey: ["tickets"] });
-    router.push("/dispatcher");
+    router.push("/work");
   }
 
   return (
@@ -120,73 +122,92 @@ export function DispatcherIntake() {
             <span className="sect-eyebrow">Intake</span>
             <div style={{ marginTop: 16, display: "grid", gap: 16 }}>
               <div>
-                <label className="label">Asset</label>
-                {knownAssets.length > 0 && (
-                  <select
-                    className="select"
-                    value={assetId === "" ? "" : assetId}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v === "") {
-                        setAssetId("");
-                      } else {
-                        const id = Number(v);
-                        setAssetId(id);
-                        const a = knownAssets.find((x) => x.id === id);
-                        if (a) {
-                          setReportingMark(a.reporting_mark);
-                          setRoadNumber(a.road_number);
-                        }
+                <label className="label">Locomotive</label>
+                <select
+                  className="select"
+                  value={addingAsset ? "__add__" : assetId === "" ? "" : assetId}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "__add__") {
+                      setAddingAsset(true);
+                      setAssetId("");
+                      setReportingMark("");
+                      setRoadNumber("");
+                    } else if (v === "") {
+                      setAddingAsset(false);
+                      setAssetId("");
+                    } else {
+                      setAddingAsset(false);
+                      const id = Number(v);
+                      setAssetId(id);
+                      const a = knownAssets.find((x) => x.id === id);
+                      if (a) {
+                        setReportingMark(a.reporting_mark);
+                        setRoadNumber(a.road_number);
                       }
-                    }}
-                    disabled={!!createdTicket}
-                  >
-                    <option value="">— Select a unit —</option>
-                    {knownAssets.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.reporting_mark} {a.road_number}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    marginTop: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <input
-                    className="input"
-                    style={{ flex: "1 1 140px" }}
-                    placeholder="Reporting mark"
-                    value={reportingMark}
-                    onChange={(e) => setReportingMark(e.target.value)}
-                    disabled={!!createdTicket}
-                  />
-                  <input
-                    className="input"
-                    style={{ flex: "1 1 140px" }}
-                    placeholder="Road number"
-                    value={roadNumber}
-                    onChange={(e) => setRoadNumber(e.target.value)}
-                    disabled={!!createdTicket}
-                  />
-                  <input
-                    className="input"
-                    style={{ flex: "1 1 100px", maxWidth: 160 }}
-                    placeholder="Asset ID"
-                    type="number"
-                    value={assetId === "" ? "" : assetId}
-                    onChange={(e) =>
-                      setAssetId(
-                        e.target.value === "" ? "" : Number(e.target.value),
-                      )
                     }
-                    disabled={!!createdTicket}
-                  />
-                </div>
+                  }}
+                  disabled={!!createdTicket}
+                >
+                  <option value="">— Select a unit —</option>
+                  {knownAssets.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.reporting_mark} {a.road_number} · {a.unit_model}
+                    </option>
+                  ))}
+                  <option value="__add__">+ Add a new locomotive…</option>
+                </select>
+
+                {addingAsset && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      marginTop: 8,
+                      flexWrap: "wrap",
+                      alignItems: "flex-end",
+                    }}
+                  >
+                    <input
+                      className="input"
+                      style={{ flex: "1 1 120px" }}
+                      placeholder="Reporting mark"
+                      value={reportingMark}
+                      onChange={(e) => setReportingMark(e.target.value)}
+                    />
+                    <input
+                      className="input"
+                      style={{ flex: "1 1 120px" }}
+                      placeholder="Road number"
+                      value={roadNumber}
+                      onChange={(e) => setRoadNumber(e.target.value)}
+                    />
+                    <input
+                      className="input"
+                      style={{ flex: "1 1 120px" }}
+                      placeholder="Unit model"
+                      value={newUnitModel}
+                      onChange={(e) => setNewUnitModel(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      disabled={
+                        addAssetMut.isPending ||
+                        !reportingMark.trim() ||
+                        !roadNumber.trim()
+                      }
+                      onClick={() => addAssetMut.mutate()}
+                    >
+                      {addAssetMut.isPending ? "Adding…" : "Add unit"}
+                    </button>
+                  </div>
+                )}
+                {addAssetMut.error && (
+                  <div style={{ color: "#8a1f15", fontSize: 12, marginTop: 6 }}>
+                    {(addAssetMut.error as Error).message}
+                  </div>
+                )}
               </div>
 
               <div>

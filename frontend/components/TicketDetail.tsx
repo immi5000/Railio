@@ -1,15 +1,28 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getTicket, patchTicket } from "@/lib/api";
 import { ChatPane } from "./ChatPane";
 import { RepairContext } from "./RepairContext";
-import { statusLabel, statusPillClass } from "@/lib/format";
+import { formatDate, statusLabel, statusPillClass } from "@/lib/format";
+import type { Role } from "@/lib/role";
 import type { TicketStatus } from "@/lib/contract";
 
-export function TechTicketView({ ticketId }: { ticketId: number }) {
+/**
+ * Detail pane of the workspace. Tech gets chat + repair context + lifecycle
+ * actions; dispatcher gets the briefing chat. The list lives in the shell; this
+ * pane owns the screen in focus mode (a back affordance returns to the list).
+ */
+export function TicketDetail({
+  ticketId,
+  role,
+  onBack,
+}: {
+  ticketId: number;
+  role: Role;
+  onBack: () => void;
+}) {
   const qc = useQueryClient();
   const router = useRouter();
   const { data: ticket } = useQuery({
@@ -19,20 +32,39 @@ export function TechTicketView({ ticketId }: { ticketId: number }) {
 
   const startMut = useMutation({
     mutationFn: () => patchTicket(ticketId, { status: "IN_PROGRESS" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["ticket", ticketId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+    },
   });
+
+  const isTech = role === "tech";
 
   return (
     <section
       className="ticket-shell"
       style={{
         padding: "16px 0 0",
-        height: "calc(100vh - 56px)",
+        height: "100%",
         display: "flex",
         flexDirection: "column",
       }}
     >
       <div className="wrap" style={{ marginBottom: 12 }}>
+        <button
+          type="button"
+          onClick={onBack}
+          className="micro"
+          style={{
+            color: "var(--muted)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          ← All tickets
+        </button>
         <div
           style={{
             display: "flex",
@@ -40,15 +72,17 @@ export function TechTicketView({ ticketId }: { ticketId: number }) {
             justifyContent: "space-between",
             gap: 16,
             flexWrap: "wrap",
+            marginTop: 4,
           }}
         >
           <div>
-            <Link href="/tech" className="micro" style={{ color: "var(--muted)" }}>
-              ← Back to queue
-            </Link>
-            <h1 className="h2" style={{ marginTop: 4 }}>
-              Ticket #{ticketId}
-            </h1>
+            <h1 className="h2">Ticket #{ticketId}</h1>
+            {ticket && (
+              <span className="micro" style={{ color: "var(--muted)" }}>
+                {ticket.asset.reporting_mark} {ticket.asset.road_number} ·{" "}
+                {ticket.asset.unit_model} · opened {formatDate(ticket.opened_at)}
+              </span>
+            )}
           </div>
           <div
             style={{
@@ -63,7 +97,7 @@ export function TechTicketView({ ticketId }: { ticketId: number }) {
                 {statusLabel(ticket.status as TicketStatus)}
               </span>
             )}
-            {ticket?.status === "AWAITING_TECH" && (
+            {isTech && ticket?.status === "AWAITING_TECH" && (
               <button
                 className="btn btn-primary btn-sm"
                 onClick={() => startMut.mutate()}
@@ -72,7 +106,7 @@ export function TechTicketView({ ticketId }: { ticketId: number }) {
                 {startMut.isPending ? "Starting…" : "Start work"}
               </button>
             )}
-            {ticket?.status === "IN_PROGRESS" && (
+            {isTech && ticket?.status === "IN_PROGRESS" && (
               <button
                 className="btn btn-super btn-sm"
                 onClick={() => router.push(`/tech/ticket/${ticketId}/wrap-up`)}
@@ -89,23 +123,28 @@ export function TechTicketView({ ticketId }: { ticketId: number }) {
         style={{
           flex: 1,
           minHeight: 0,
-          gridTemplateColumns: "1.3fr .9fr",
-          gap: 0,
+          gridTemplateColumns: isTech ? "1.3fr .9fr" : "1fr",
+          gap: isTech ? 0 : 24,
           paddingBottom: 16,
         }}
       >
         <div style={{ minHeight: 0 }}>
           <ChatPane
             ticketId={ticketId}
-            role="tech"
-            emptyHint="Tell Railio what you see. Use the mic in the shop."
+            role={role}
+            emptyHint={
+              isTech
+                ? "Tell Railio what you see. Use the mic in the shop."
+                : "Tell Railio what the engineer reported. It writes the pre-arrival briefing."
+            }
           />
         </div>
-        <div style={{ minHeight: 0, overflow: "hidden" }}>
-          <RepairContext ticketId={ticketId} />
-        </div>
+        {isTech && (
+          <div style={{ minHeight: 0, overflow: "hidden" }}>
+            <RepairContext ticketId={ticketId} />
+          </div>
+        )}
       </div>
-
     </section>
   );
 }

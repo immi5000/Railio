@@ -3,7 +3,9 @@
 // See ../backend/MVP_v0_BACKEND.md and ../frontend/MVP_v0_FRONTEND.md §4.
 
 // === Core enums ===
-export type UnitModel = "ES44DC";
+// Unit models are data, not a fixed enum — the dispatcher adds locomotive models,
+// so this is an open string keyed off the assets table.
+export type UnitModel = string;
 export type TicketStatus =
   | "AWAITING_TECH"
   | "IN_PROGRESS"
@@ -27,6 +29,34 @@ export type SendMessageBody = {
   role: "dispatcher" | "tech";
   content: string;
   attachment_paths?: string[];
+};
+
+export type CreateAssetBody = {
+  reporting_mark: string;
+  road_number: string;
+  unit_model: string;
+  in_service_date?: string;
+  last_inspection_at?: string;
+};
+
+export type WrapUpDraft = {
+  summary: string | null;
+  notes: string | null;
+};
+
+export type FinalizeWrapUpBody = {
+  summary: string;
+  notes?: string;
+  author?: string;
+};
+
+export type AttachDocumentBody = {
+  doc_class: DocClass;
+  doc_title: string;
+  source_label: string;
+  text: string;
+  unit_specific?: boolean;
+  page?: number;
 };
 
 /**

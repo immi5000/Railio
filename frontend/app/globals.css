@@ -783,6 +783,27 @@ button {
   }
 }
 
+/* === Workspace (master-detail) === */
+.ticket-card {
+  transition: background 0.1s, border-color 0.1s;
+}
+.ticket-card:hover {
+  background: var(--pale);
+}
+.ticket-card[style*="mta-soft"]:hover {
+  background: var(--mta-soft);
+}
+/* On phones, focus mode is single-column: the detail owns the screen and the
+   list rail collapses (reachable via the "All tickets" back affordance). */
+@media (max-width: 760px) {
+  .workspace {
+    grid-template-columns: 1fr !important;
+  }
+  .workspace-rail {
+    display: none !important;
+  }
+}
+
 /* Toast */
 .toast {
   position: fixed;

@@ -10,7 +10,16 @@ from fastapi.responses import JSONResponse, Response
 
 from .config import get_settings
 from .db import close_engine, get_engine
-from .routers import corpus, messages, parse_fault_dump, parts, photos, tickets, uploads
+from .routers import (
+    assets,
+    corpus,
+    messages,
+    parse_fault_dump,
+    parts,
+    photos,
+    tickets,
+    uploads,
+)
 
 
 @asynccontextmanager
@@ -56,6 +65,7 @@ def create_app() -> FastAPI:
     async def root() -> Response:
         return JSONResponse({"ok": True, "service": "railio"})
 
+    app.include_router(assets.router, prefix="/api/assets", tags=["assets"])
     app.include_router(tickets.router, prefix="/api/tickets", tags=["tickets"])
     app.include_router(messages.router, prefix="/api/tickets", tags=["messages"])
     app.include_router(parse_fault_dump.router, prefix="/api/tickets", tags=["parse_fault_dump"])

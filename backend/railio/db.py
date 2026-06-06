@@ -114,6 +114,9 @@ class CorpusChunk(Base):
     page = Column(Integer)
     text = Column(Text, nullable=False)
     embedding = Column(Vector(1024))
+    # null unit_model = shared across all models; null asset_id = not unit-specific
+    unit_model = Column(Text)
+    asset_id = Column(Integer, ForeignKey("assets.id"))
 
 
 class TribalCapture(Base):

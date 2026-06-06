@@ -93,6 +93,18 @@ async def _build_ticket_context(ticket_id: int) -> str | None:
     return "\n".join(lines)
 
 
+async def _build_corpus_scope(ticket_id: int) -> dict[str, Any]:
+    """Bind the corpus search scope from the ticket's asset.
+
+    Returned dict is passed to execute_tool so search_corpus is scoped to this
+    unit — the model never chooses scope.
+    """
+    t = await get_ticket_detail(ticket_id)
+    if not t or not t.asset:
+        return {"unit_model": None, "asset_id": None}
+    return {"unit_model": t.asset.unit_model, "asset_id": t.asset.id}
+
+
 async def run_chat(
     *,
     ticket_id: int,
@@ -110,6 +122,7 @@ async def run_chat(
     emit({"type": "user_message_persisted", "message": user_msg.model_dump(by_alias=True)})
 
     client = get_openai()
+    scope = await _build_corpus_scope(ticket_id)
     history = await list_messages(ticket_id)
     messages = await _to_openai_messages(history)
 
@@ -192,7 +205,7 @@ async def run_chat(
                 }
             )
             try:
-                output = await execute_tool(t["name"], inp, emit)
+                output = await execute_tool(t["name"], inp, emit, scope=scope)
             except Exception as e:
                 output = {"error": str(e)}
             emit({"type": "tool_call_completed", "call_id": t["id"], "output": output})

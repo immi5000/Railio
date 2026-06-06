@@ -98,10 +98,16 @@ _STATEMENTS = [
         embedding vector(1024)
     )
     """,
+    # Per-unit scoping (additive, nullable):
+    #   unit_model null = shared across all models (e.g. generic CFR)
+    #   asset_id   null = not specific to one road number (manual, CFR, cross-unit notes)
+    "ALTER TABLE corpus_chunks ADD COLUMN IF NOT EXISTS unit_model text",
+    "ALTER TABLE corpus_chunks ADD COLUMN IF NOT EXISTS asset_id integer REFERENCES assets(id)",
     """
     CREATE INDEX IF NOT EXISTS corpus_chunks_embedding_hnsw
     ON corpus_chunks USING hnsw (embedding vector_l2_ops)
     """,
+    "CREATE INDEX IF NOT EXISTS idx_corpus_chunks_scope ON corpus_chunks (unit_model, asset_id)",
     """
     CREATE TABLE IF NOT EXISTS tribal_capture (
         id serial PRIMARY KEY,

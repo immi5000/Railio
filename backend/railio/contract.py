@@ -6,7 +6,9 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-UnitModel = Literal["ES44DC"]
+# Unit models are data, not a fixed enum — the dispatcher can add new locomotive
+# models, so this is an open string keyed off the assets table.
+UnitModel = str
 TicketStatus = Literal["AWAITING_TECH", "IN_PROGRESS", "AWAITING_REVIEW", "CLOSED"]
 Role = Literal["dispatcher", "tech", "assistant", "system", "tool"]
 DocClass = Literal["manual", "tribal_knowledge"]
@@ -138,3 +140,34 @@ class PatchTicketBody(BaseModel):
     status: Optional[TicketStatus] = None
     pre_arrival_summary: Optional[str] = None
     severity: Optional[Severity] = None
+
+
+class CreateAssetBody(BaseModel):
+    reporting_mark: str
+    road_number: str
+    unit_model: str
+    in_service_date: Optional[str] = None
+    last_inspection_at: Optional[str] = None
+
+
+class WrapUpDraft(BaseModel):
+    summary: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class FinalizeWrapUpBody(BaseModel):
+    summary: str
+    notes: Optional[str] = None
+    author: Optional[str] = None
+
+
+class AttachDocumentBody(BaseModel):
+    # doc_class: "manual" for OEM manuals/wiring; "tribal_knowledge" for history/notes.
+    doc_class: DocClass
+    doc_title: str
+    source_label: str
+    text: str
+    # When true the doc is scoped to this specific unit (asset_id); otherwise it
+    # applies to the whole unit_model (e.g. a shared manual).
+    unit_specific: bool = False
+    page: Optional[int] = None

@@ -1,10 +1,19 @@
-import { TechTicketView } from "@/components/TechTicketView";
+"use client";
 
-export default async function TechTicketPage({
+import { use, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { setRoleCookie } from "@/lib/role";
+
+export default function TechTicketRedirect({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  return <TechTicketView ticketId={Number(id)} />;
+  const { id } = use(params);
+  const router = useRouter();
+  useEffect(() => {
+    setRoleCookie("tech");
+    router.replace(`/work?ticket=${id}`);
+  }, [router, id]);
+  return null;
 }
