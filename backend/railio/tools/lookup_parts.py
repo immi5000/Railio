@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import text
 
@@ -29,7 +29,9 @@ def _tokenize(q: str) -> list[str]:
     return out
 
 
-async def lookup_parts(unit_model: str, query: str) -> dict[str, Any]:
+async def lookup_parts(
+    unit_model: str, query: str, *, org_id: Optional[int] = None
+) -> dict[str, Any]:
     tokens = _tokenize(query)
     if not tokens:
         cleaned = query.strip().lower()
@@ -38,8 +40,11 @@ async def lookup_parts(unit_model: str, query: str) -> dict[str, Any]:
         return {"matches": []}
     like_args = [f"%{t}%" for t in tokens]
 
+    # org_id is injected by the runtime so a tenant only ever sees its own
+    # inventory — parts are never shared across organizations.
+    org_clause = "AND p.org_id = :org_id" if org_id is not None else ""
     sql = text(
-        """
+        f"""
         SELECT p.*,
           (
             SELECT COUNT(*) FROM unnest(CAST(:terms AS text[])) AS term
@@ -47,6 +52,7 @@ async def lookup_parts(unit_model: str, query: str) -> dict[str, Any]:
           ) AS hit_count
         FROM parts p
         WHERE p.compatible_units ? :unit
+          {org_clause}
           AND EXISTS (
             SELECT 1 FROM unnest(CAST(:terms AS text[])) AS term
             WHERE p.name ILIKE term OR p.description ILIKE term OR p.part_number ILIKE term
@@ -55,10 +61,11 @@ async def lookup_parts(unit_model: str, query: str) -> dict[str, Any]:
         LIMIT 10
         """
     )
+    sql_params: dict[str, Any] = {"terms": like_args, "unit": unit_model}
+    if org_id is not None:
+        sql_params["org_id"] = org_id
     async with session_scope() as session:
-        rows = (
-            await session.execute(sql, {"terms": like_args, "unit": unit_model})
-        ).mappings().all()
+        rows = (await session.execute(sql, sql_params)).mappings().all()
 
     return {
         "matches": [

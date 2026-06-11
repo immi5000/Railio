@@ -17,16 +17,17 @@ async def search_corpus(
     k: int = 6,
     doc_class_filter: DocClassFilter = "any",
     *,
+    org_id: Optional[int] = None,
     unit_model: Optional[str] = None,
     asset_id: Optional[int] = None,
 ) -> dict[str, Any]:
     """KNN over the corpus.
 
-    Scope (unit_model / asset_id) is injected by the runtime from the ticket's
-    asset — never by the model. A chunk is in scope when its unit_model matches
-    the ticket's model OR is null (shared, e.g. generic CFR), AND its asset_id
-    matches the ticket's asset OR is null (not unit-specific). When scope is
-    None the search is global (back-compat).
+    Scope (org_id / unit_model / asset_id) is injected by the runtime from the
+    ticket — never by the model. A chunk is in scope when its org_id matches the
+    ticket's org OR is null (shared, e.g. CFR visible to all tenants), AND its
+    unit_model matches OR is null, AND its asset_id matches OR is null. When a
+    scope value is None that filter is omitted (back-compat).
     """
     k = max(1, min(20, int(k)))
     vecs = await embed([query], "query")
@@ -39,6 +40,9 @@ async def search_corpus(
     if doc_class_filter != "any":
         where.append("doc_class = :cls")
         params["cls"] = doc_class_filter
+    if org_id is not None:
+        where.append("(org_id = :org_id OR org_id IS NULL)")
+        params["org_id"] = org_id
     if unit_model is not None:
         where.append("(unit_model = :unit_model OR unit_model IS NULL)")
         params["unit_model"] = unit_model

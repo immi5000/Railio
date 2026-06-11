@@ -1,12 +1,4 @@
 (function () {
-  // ── Hero phone: animated wave bars ─────────────────────────────────────────
-  var wave = document.getElementById('ph-wave');
-  for (var i = 0; i < 14; i++) {
-    var bar = document.createElement('i');
-    bar.style.animationDelay = (i * 0.05) + 's';
-    wave.appendChild(bar);
-  }
-
   // ── Hero phone: looping live-diagnosis transcript ─────────────────────────
   var TRANSCRIPT = [
     { who: 'tech', t: '00:02', html: "Brake pipe pressure dropping on car six. Won't hold above 75 PSI." },
@@ -48,7 +40,7 @@
     {
       num: '01', k: 'Diagnose',
       title: 'Tell Railio what you see.',
-      sub: 'Voice in. Railio cross-references unit history, OEM manuals, and 90 days of similar faults across the fleet.',
+      sub: 'Describe the symptom. Railio cross-references unit history, OEM manuals, and 90 days of similar faults across the fleet.',
       panel: { kind: 'kv', left: 'DIAGNOSIS', right: '92% confidence', rows: [
         ['Symptom',      'Brake pipe < 75 PSI'],
         ['Likely cause', 'Angle cock gasket, B-end'],
@@ -59,7 +51,7 @@
     {
       num: '02', k: 'Guide',
       title: 'Walk through the repair, hands-free.',
-      sub: 'Step by step from the actual maintenance manual. Tech says "next" or "back". Torque values appear when needed.',
+      sub: 'Step by step from the actual maintenance manual. Move at the tech\'s pace; torque values appear when needed.',
       panel: { kind: 'checks', left: 'PROCEDURE', right: 'AAR §4.2.7', items: [
         { done: true,  label: 'Isolate angle cocks, both ends' },
         { done: true,  label: 'Bleed reservoir to 0 PSI' },
@@ -71,7 +63,7 @@
     {
       num: '03', k: 'Capture',
       title: 'Capture what you learn.',
-      sub: 'Tech says the trick that worked. Railio writes it to tribal notes — searchable and cite-able for the next tech who hits the same fault.',
+      sub: 'Tech logs the trick that worked. Railio writes it to tribal notes — searchable and cite-able for the next tech who hits the same fault.',
       panel: { kind: 'kv', left: 'TRIBAL NOTE', right: 'SAVED ✓', rows: [
         ['Lesson',       'Check fuel rail transducer voltage before swapping injectors on ES44DC'],
         ['From',         'Tech JM · 32 yrs on the floor'],

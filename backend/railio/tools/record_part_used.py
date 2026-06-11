@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from sqlalchemy import text
 
@@ -18,13 +18,24 @@ async def record_part_used(
     part_id: int,
     qty: int,
     emit: ToolEmit,
+    org_id: Optional[int] = None,
 ) -> dict[str, Any]:
     async with session_scope() as session:
-        part = (
-            await session.execute(
-                text("SELECT * FROM parts WHERE id = :id"), {"id": part_id}
-            )
-        ).mappings().first()
+        # org_id is injected by the runtime — a part from another tenant's
+        # inventory must not be recordable on this org's ticket.
+        if org_id is not None:
+            part = (
+                await session.execute(
+                    text("SELECT * FROM parts WHERE id = :id AND org_id = :org_id"),
+                    {"id": part_id, "org_id": org_id},
+                )
+            ).mappings().first()
+        else:
+            part = (
+                await session.execute(
+                    text("SELECT * FROM parts WHERE id = :id"), {"id": part_id}
+                )
+            ).mappings().first()
         if not part:
             return {"error": f"part {part_id} not found"}
 

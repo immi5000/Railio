@@ -53,7 +53,7 @@ def create_app() -> FastAPI:
         allow_origin_regex=allow_origin_regex,
         allow_credentials=False,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization"],
+        allow_headers=["Content-Type", "Authorization", "X-Org-Id"],
         max_age=86400,
     )
 

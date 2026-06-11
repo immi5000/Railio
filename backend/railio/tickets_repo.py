@@ -21,50 +21,67 @@ from .messages_repo import _iso_now, list_messages
 from .pre_arrival import generate_pre_arrival_summary
 
 
-async def get_asset(asset_id: int) -> Optional[Asset]:
+async def get_asset(asset_id: int, org_id: Optional[int] = None) -> Optional[Asset]:
+    # When org_id is given, a cross-org asset id resolves to None (404 upstream).
+    where = "id = :id" + (" AND org_id = :org" if org_id is not None else "")
+    params = {"id": asset_id}
+    if org_id is not None:
+        params["org"] = org_id
     async with session_scope() as session:
         row = (
             await session.execute(
                 text(
-                    """
-                    SELECT id, reporting_mark, road_number, unit_model,
+                    f"""
+                    SELECT id, org_id, reporting_mark, road_number, unit_model,
                            in_service_date, last_inspection_at
-                    FROM assets WHERE id = :id
+                    FROM assets WHERE {where}
                     """
                 ),
-                {"id": asset_id},
+                params,
             )
         ).mappings().first()
     return Asset(**row) if row else None
 
 
-async def list_tickets(status: Optional[TicketStatus] = None) -> list[Ticket]:
+async def list_tickets(
+    status: Optional[TicketStatus] = None, org_id: Optional[int] = None
+) -> list[Ticket]:
+    where: list[str] = []
+    params: dict[str, object] = {}
+    if org_id is not None:
+        where.append("org_id = :org")
+        params["org"] = org_id
+    if status:
+        where.append("status = :st")
+        params["st"] = status
+    clause = (" WHERE " + " AND ".join(where)) if where else ""
     async with session_scope() as session:
         rows = (
             await session.execute(
-                text(
-                    "SELECT * FROM tickets WHERE status = :st ORDER BY id DESC"
-                    if status
-                    else "SELECT * FROM tickets ORDER BY id DESC"
-                ),
-                {"st": status} if status else {},
+                text(f"SELECT * FROM tickets{clause} ORDER BY id DESC"), params
             )
         ).mappings().all()
     return [await _row_to_ticket(r) for r in rows]
 
 
-async def get_ticket(ticket_id: int) -> Optional[Ticket]:
+async def get_ticket(ticket_id: int, org_id: Optional[int] = None) -> Optional[Ticket]:
+    where = "id = :id" + (" AND org_id = :org" if org_id is not None else "")
+    params = {"id": ticket_id}
+    if org_id is not None:
+        params["org"] = org_id
     async with session_scope() as session:
         row = (
             await session.execute(
-                text("SELECT * FROM tickets WHERE id = :id"), {"id": ticket_id}
+                text(f"SELECT * FROM tickets WHERE {where}"), params
             )
         ).mappings().first()
     return await _row_to_ticket(row) if row else None
 
 
-async def get_ticket_detail(ticket_id: int) -> Optional[TicketDetail]:
-    t = await get_ticket(ticket_id)
+async def get_ticket_detail(
+    ticket_id: int, org_id: Optional[int] = None
+) -> Optional[TicketDetail]:
+    t = await get_ticket(ticket_id, org_id)
     if not t:
         return None
     messages = await list_messages(ticket_id)
@@ -105,6 +122,7 @@ async def _row_to_ticket(r) -> Ticket:
     )
     return Ticket(
         id=r["id"],
+        org_id=r["org_id"] if r.get("org_id") is not None else asset.org_id,
         asset=asset,
         status=r["status"],
         severity=(r.get("severity") or "major"),
@@ -139,11 +157,15 @@ async def list_ticket_parts(ticket_id: int) -> list[TicketPart]:
     ]
 
 
-async def delete_ticket(ticket_id: int) -> bool:
+async def delete_ticket(ticket_id: int, org_id: Optional[int] = None) -> bool:
+    where = "id = :id" + (" AND org_id = :org" if org_id is not None else "")
+    params = {"id": ticket_id}
+    if org_id is not None:
+        params["org"] = org_id
     async with session_scope() as session:
         exists = (
             await session.execute(
-                text("SELECT id FROM tickets WHERE id = :id"), {"id": ticket_id}
+                text(f"SELECT id FROM tickets WHERE {where}"), params
             )
         ).scalar_one_or_none()
         if not exists:
@@ -157,12 +179,16 @@ async def delete_ticket(ticket_id: int) -> bool:
     return True
 
 
-async def reset_ticket(ticket_id: int) -> bool:
+async def reset_ticket(ticket_id: int, org_id: Optional[int] = None) -> bool:
     """Demo-only: wipe the conversation and restore the ticket's original state."""
+    where = "id = :id" + (" AND org_id = :org" if org_id is not None else "")
+    exists_params = {"id": ticket_id}
+    if org_id is not None:
+        exists_params["org"] = org_id
     async with session_scope() as session:
         exists = (
             await session.execute(
-                text("SELECT id FROM tickets WHERE id = :id"), {"id": ticket_id}
+                text(f"SELECT id FROM tickets WHERE {where}"), exists_params
             )
         ).scalar_one_or_none()
         if not exists:
@@ -207,14 +233,15 @@ async def finalize_wrap_up(
     summary: str,
     notes: Optional[str],
     author: Optional[str] = None,
+    org_id: Optional[int] = None,
 ) -> Optional[int]:
     """File a closed ticket's repair record into the unit's corpus.
 
-    Writes a tribal_knowledge chunk scoped to the asset (so it surfaces in that
-    unit's future chats), records the capture in tribal_capture with a link to
-    the new chunk, and closes the ticket. Returns the new chunk id.
+    Writes a tribal_knowledge chunk scoped to the org + asset (so it surfaces in
+    that unit's future chats and never leaks to another tenant), records the
+    capture in tribal_capture, and closes the ticket. Returns the new chunk id.
     """
-    t = await get_ticket_detail(ticket_id)
+    t = await get_ticket_detail(ticket_id, org_id)
     if not t:
         return None
     a = t.asset
@@ -263,6 +290,7 @@ async def finalize_wrap_up(
         doc_title=f"Repair Record — {a.reporting_mark} {a.unit_model} {a.road_number}",
         source_label=source_label,
         text_body=text_body,
+        org_id=a.org_id,
         unit_model=a.unit_model,
         asset_id=a.id,
     )
@@ -295,14 +323,18 @@ async def finalize_wrap_up(
 async def create_ticket(
     *,
     asset_id: int,
+    org_id: Optional[int] = None,
     initial_symptoms: str | None = None,
     initial_error_codes: str | None = None,
     fault_dump_raw: str | None = None,
     severity: Severity | None = None,
 ) -> Ticket:
-    asset = await get_asset(asset_id)
+    # Validate the asset within the caller's org (rejects cross-org asset ids).
+    asset = await get_asset(asset_id, org_id)
     if not asset:
         raise ValueError(f"asset {asset_id} not found")
+    # The ticket's org is a denormalized copy of its asset's org.
+    ticket_org = asset.org_id
     opened_at = _iso_now()
     sev: Severity = severity or "major"
 
@@ -312,17 +344,18 @@ async def create_ticket(
                 text(
                     """
                     INSERT INTO tickets (
-                        asset_id, status, severity, opened_by_role, opened_at,
+                        org_id, asset_id, status, severity, opened_by_role, opened_at,
                         initial_error_codes, initial_symptoms, fault_dump_raw
                     )
                     VALUES (
-                        :asset_id, 'AWAITING_TECH', :sev, 'dispatcher', :opened_at,
+                        :org_id, :asset_id, 'AWAITING_TECH', :sev, 'dispatcher', :opened_at,
                         :err, :sym, :raw
                     )
                     RETURNING id
                     """
                 ),
                 {
+                    "org_id": ticket_org,
                     "asset_id": asset_id,
                     "sev": sev,
                     "opened_at": opened_at,

@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import bindparam, text
 from sqlalchemy.dialects.postgresql import JSONB
 
+from ..contract import Organization
 from ..db import session_scope
+from ..org_context import get_current_org
 
 router = APIRouter()
 
@@ -46,59 +48,35 @@ def _row_to_part(r) -> dict[str, Any]:
 
 @router.get("")
 async def list_parts(
-    unit_model: Optional[str] = None, q: Optional[str] = None
+    unit_model: Optional[str] = None,
+    q: Optional[str] = None,
+    org: Organization = Depends(get_current_org),
 ) -> JSONResponse:
     like = f"%{q}%" if q else None
+    params: dict[str, Any] = {"org": org.id}
+    where = ["p.org_id = :org"]
+    if unit_model:
+        where.append("p.compatible_units ? :unit")
+        params["unit"] = unit_model
+    if like:
+        where.append(
+            "(p.name ILIKE :like OR p.description ILIKE :like OR p.part_number ILIKE :like)"
+        )
+        params["like"] = like
+    sql = text(
+        f"SELECT * FROM parts p WHERE {' AND '.join(where)} ORDER BY p.name ASC"
+    )
     async with session_scope() as session:
-        if unit_model and like:
-            rows = (
-                await session.execute(
-                    text(
-                        """
-                        SELECT * FROM parts p
-                        WHERE p.compatible_units ? :unit
-                          AND (p.name ILIKE :like OR p.description ILIKE :like OR p.part_number ILIKE :like)
-                        ORDER BY p.name ASC
-                        """
-                    ),
-                    {"unit": unit_model, "like": like},
-                )
-            ).mappings().all()
-        elif unit_model:
-            rows = (
-                await session.execute(
-                    text(
-                        """
-                        SELECT * FROM parts p
-                        WHERE p.compatible_units ? :unit
-                        ORDER BY p.name ASC
-                        """
-                    ),
-                    {"unit": unit_model},
-                )
-            ).mappings().all()
-        elif like:
-            rows = (
-                await session.execute(
-                    text(
-                        """
-                        SELECT * FROM parts p
-                        WHERE p.name ILIKE :like OR p.description ILIKE :like OR p.part_number ILIKE :like
-                        ORDER BY p.name ASC
-                        """
-                    ),
-                    {"like": like},
-                )
-            ).mappings().all()
-        else:
-            rows = (
-                await session.execute(text("SELECT * FROM parts p ORDER BY p.name ASC"))
-            ).mappings().all()
+        rows = (await session.execute(sql, params)).mappings().all()
     return JSONResponse([_row_to_part(r) for r in rows])
 
 
 @router.patch("/{part_id}")
-async def patch_part(part_id: int, request: Request) -> JSONResponse:
+async def patch_part(
+    part_id: int,
+    request: Request,
+    org: Organization = Depends(get_current_org),
+) -> JSONResponse:
     body = await request.json()
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="bad body")
@@ -107,22 +85,24 @@ async def patch_part(part_id: int, request: Request) -> JSONResponse:
         raise HTTPException(status_code=400, detail="no valid fields")
 
     async with session_scope() as session:
+        # The WHERE includes org_id so a tenant can only mutate its own parts.
         for k, v in updates.items():
             col = k  # whitelisted
             if k in _JSONB_COLS:
                 stmt = (
-                    text(f"UPDATE parts SET {col} = :v WHERE id = :id")
+                    text(f"UPDATE parts SET {col} = :v WHERE id = :id AND org_id = :org")
                     .bindparams(bindparam("v", type_=JSONB))
                 )
-                await session.execute(stmt, {"v": v, "id": part_id})
+                await session.execute(stmt, {"v": v, "id": part_id, "org": org.id})
             else:
                 await session.execute(
-                    text(f"UPDATE parts SET {col} = :v WHERE id = :id"),
-                    {"v": v, "id": part_id},
+                    text(f"UPDATE parts SET {col} = :v WHERE id = :id AND org_id = :org"),
+                    {"v": v, "id": part_id, "org": org.id},
                 )
         row = (
             await session.execute(
-                text("SELECT * FROM parts WHERE id = :id"), {"id": part_id}
+                text("SELECT * FROM parts WHERE id = :id AND org_id = :org"),
+                {"id": part_id, "org": org.id},
             )
         ).mappings().first()
     if not row:

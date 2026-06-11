@@ -153,10 +153,14 @@ async def execute_tool(
     scope: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if name == "search_corpus":
-        # Scope is bound by the runtime from the ticket's asset and OVERRIDES any
-        # unit_model/asset_id the model might pass — the model must not pick scope.
-        args = {k: v for k, v in inp.items() if k not in ("unit_model", "asset_id")}
+        # Scope is bound by the runtime from the ticket and OVERRIDES any
+        # org_id/unit_model/asset_id the model might pass — the model must not
+        # pick scope (especially not its own org — that's the tenant boundary).
+        args = {
+            k: v for k, v in inp.items() if k not in ("org_id", "unit_model", "asset_id")
+        }
         if scope:
+            args["org_id"] = scope.get("org_id")
             args["unit_model"] = scope.get("unit_model")
             args["asset_id"] = scope.get("asset_id")
         return await search_corpus(**args)
@@ -172,9 +176,16 @@ async def execute_tool(
         )
         return {"ok": True, "requested": True}
     if name == "lookup_parts":
-        return await lookup_parts(**inp)
+        # Parts are org-private; the runtime injects the tenant's org_id.
+        args = {k: v for k, v in inp.items() if k != "org_id"}
+        if scope:
+            args["org_id"] = scope.get("org_id")
+        return await lookup_parts(**args)
     if name == "record_part_used":
-        return await record_part_used(emit=emit, **inp)
+        args = {k: v for k, v in inp.items() if k != "org_id"}
+        if scope:
+            args["org_id"] = scope.get("org_id")
+        return await record_part_used(emit=emit, **args)
     if name == "set_ticket_status":
         return await set_ticket_status(**inp)
     return {"error": f"unknown tool: {name}"}

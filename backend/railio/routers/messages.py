@@ -7,11 +7,12 @@ import json
 import os
 from typing import AsyncIterator
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from ..chat_loop import run_chat
-from ..contract import Attachment, SendMessageBody
+from ..contract import Attachment, Organization, SendMessageBody
+from ..org_context import get_current_org
 
 router = APIRouter()
 
@@ -29,7 +30,12 @@ def _guess_mime(ext: str) -> str:
 
 
 @router.post("/{ticket_id}/messages")
-async def post_message(ticket_id: int, body: SendMessageBody) -> StreamingResponse:
+async def post_message(
+    ticket_id: int,
+    body: SendMessageBody,
+    org: Organization = Depends(get_current_org),
+) -> StreamingResponse:
+    org_id = org.id
     attachments: list[Attachment] = []
     for p in body.attachment_paths or []:
         ext = os.path.splitext(p)[1].lower()
@@ -46,6 +52,7 @@ async def post_message(ticket_id: int, body: SendMessageBody) -> StreamingRespon
         try:
             await run_chat(
                 ticket_id=ticket_id,
+                org_id=org_id,
                 user_role=body.role,
                 user_content=body.content,
                 attachments=attachments,

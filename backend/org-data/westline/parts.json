@@ -1,0 +1,14 @@
+[
+  {
+    "part_number": "WL-INJ-900",
+    "name": "Westline fuel injector (proprietary)",
+    "description": "Westline-specced common-rail injector. Confidential to Westline stores.",
+    "compatible_units": ["ES44DC"],
+    "bin_location": "Westline Storeroom 1 / Bin 3",
+    "qty_on_hand": 6,
+    "supplier": "Westline Supply",
+    "lead_time_days": 10,
+    "alternate_part_numbers": [],
+    "last_used_at": "2026-04-28T09:00:00Z"
+  }
+]

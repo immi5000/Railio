@@ -13,10 +13,13 @@ from typing import Any
 import httpx
 
 BASE = f"http://localhost:{os.environ.get('PORT', '3001')}"
+# Drive the demo-rail org loaded via `python -m scripts.load_org demo-rail`.
+ORG = os.environ.get("E2E_ORG", "demo-rail")
+HEADERS = {"X-Org-Id": ORG}
 
 
 async def _json(client: httpx.AsyncClient, method: str, url: str, body: Any = None) -> Any:
-    r = await client.request(method, BASE + url, json=body)
+    r = await client.request(method, BASE + url, json=body, headers=HEADERS)
     r.raise_for_status()
     return r.json()
 
@@ -26,7 +29,7 @@ async def _consume_sse(client: httpx.AsyncClient, url: str, body: Any) -> None:
         "POST",
         BASE + url,
         json=body,
-        headers={"Accept": "text/event-stream"},
+        headers={"Accept": "text/event-stream", **HEADERS},
         timeout=120.0,
     ) as r:
         r.raise_for_status()
@@ -51,12 +54,20 @@ async def _consume_sse(client: httpx.AsyncClient, url: str, body: Any) -> None:
 
 async def main() -> None:
     async with httpx.AsyncClient(timeout=60.0) as client:
+        assets = await _json(client, "GET", "/api/assets")
+        if not assets:
+            raise SystemExit(
+                f"e2e: org '{ORG}' has no assets. Run `python -m scripts.load_org {ORG}` first."
+            )
+        asset_id = assets[0]["id"]
+        print(f"e2e: using org '{ORG}' asset {asset_id}")
+
         ticket = await _json(
             client,
             "POST",
             "/api/tickets",
             {
-                "asset_id": 1,
+                "asset_id": asset_id,
                 "initial_symptoms": "Smoke from #3 power assembly per crew",
                 "initial_error_codes": "EOA-3, FUEL-PRESS-LOW",
                 "fault_dump_raw": (

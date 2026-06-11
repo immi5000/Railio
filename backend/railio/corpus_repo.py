@@ -22,6 +22,7 @@ async def insert_corpus_chunk(
     doc_title: str,
     source_label: str,
     text_body: str,
+    org_id: Optional[int] = None,
     unit_model: Optional[str] = None,
     asset_id: Optional[int] = None,
     page: Optional[int] = None,
@@ -44,10 +45,10 @@ async def insert_corpus_chunk(
                     """
                     INSERT INTO corpus_chunks
                         (doc_class, doc_id, doc_title, source_label, page, text,
-                         unit_model, asset_id, embedding)
+                         org_id, unit_model, asset_id, embedding)
                     VALUES
                         (:doc_class, :doc_id, :doc_title, :source_label, :page, :text,
-                         :unit_model, :asset_id, CAST(:embedding AS vector))
+                         :org_id, :unit_model, :asset_id, CAST(:embedding AS vector))
                     RETURNING id
                     """
                 ),
@@ -58,6 +59,7 @@ async def insert_corpus_chunk(
                     "source_label": source_label,
                     "page": page,
                     "text": text_body,
+                    "org_id": org_id,
                     "unit_model": unit_model,
                     "asset_id": asset_id,
                     "embedding": vec_literal,

@@ -2,24 +2,28 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
-from ..assets_repo import attach_document, create_asset, find_asset, list_assets
-from ..contract import AttachDocumentBody, CreateAssetBody
+from ..assets_repo import attach_document, create_asset, list_assets
+from ..contract import AttachDocumentBody, CreateAssetBody, Organization
+from ..org_context import get_current_org
 
 router = APIRouter()
 
 
 @router.get("")
-async def get_assets() -> JSONResponse:
-    assets = await list_assets()
+async def get_assets(org: Organization = Depends(get_current_org)) -> JSONResponse:
+    assets = await list_assets(org.id)
     return JSONResponse([a.model_dump() for a in assets])
 
 
 @router.post("")
-async def post_asset(body: CreateAssetBody) -> JSONResponse:
+async def post_asset(
+    body: CreateAssetBody, org: Organization = Depends(get_current_org)
+) -> JSONResponse:
     asset = await create_asset(
+        org_id=org.id,
         reporting_mark=body.reporting_mark,
         road_number=body.road_number,
         unit_model=body.unit_model,
@@ -30,8 +34,12 @@ async def post_asset(body: CreateAssetBody) -> JSONResponse:
 
 
 @router.post("/{asset_id}/documents")
-async def post_asset_document(asset_id: int, body: AttachDocumentBody) -> JSONResponse:
-    assets = await list_assets()
+async def post_asset_document(
+    asset_id: int,
+    body: AttachDocumentBody,
+    org: Organization = Depends(get_current_org),
+) -> JSONResponse:
+    assets = await list_assets(org.id)
     asset = next((a for a in assets if a.id == asset_id), None)
     if not asset:
         raise HTTPException(status_code=404, detail="asset not found")

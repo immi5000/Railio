@@ -24,6 +24,25 @@ export function apiUrl(path: string) {
   return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+/**
+ * The current organization (tenant) slug. Until real auth lands, it comes from
+ * a `railio_org` cookie (set at "login"), falling back to a single default org.
+ * This is the one place the frontend decides which tenant a request belongs to;
+ * swap the cookie read for a real session token here when auth is wired in.
+ */
+export function currentOrgSlug(): string {
+  if (typeof document !== "undefined") {
+    const m = document.cookie.match(/(?:^|;\s*)railio_org=([^;]+)/);
+    if (m) return decodeURIComponent(m[1]);
+  }
+  return process.env.NEXT_PUBLIC_DEFAULT_ORG || "demo-rail";
+}
+
+/** Headers that scope a request to the current org. Merge into every fetch. */
+export function orgHeaders(): Record<string, string> {
+  return { "X-Org-Id": currentOrgSlug() };
+}
+
 /** Resolve a backend-stored path (e.g. /uploads/foo.jpg) into a fully-qualified URL the browser can load. */
 export function fileUrl(path: string | null | undefined): string {
   if (!path) return "";
@@ -36,6 +55,7 @@ async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...orgHeaders(),
       ...(init?.headers || {}),
     },
   });
@@ -126,6 +146,7 @@ export async function uploadPhotos(
   const res = await fetch(apiUrl(`/api/tickets/${ticketId}/photos`), {
     method: "POST",
     body: fd,
+    headers: orgHeaders(),
   });
   if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
   return (await res.json()) as { attachments: Attachment[] };

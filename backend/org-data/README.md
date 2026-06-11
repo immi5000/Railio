@@ -1,0 +1,63 @@
+# org-data — per-tenant onboarding data
+
+Each subfolder is **one organization (railroad tenant)**. You (the admin) prepare
+a company's data here, then load it with:
+
+```bash
+python -m scripts.load_org <slug>
+```
+
+Tenants do **not** upload their own data in the pilot — everything is loaded from
+this folder by the admin. Data loaded for one org is invisible to every other org.
+Shared federal regulation (49 CFR) is loaded separately by `scripts.corpus_build`
+with `org_id = NULL` and is visible to all orgs.
+
+## Folder layout
+
+```
+org-data/<slug>/
+  org.json          REQUIRED  {"name": "Display Name", "slug": "<slug>"}
+  assets.json       optional  the org's locomotive fleet
+  parts.json        optional  the org's parts inventory (org-exclusive)
+  corpus/*.json     optional  knowledge docs (manuals, tribal notes, history)
+```
+
+### assets.json
+```json
+[
+  { "reporting_mark": "BNSF", "road_number": "7670", "unit_model": "ES44DC",
+    "in_service_date": "2006-08-15", "last_inspection_at": "2026-04-15T09:00:00Z" }
+]
+```
+A new locomotive model needs **no code change** — just use its name in `unit_model`
+and add the matching manual under `corpus/`.
+
+### parts.json
+Same shape as a part row: `part_number, name, description, compatible_units[],
+bin_location, qty_on_hand, supplier, lead_time_days, alternate_part_numbers[],
+last_used_at`. Inventory is org-exclusive — `part_number` is unique per org, so two
+railroads may stock the same number.
+
+### corpus/*.json
+Each file is an array of chunks:
+```json
+[
+  { "doc_class": "manual" | "tribal_knowledge",
+    "doc_id": "...", "doc_title": "...", "source_label": "...",
+    "text": "...",
+    "page": 7,                 // optional
+    "unit_model": "ES44DC",    // optional — else inferred from road_number's asset
+    "road_number": "7670" }    // optional — scopes the chunk to one asset
+]
+```
+
+Scope applied at load time:
+- **org_id** → always this org (org-private).
+- **asset_id** → the asset matching `road_number` (explicit field, or a road number
+  found inside `doc_id`); otherwise NULL (applies to the whole unit model).
+- **unit_model** → `unit_model` if set, else the matched asset's model, else NULL
+  (org-wide).
+
+Re-running `load_org` for a slug fully replaces that org's assets, parts, and
+private corpus. CFR and other orgs are never touched.
+```

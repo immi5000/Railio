@@ -88,8 +88,16 @@ export type ListCorpusChunksQuery = {
 export type ListCorpusChunksResponse = { chunks: CorpusChunk[] };
 
 // === Domain ===
+export type Organization = {
+  id: number;
+  name: string;
+  slug: string;
+  created_at: string | null;
+};
+
 export type Asset = {
   id: number;
+  org_id: number;
   reporting_mark: string;
   road_number: string;
   unit_model: UnitModel;
@@ -140,6 +148,7 @@ export type Message = {
 
 export type Ticket = {
   id: number;
+  org_id: number;
   asset: Asset;
   status: TicketStatus;
   severity: Severity;

@@ -17,8 +17,16 @@ Severity = Literal["minor", "major", "critical"]
 
 # === Domain ===
 
+class Organization(BaseModel):
+    id: int
+    name: str
+    slug: str
+    created_at: Optional[str] = None
+
+
 class Asset(BaseModel):
     id: int
+    org_id: int
     reporting_mark: str
     road_number: str
     unit_model: UnitModel
@@ -69,6 +77,7 @@ class Message(BaseModel):
 
 class Ticket(BaseModel):
     id: int
+    org_id: int
     asset: Asset
     status: TicketStatus
     severity: Severity

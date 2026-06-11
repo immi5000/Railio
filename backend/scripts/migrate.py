@@ -118,6 +118,50 @@ _STATEMENTS = [
         promoted_chunk_id integer
     )
     """,
+    # === Multi-tenancy (by organization) ===
+    # An organization is a railroad tenant. Org-private data (assets, tickets,
+    # parts inventory, tribal/repair history) is never visible to another org;
+    # shared reference data (CFR) has org_id = NULL and is visible to all orgs.
+    """
+    CREATE TABLE IF NOT EXISTS organizations (
+        id serial PRIMARY KEY,
+        name text NOT NULL,
+        slug text NOT NULL UNIQUE,
+        created_at text NOT NULL DEFAULT (now()::text)
+    )
+    """,
+    # assets.org_id — added nullable, backfilled, then tightened to NOT NULL.
+    # A direct ADD COLUMN ... NOT NULL would fail on any pre-existing rows.
+    "ALTER TABLE assets ADD COLUMN IF NOT EXISTS org_id integer REFERENCES organizations(id)",
+    """
+    UPDATE assets SET org_id = (
+        SELECT id FROM organizations ORDER BY id LIMIT 1
+    ) WHERE org_id IS NULL AND EXISTS (SELECT 1 FROM organizations)
+    """,
+    # tickets.org_id — denormalized copy of the asset's org (avoids a join on the
+    # tenant filter for every list/get). Backfilled from the linked asset.
+    "ALTER TABLE tickets ADD COLUMN IF NOT EXISTS org_id integer REFERENCES organizations(id)",
+    """
+    UPDATE tickets t SET org_id = a.org_id
+    FROM assets a WHERE t.asset_id = a.id AND t.org_id IS NULL
+    """,
+    # parts.org_id — inventory is org-exclusive (never shared across tenants).
+    "ALTER TABLE parts ADD COLUMN IF NOT EXISTS org_id integer REFERENCES organizations(id)",
+    # part_number is unique PER ORG, not globally — two railroads may stock the
+    # same OEM part number. Drop the old global unique constraint; add a partial
+    # unique index keyed on (org_id, part_number) for rows that have an org.
+    "ALTER TABLE parts DROP CONSTRAINT IF EXISTS parts_part_number_key",
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_parts_org_partnumber
+    ON parts (org_id, part_number) WHERE org_id IS NOT NULL
+    """,
+    # corpus_chunks.org_id — NULLABLE on purpose: NULL = shared (CFR, visible to
+    # all orgs); non-null = org-private. NOT backfilled — corpus_build rewrites it.
+    "ALTER TABLE corpus_chunks ADD COLUMN IF NOT EXISTS org_id integer REFERENCES organizations(id)",
+    "CREATE INDEX IF NOT EXISTS idx_assets_org ON assets (org_id)",
+    "CREATE INDEX IF NOT EXISTS idx_tickets_org ON tickets (org_id, status)",
+    "CREATE INDEX IF NOT EXISTS idx_parts_org ON parts (org_id)",
+    "CREATE INDEX IF NOT EXISTS idx_corpus_chunks_scope2 ON corpus_chunks (org_id, unit_model, asset_id)",
 ]
 
 

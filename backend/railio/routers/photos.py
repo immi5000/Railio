@@ -6,11 +6,13 @@ import os
 import time
 import uuid
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-from ..contract import Attachment
+from ..contract import Attachment, Organization
+from ..org_context import get_current_org
 from ..storage import upload_to_bucket
+from ..tickets_repo import get_ticket
 
 router = APIRouter()
 
@@ -28,9 +30,15 @@ def _guess_mime(ext: str) -> str:
 
 
 @router.post("/{ticket_id}/photos")
-async def upload_photos(ticket_id: int, files: list[UploadFile] = File(...)) -> JSONResponse:
+async def upload_photos(
+    ticket_id: int,
+    files: list[UploadFile] = File(...),
+    org: Organization = Depends(get_current_org),
+) -> JSONResponse:
     if not files:
         raise HTTPException(status_code=400, detail="no files")
+    if not await get_ticket(ticket_id, org.id):
+        raise HTTPException(status_code=404, detail="ticket not found")
     attachments: list[Attachment] = []
     for f in files:
         if not f.filename:

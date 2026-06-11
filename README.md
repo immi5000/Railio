@@ -46,7 +46,7 @@ The "manual" half of the corpus is **real, public-domain federal rail regulation
 
 The fetch script (`backend/scripts/corpus_fetch.py`) downloads the XML; the build script (`backend/scripts/corpus_build.py`) walks the `<DIV8>` section nodes, sub-splits anything over ~6000 chars at paragraph boundaries, embeds with OpenAI `text-embedding-3-large` truncated to 1024 dims, and stores everything in Postgres with a `pgvector` HNSW index for KNN.
 
-The "tribal" half is a small file of hand-written senior-tech notes in [backend/seeds/corpus-tribal.json](backend/seeds/corpus-tribal.json) — heuristics, war stories, "always check X before Y on this unit." In production these would come from SME recording sessions; for the demo they're written by hand and clearly labelled (`👤 Senior-tech note`).
+The "tribal" half is **org-private** senior-tech notes loaded per tenant from `backend/org-data/<slug>/corpus/` — heuristics, war stories, "always check X before Y on this unit." In production these would come from SME recording sessions; in the sample orgs they're written by hand and clearly labelled (`👤 Senior-tech note`). They are never committed as global seed data — each company's knowledge is loaded into Supabase via `python -m scripts.load_org <slug>` and isolated by `org_id`.
 
 The system prompt enforces: **prefer manual over tribal; cite both when relevant; refuse if the corpus is silent.**
 
@@ -93,8 +93,8 @@ There is no separate dispatcher/tech log. The conversation is single, append-onl
 │   ├── RUN.md             how to install, seed, and start the backend
 │   ├── pyproject.toml     Python deps
 │   ├── railio/            FastAPI app, routers, AI tools, DB models, PDF templates
-│   ├── scripts/           migrate, seed, corpus_fetch, corpus_build, verify_chain, e2e
-│   ├── seeds/             assets.json, parts.json, demo-tickets.json, corpus-tribal.json
+│   ├── scripts/           migrate, seed (clean baseline), corpus_fetch, corpus_build (CFR), load_org (per-tenant), verify_chain, e2e
+│   ├── org-data/<slug>/   per-tenant onboarding data (org.json, assets.json, parts.json, corpus/*.json) — admin-loaded into Supabase
 │   └── corpus-sources/    sources.json manifest + (gitignored) raw/ XML payloads
 │
 ├── frontend/              Next.js app on :3000 — pages, chat UI, mic, forms

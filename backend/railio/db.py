@@ -32,10 +32,22 @@ class Base(DeclarativeBase):
     pass
 
 
+class Organization(Base):
+    __tablename__ = "organizations"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(Text, nullable=False)
+    slug = Column(Text, nullable=False, unique=True)
+    created_at = Column(Text, nullable=False)
+
+
 class Asset(Base):
     __tablename__ = "assets"
 
     id = Column(Integer, primary_key=True)
+    # org_id is NOT NULL in the DB after backfill; nullable here only so existing
+    # in-memory construction paths don't need to set it before the column lands.
+    org_id = Column(Integer, ForeignKey("organizations.id"))
     reporting_mark = Column(Text, nullable=False)
     road_number = Column(Text, nullable=False)
     unit_model = Column(Text, nullable=False)
@@ -47,6 +59,7 @@ class Ticket(Base):
     __tablename__ = "tickets"
 
     id = Column(Integer, primary_key=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"))
     asset_id = Column(Integer, ForeignKey("assets.id"))
     status = Column(Text, nullable=False)
     severity = Column(Text, nullable=False, default="major", server_default="major")
@@ -80,7 +93,10 @@ class Part(Base):
     __tablename__ = "parts"
 
     id = Column(Integer, primary_key=True)
-    part_number = Column(Text, nullable=False, unique=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"))
+    # part_number is unique per org, not globally — two railroads may stock the
+    # same OEM part number. Enforced by a partial unique index in migrate.py.
+    part_number = Column(Text, nullable=False)
     name = Column(Text, nullable=False)
     description = Column(Text)
     compatible_units = Column(JSONB, nullable=False)
@@ -114,6 +130,8 @@ class CorpusChunk(Base):
     page = Column(Integer)
     text = Column(Text, nullable=False)
     embedding = Column(Vector(1024))
+    # null org_id = shared across all orgs (e.g. CFR); non-null = org-private
+    org_id = Column(Integer, ForeignKey("organizations.id"))
     # null unit_model = shared across all models; null asset_id = not unit-specific
     unit_model = Column(Text)
     asset_id = Column(Integer, ForeignKey("assets.id"))
