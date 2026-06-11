@@ -1,80 +1,43 @@
 # Railio
 
-The AI co-pilot for rail maintenance. Voice-first. Manual-grounded. FRA-aware.
+The AI co-pilot for rail maintenance. Voice-first. Manual-grounded.
 
-Railio sits between a **dispatcher** (who opens the ticket from the office or radio) and a **field tech** (who walks up to the locomotive with a phone). It runs the diagnostic conversation, cites real federal rail regulations, requests photos when an answer is ambiguous, and auto-fills the two FRA forms that legally have to leave the shop with the unit.
+Railio replaces the radio and the paper manual with one voice-driven copilot. A **dispatcher** opens a ticket from the office; a **field tech** joins the same thread on a phone at the locomotive. Railio runs the diagnostic conversation, grounds every answer in the tech's own CFR manuals, OEM manuals, and tribal notes — citing real passages — and asks for photos when a description is ambiguous.
 
-This repo is the v0 localhost MVP — a working end-to-end demo on `http://localhost:3000`.
-
----
-
-## What the MVP currently does
-
-1. **Dispatcher opens a ticket** against a locomotive (reporting mark + road number, e.g. *CSX 3221, ES44AC*) with whatever they have: error codes, symptoms, raw fault dump pasted from the unit's display.
-2. **Railio parses the fault dump** (one tool call, on intake), persists structured faults on the ticket, and writes a pre-arrival summary the tech can read before walking up.
-3. **Tech joins the same thread** on a phone, sees the briefing + the asset/fault context, and starts working through the problem in plain language ("there's oil under the #3 traction motor, what should I check?").
-4. **Railio answers from a real corpus**: 49 CFR Parts 229, 232, 218 (locomotive safety, brakes, operating practices) plus a small set of hand-written senior-tech notes. Every substantive reply cites a chunk by its real `source_label` (e.g. *49 CFR §229.21(a)(1)*). If the corpus is silent, it refuses rather than guessing.
-5. **Forms auto-fill from the conversation.** As the tech says things like "speed indicator failed at 45 mph" or "replaced traction motor blower with TM-BLW-44AC ×1", Railio calls `update_form_field` and `record_part_used` to write into the two real federal forms attached to the ticket.
-6. **Photo loop.** When the tech describes something physical that's ambiguous (a leak, a sheen, a gauge reading), Railio calls `request_photo` instead of guessing — the tech snaps it, it goes back into the same vision turn.
-7. **Status transitions** through `AWAITING_TECH → IN_PROGRESS → AWAITING_REVIEW` happen automatically as the conversation progresses.
-8. **Export.** When the tech is done, the two forms can be rendered to PDF (FRA-styled) and the ticket is ready for review.
-
-The whole conversation is an append-only log with a sha256 hash chain, so the audit trail is verifiable (`python -m scripts.verify_chain`).
+This repo is the v0 localhost MVP, running on `http://localhost:3000`.
 
 ---
 
-## The two forms
+## What it does
 
-Railio intentionally wraps only the two documents that are tedious to fill out by hand and are federally required to travel with the unit:
+1. **Dispatcher opens a ticket** against a locomotive with whatever they have: error codes, symptoms, or a raw fault dump pasted from the unit's display.
+2. **Railio parses the fault dump** (one tool call on intake), persists structured faults, and writes a pre-arrival briefing for the tech.
+3. **Tech joins the same thread** on a phone, sees the briefing + asset/fault context, and works the problem in plain language.
+4. **Railio answers from the corpus** — federal regulation (49 CFR Parts 229, 232, 218), the unit's OEM manual, and senior-tech notes. Every substantive reply cites a chunk by its exact `source_label`. If the corpus is silent, it refuses rather than guessing.
+5. **Parts tracking.** As the tech consumes parts, Railio looks them up in that org's inventory and records them on the ticket.
+6. **Photo loop.** When a physical detail is ambiguous (a leak, a sheen, a gauge), Railio requests a photo and reads it in the next vision turn.
+7. **Status** moves `AWAITING_TECH → IN_PROGRESS → AWAITING_REVIEW` as the conversation progresses; a wrap-up files the repair record back into the unit's corpus and closes the ticket.
 
-| Form | Authority | What's in it |
-|---|---|---|
-| **F6180.49A** | FRA Form F 6180.49A | Locomotive Inspection and Repair Record. Sections A–H: identification, inspection details, items checklist, defects, repairs (with parts replaced), air-brake test, out-of-service status, signature. |
-| **DAILY_INSPECTION_229_21** | 49 CFR §229.21 | Daily Locomotive Inspection. Pre-populated with **26 real CFR-referenced items** (cab safety, sanders, horn, brakes, leaks, event recorder, etc.). Each item gets `pass` / `fail` / `na` + optional note + optional photo. Failures auto-append to `exceptions`. |
+The conversation is an append-only log with a sha256 hash chain, so the audit trail is verifiable (`python -m scripts.verify_chain`).
 
-Both can be edited directly in the UI by the tech or dispatcher and exported as a PDF that mirrors the real federal layout.
+---
+
+## Multi-tenancy
+
+Railio is multi-tenant by **organization** (railroad). Each org's assets, tickets, parts inventory, and private knowledge are isolated by `org_id` and never visible to another org. Shared federal regulation (CFR) has `org_id = NULL` and is visible to all.
+
+Per-request org resolves through one seam — `get_current_org` ([backend/railio/org_context.py](backend/railio/org_context.py)) reading the `X-Org-Id` header. Auth isn't built yet; when it is, that header read swaps for a JWT-claim read and nothing else changes.
 
 ---
 
 ## The knowledge base
 
-The "manual" half of the corpus is **real, public-domain federal rail regulation**, fetched on build from the eCFR API:
+Two tiers, queried together by `search_corpus` (top-K KNN over pgvector):
 
-- **49 CFR Part 229** — Railroad Locomotive Safety Standards
-- **49 CFR Part 232** — Brake System Safety Standards
-- **49 CFR Part 218** — Railroad Operating Practices
+- **Shared** — real, public-domain federal regulation fetched from the eCFR API: 49 CFR Part **229** (locomotive safety), **232** (brakes), **218** (operating practices). Loaded by `corpus_fetch` + `corpus_build` (`org_id = NULL`).
+- **Org-private** — each company's OEM manuals and senior-tech / repair / inspection notes, loaded per tenant from `backend/org-data/<slug>/corpus/` via `load_org` (scoped to that `org_id`, optionally to a specific unit).
 
-The fetch script (`backend/scripts/corpus_fetch.py`) downloads the XML; the build script (`backend/scripts/corpus_build.py`) walks the `<DIV8>` section nodes, sub-splits anything over ~6000 chars at paragraph boundaries, embeds with OpenAI `text-embedding-3-large` truncated to 1024 dims, and stores everything in Postgres with a `pgvector` HNSW index for KNN.
-
-The "tribal" half is **org-private** senior-tech notes loaded per tenant from `backend/org-data/<slug>/corpus/` — heuristics, war stories, "always check X before Y on this unit." In production these would come from SME recording sessions; in the sample orgs they're written by hand and clearly labelled (`👤 Senior-tech note`). They are never committed as global seed data — each company's knowledge is loaded into Supabase via `python -m scripts.load_org <slug>` and isolated by `org_id`.
-
-The system prompt enforces: **prefer manual over tribal; cite both when relevant; refuse if the corpus is silent.**
-
-The retrieval tool (`search_corpus`) returns top-K chunks with their `doc_class`, `doc_id`, `page`, and `source_label`. The runtime persists the citation list on the assistant message so the UI can render clickable citation chips that open the underlying chunk text.
-
-Total corpus after build: ~270 chunks (≈260 manual, 6 tribal).
-
----
-
-## Workflow
-
-### Dispatcher
-
-1. Open the **Dispatcher** page, pick an asset, optionally paste a fault dump or symptoms, create the ticket.
-2. Railio parses the dump and writes a pre-arrival summary in the chat.
-3. Hand the ticket off — the tech opens the same ticket on their phone.
-
-### Tech
-
-1. Open the **Tech** page, see the ticket card (status, asset, error codes, parsed faults, briefing).
-2. Click a suggested prompt or type freely. Ask Railio anything that maps to the regs or the senior-tech notes.
-3. State facts as you find them ("speed indicator OK", "brake pipe leak at 4 psi/min", "replaced filter element"). Railio writes them into the two forms in the background.
-4. When asked, snap photos directly into the chat for the vision turn.
-5. When the repair is done, say so — Railio flips the ticket to `AWAITING_REVIEW` and the forms are ready to export as PDFs.
-
-### Both roles share one thread
-
-There is no separate dispatcher/tech log. The conversation is single, append-only, and replayable; either role can rejoin it later. A demo-only `resetTicket` wipes the ticket back to AWAITING_TECH so the same scenario can be re-run.
+The system prompt enforces: **prefer manual over tribal; cite both when relevant; refuse if the corpus is silent.** Citations render the chunk's exact `source_label` and the UI makes them clickable.
 
 ---
 
@@ -82,82 +45,58 @@ There is no separate dispatcher/tech log. The conversation is single, append-onl
 
 ```
 .
-├── README.md              this file
-├── MVP.md                 v1 product spec (mobile, voice, multi-tenant)
-├── MVP_v0.md              v0 validation spec (localhost web build)
-│
-├── contract/              shared TypeScript types for the frontend
-│   └── contract.ts        Pydantic mirror lives in backend/railio/contract.py
-│
-├── backend/               FastAPI app on :3001 — API, Postgres, AI tools, PDFs
-│   ├── RUN.md             how to install, seed, and start the backend
-│   ├── pyproject.toml     Python deps
-│   ├── railio/            FastAPI app, routers, AI tools, DB models, PDF templates
-│   ├── scripts/           migrate, seed (clean baseline), corpus_fetch, corpus_build (CFR), load_org (per-tenant), verify_chain, e2e
-│   ├── org-data/<slug>/   per-tenant onboarding data (org.json, assets.json, parts.json, corpus/*.json) — admin-loaded into Supabase
-│   └── corpus-sources/    sources.json manifest + (gitignored) raw/ XML payloads
-│
-├── frontend/              Next.js app on :3000 — pages, chat UI, mic, forms
-│   └── app/               dispatcher, tech, admin, app pages
-│
-└── landing_page/          static marketing site (separate, unrelated to v0/v1)
+├── contract/contract.ts    shared TS types (Pydantic mirror in backend/railio/contract.py)
+├── backend/                FastAPI on :3001 — API, Postgres, AI tools
+│   ├── railio/             app, routers, AI tools, DB models, org_context
+│   ├── scripts/            migrate · seed (clean baseline) · corpus_fetch · corpus_build (CFR)
+│   │                       · load_org (per-tenant) · verify_chain · e2e
+│   ├── org-data/<slug>/    per-tenant onboarding data (org.json, assets.json, parts.json, corpus/*.json)
+│   └── corpus-sources/     sources.json manifest + (gitignored) raw/ CFR XML
+├── frontend/               Next.js on :3000 — chat UI, mic, /work workspace
+└── landing_page/           static marketing site (unrelated to v0/v1)
 ```
 
 ---
 
 ## Stack
 
-- **Backend**: Python 3.11+, **FastAPI** + **uvicorn** on `:3001`
-- **Frontend**: **Next.js 16** App Router on `:3000`, talking to the backend over CORS
-- **Database**: **Postgres** (Supabase) via SQLAlchemy 2 async + asyncpg; **pgvector** with an HNSW index for KNN over chunk embeddings
-- **LLM**: **OpenAI** async SDK — streaming Chat Completions with tool-call accumulation by index, vision via base64 image parts, plus `text-embedding-3-large` truncated to 1024 dims (Matryoshka)
-- **PDFs**: **reportlab** for the FRA-styled forms
-- **Storage**: **Supabase Storage** for uploaded photos (`railio-uploads` bucket)
-- **Streaming**: **Server-Sent Events** for chat tokens, tool events, and form updates back to the UI
-- **Corpus ingest**: **httpx** + stdlib `xml.etree.ElementTree` (eCFR XML)
+- **Backend**: Python 3.11+, FastAPI + uvicorn on `:3001`
+- **Frontend**: Next.js App Router on `:3000`, over CORS
+- **DB**: Postgres (Supabase), SQLAlchemy 2 async + asyncpg; pgvector HNSW index for KNN
+- **LLM**: OpenAI async SDK — streaming Chat Completions with tool calls, vision via base64 image parts, `text-embedding-3-large` truncated to 1024 dims
+- **Storage**: Supabase Storage for photos (`railio-uploads` bucket)
+- **Streaming**: Server-Sent Events for chat tokens and tool events
+- **Corpus ingest**: httpx + stdlib `xml.etree.ElementTree` (eCFR XML)
 
 ---
 
 ## Running it
 
-You'll need **Python 3.11+**, **Node 20+**, and a **Postgres** database with the **pgvector** extension available (Supabase works out of the box). See [backend/RUN.md](backend/RUN.md) for the full sequence and env-var details. Short version:
+Needs **Python 3.11+**, **Node 20+**, and a **Postgres** DB with **pgvector** (Supabase works out of the box). Full sequence and env vars in [backend/RUN.md](backend/RUN.md).
 
 ```bash
 # backend (terminal 1)
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
-cp .env.example .env       # fill in OPENAI_API_KEY, DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-python -m scripts.migrate
-python -m scripts.seed                                          # or: SEED_BUNDLE=MVP_test_data_GE_ES44AC python -m scripts.seed
-python -m scripts.corpus_fetch && python -m scripts.corpus_build
+cp .env.example .env      # OPENAI_API_KEY, DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+python -m scripts.migrate && python -m scripts.seed            # clean baseline (no demo data)
+python -m scripts.corpus_fetch && python -m scripts.corpus_build   # shared CFR
+python -m scripts.load_org demo-rail                          # load a tenant (repeat per org)
 uvicorn railio.main:app --reload --port 3001
 
 # frontend (terminal 2)
 cd frontend
 npm install
-npm run dev                # :3000
+npm run dev               # :3000
 ```
 
-Open `http://localhost:3000`. The seed loads assets, parts, and demo tickets ready to walk through. The `MVP_test_data_GE_ES44AC` bundle is a focused GE ES44AC demo set.
-
-To verify the audit trail at any point:
-
-```bash
-cd backend && python -m scripts.verify_chain
-```
-
-To run an end-to-end smoke test against a running backend:
-
-```bash
-cd backend && python -m scripts.e2e
-```
+Open `http://localhost:3000`. Verify the audit trail with `python -m scripts.verify_chain`; run an end-to-end smoke test against a running backend with `python -m scripts.e2e`.
 
 ---
 
-## What's deliberately out of scope for v0
+## Out of scope for v0
 
-- No auth, no multi-tenant, no mobile-native client (the v1 spec in [MVP.md](MVP.md) covers all of these).
-- Only two forms (the federally-required ones). Defect cards and parts requisitions were intentionally cut after the spec review — `ticket_parts` covers the parts-tracking need without inventing a non-federal document.
-- Tribal corpus is hand-written; production would record real SMEs.
-- No background jobs; storage is just Postgres + Supabase Storage for photos.
+- **No auth / no mobile-native client** — the data layer is multi-tenant and auth-ready, but login and the React Native app belong to v1 ([MVP.md](MVP.md)).
+- **No FRA document generation** — Railio is the copilot conversation + corpus + parts + photos. Form auto-fill and PDF export were deliberately cut; `ticket_parts` covers parts tracking without a non-federal document.
+- **Tenants don't upload data in v0** — the admin loads each org's data via `load_org`.
