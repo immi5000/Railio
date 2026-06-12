@@ -1,18 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export function TopNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
+  // The sign-in and OAuth-callback screens stand alone — no app chrome.
+  if (pathname === "/signin" || pathname?.startsWith("/auth")) return null;
+
   const isAdmin = pathname?.startsWith("/admin");
+
+  async function signOut() {
+    try {
+      await createClient().auth.signOut();
+    } finally {
+      router.replace("/signin");
+    }
+  }
 
   const links = (
     <>
@@ -39,6 +52,13 @@ export function TopNav() {
       <Link href="/admin/parts" style={navLinkStyle(!!isAdmin)}>
         Parts
       </Link>
+      <button
+        type="button"
+        onClick={signOut}
+        style={{ ...navLinkStyle(false), background: "none", border: "none", cursor: "pointer" }}
+      >
+        Sign out
+      </button>
     </>
   );
 

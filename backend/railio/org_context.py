@@ -1,9 +1,10 @@
 """Per-request organization (tenant) context.
 
-THE single place that decides which org a request belongs to. Today it reads an
-`X-Org-Id` header (numeric id or slug) and falls back to the default org when
-absent. When real auth lands, swap the header read for a JWT-claim read here —
-nothing else in the codebase needs to change.
+THE single place that decides which org a request belongs to. It verifies the
+Supabase access token on the `Authorization: Bearer …` header, resolves (and on
+first login provisions) the user's org from app_users, and returns it. The org
+is derived solely from the verified token — the client-supplied `X-Org-Id`
+header is intentionally ignored, so a client cannot read another org's data.
 """
 
 from __future__ import annotations
@@ -12,30 +13,30 @@ from typing import Optional
 
 from fastapi import Header, HTTPException
 
+from .auth import verify_supabase_jwt
 from .contract import Organization
-from .organizations_repo import get_default_org, get_org_by_id, get_org_by_slug
+from .organizations_repo import get_or_provision_user
 
 
 async def get_current_org(
-    x_org_id: Optional[str] = Header(default=None, alias="X-Org-Id"),
+    authorization: Optional[str] = Header(default=None),
 ) -> Organization:
-    """Resolve the request's org from the X-Org-Id header, else the default org.
+    """Resolve the request's org from the verified Supabase JWT.
 
-    Raises 400 if the header names an org that doesn't exist, and 503 if no org
-    exists at all (the system hasn't been seeded yet).
+    Raises 401 if the token is missing/invalid, and 503 if the resolved org
+    hasn't been loaded yet (run scripts.load_org).
     """
-    org: Optional[Organization] = None
-    if x_org_id is not None and x_org_id.strip():
-        token = x_org_id.strip()
-        if token.isdigit():
-            org = await get_org_by_id(int(token))
-        else:
-            org = await get_org_by_slug(token)
-        if org is None:
-            raise HTTPException(status_code=400, detail=f"unknown organization: {token}")
-        return org
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="missing bearer token")
+    token = authorization.split(" ", 1)[1].strip()
+    try:
+        claims = verify_supabase_jwt(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="invalid token")
 
-    org = await get_default_org()
-    if org is None:
-        raise HTTPException(status_code=503, detail="no organizations configured")
-    return org
+    sub = claims.get("sub")
+    email = claims.get("email")
+    if not sub or not email:
+        raise HTTPException(status_code=401, detail="token missing sub/email")
+
+    return await get_or_provision_user(supabase_user_id=str(sub), email=str(email))

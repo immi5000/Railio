@@ -151,6 +151,9 @@ _STATEMENTS = [
     # same OEM part number. Drop the old global unique constraint; add a partial
     # unique index keyed on (org_id, part_number) for rows that have an org.
     "ALTER TABLE parts DROP CONSTRAINT IF EXISTS parts_part_number_key",
+    # Older databases named the global unique constraint differently; drop that
+    # variant too so part_number can be unique per org, not globally.
+    "ALTER TABLE parts DROP CONSTRAINT IF EXISTS parts_part_number_unique",
     """
     CREATE UNIQUE INDEX IF NOT EXISTS idx_parts_org_partnumber
     ON parts (org_id, part_number) WHERE org_id IS NOT NULL
@@ -162,6 +165,20 @@ _STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS idx_tickets_org ON tickets (org_id, status)",
     "CREATE INDEX IF NOT EXISTS idx_parts_org ON parts (org_id)",
     "CREATE INDEX IF NOT EXISTS idx_corpus_chunks_scope2 ON corpus_chunks (org_id, unit_model, asset_id)",
+    # === Auth (Supabase) ===
+    # One membership row per Supabase auth user, keyed on the JWT `sub`. Created
+    # at first login by get_or_provision_user (domain-map / allowlist → org). This
+    # is the source of truth for which org a request belongs to once auth is on.
+    """
+    CREATE TABLE IF NOT EXISTS app_users (
+        id serial PRIMARY KEY,
+        supabase_user_id text NOT NULL UNIQUE,
+        email text NOT NULL,
+        org_id integer NOT NULL REFERENCES organizations(id),
+        created_at text NOT NULL DEFAULT (now()::text)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_app_users_org ON app_users (org_id)",
 ]
 
 

@@ -41,6 +41,18 @@ class Organization(Base):
     created_at = Column(Text, nullable=False)
 
 
+class AppUser(Base):
+    __tablename__ = "app_users"
+
+    id = Column(Integer, primary_key=True)
+    # The Supabase auth user id (JWT `sub`). The membership is keyed on this, not
+    # email, so a user keeps their org even if their email later changes.
+    supabase_user_id = Column(Text, nullable=False, unique=True)
+    email = Column(Text, nullable=False)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    created_at = Column(Text, nullable=False)
+
+
 class Asset(Base):
     __tablename__ = "assets"
 

@@ -1,3 +1,4 @@
+import { createClient } from "./supabase/client";
 import type {
   CreateTicketBody,
   CreateAssetBody,
@@ -25,10 +26,10 @@ export function apiUrl(path: string) {
 }
 
 /**
- * The current organization (tenant) slug. Until real auth lands, it comes from
- * a `railio_org` cookie (set at "login"), falling back to a single default org.
- * This is the one place the frontend decides which tenant a request belongs to;
- * swap the cookie read for a real session token here when auth is wired in.
+ * Legacy org-slug hint sent as X-Org-Id. The backend now derives the tenant
+ * from the verified Supabase JWT and IGNORES this header — it is kept only for
+ * back-compat and carries no authority. The real tenant is the signed-in user's
+ * org (see authHeaders / the backend get_current_org).
  */
 export function currentOrgSlug(): string {
   if (typeof document !== "undefined") {
@@ -43,6 +44,24 @@ export function orgHeaders(): Record<string, string> {
   return { "X-Org-Id": currentOrgSlug() };
 }
 
+/**
+ * Auth + org headers for an API request. The Supabase access token is the
+ * source of truth for the tenant (the backend ignores X-Org-Id); X-Org-Id is
+ * kept only for back-compat. Async because the token is read from the session.
+ */
+export async function authHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { ...orgHeaders() };
+  try {
+    const { data } = await createClient().auth.getSession();
+    const token = data.session?.access_token;
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+  } catch {
+    // No session / Supabase not configured — request goes out unauthenticated
+    // and the backend will answer 401, which callers surface as a sign-in nudge.
+  }
+  return headers;
+}
+
 /** Resolve a backend-stored path (e.g. /uploads/foo.jpg) into a fully-qualified URL the browser can load. */
 export function fileUrl(path: string | null | undefined): string {
   if (!path) return "";
@@ -55,7 +74,7 @@ async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...orgHeaders(),
+      ...(await authHeaders()),
       ...(init?.headers || {}),
     },
   });
@@ -146,7 +165,7 @@ export async function uploadPhotos(
   const res = await fetch(apiUrl(`/api/tickets/${ticketId}/photos`), {
     method: "POST",
     body: fd,
-    headers: orgHeaders(),
+    headers: await authHeaders(),
   });
   if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
   return (await res.json()) as { attachments: Attachment[] };

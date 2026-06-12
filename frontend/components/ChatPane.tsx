@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { apiUrl, fileUrl, getTicket, orgHeaders, uploadPhotos } from "@/lib/api";
+import { apiUrl, authHeaders, fileUrl, getTicket, uploadPhotos } from "@/lib/api";
 import type {
   Citation,
   Message,
@@ -100,7 +100,7 @@ export function ChatPane({
     try {
       await fetchEventSource(apiUrl(`/api/tickets/${ticketId}/messages`), {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...orgHeaders() },
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify(body),
         signal: ac.signal,
         openWhenHidden: true,
