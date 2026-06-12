@@ -41,6 +41,17 @@ class Organization(Base):
     created_at = Column(Text, nullable=False)
 
 
+class OrgDomain(Base):
+    __tablename__ = "org_domains"
+
+    id = Column(Integer, primary_key=True)
+    # Email domain (lowercased, e.g. "anacostia.com"). Users with this domain are
+    # provisioned into org_id on first login. Add a row to onboard a company —
+    # no redeploy. Per-user exceptions live in app_users instead.
+    domain = Column(Text, nullable=False, unique=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+
+
 class AppUser(Base):
     __tablename__ = "app_users"
 

@@ -9,10 +9,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy import text
 
-from .auth import resolve_org_slug
+from .auth import auto_org_for_email, split_email
 from .contract import Organization
 from .db import session_scope
 from .messages_repo import _iso_now
@@ -61,17 +60,73 @@ async def get_default_org() -> Optional[Organization]:
     return Organization(**row) if row else None
 
 
+async def _org_by_id(session, org_id: int) -> Organization:
+    row = (
+        await session.execute(
+            text("SELECT id, name, slug, created_at FROM organizations WHERE id = :id"),
+            {"id": org_id},
+        )
+    ).mappings().first()
+    return Organization(**row)
+
+
+async def _auto_create_org(session, email: str) -> int:
+    """Create (or reuse) the org an unmapped email should land in, return its id.
+
+    Company domain → org named after the domain label; public email → personal
+    org named after the username. Slug collisions get a -2, -3, … suffix.
+    """
+    base_slug, name = auto_org_for_email(email)
+    slug = base_slug
+    n = 1
+    while True:
+        existing = (
+            await session.execute(
+                text("SELECT id FROM organizations WHERE slug = :slug"),
+                {"slug": slug},
+            )
+        ).scalar()
+        if existing is not None:
+            return int(existing)
+        try:
+            new_id = (
+                await session.execute(
+                    text(
+                        """
+                        INSERT INTO organizations (name, slug, created_at)
+                        VALUES (:name, :slug, :at)
+                        ON CONFLICT (slug) DO NOTHING
+                        RETURNING id
+                        """
+                    ),
+                    {"name": name or slug, "slug": slug, "at": _iso_now()},
+                )
+            ).scalar()
+        except Exception:
+            new_id = None
+        if new_id is not None:
+            return int(new_id)
+        # Lost a race or slug now taken — bump the suffix and retry.
+        n += 1
+        slug = f"{base_slug}-{n}"
+
+
 async def get_or_provision_user(
     *, supabase_user_id: str, email: str
 ) -> Organization:
     """Return the org for a Supabase user, provisioning on first login.
 
-    First login maps the verified email to an org slug (allowlist → domain →
-    fallback) and writes the app_users row. Later logins read that row, so
-    changing the domain rules never silently moves an existing user.
+    Resolution order, all DB-driven (no env, no redeploy to onboard):
+      1. existing app_users row (per-user override you can edit in the DB)
+      2. an org_domains rule matching the email's domain
+      3. auto-create an org (company domain → domain label; public email →
+         username) and join it.
+    Later logins read the persisted app_users row, so editing org_domains never
+    silently moves an existing user.
     """
+    _, domain = split_email(email)
     async with session_scope() as session:
-        row = (
+        existing = (
             await session.execute(
                 text(
                     """
@@ -83,22 +138,18 @@ async def get_or_provision_user(
                 {"sub": supabase_user_id},
             )
         ).mappings().first()
-        if row:
-            return Organization(**row)
+        if existing:
+            return Organization(**existing)
 
-        slug = resolve_org_slug(email)
-        org_row = (
+        org_id = (
             await session.execute(
-                text(
-                    "SELECT id, name, slug, created_at FROM organizations WHERE slug = :slug"
-                ),
-                {"slug": slug},
+                text("SELECT org_id FROM org_domains WHERE domain = :domain"),
+                {"domain": domain},
             )
-        ).mappings().first()
-        if org_row is None:
-            raise HTTPException(
-                status_code=503, detail=f"org not provisioned: {slug}"
-            )
+        ).scalar()
+        if org_id is None:
+            org_id = await _auto_create_org(session, email)
+
         await session.execute(
             text(
                 """
@@ -110,11 +161,11 @@ async def get_or_provision_user(
             {
                 "sub": supabase_user_id,
                 "email": email.lower(),
-                "org": org_row["id"],
+                "org": int(org_id),
                 "at": _iso_now(),
             },
         )
-        return Organization(**org_row)
+        return await _org_by_id(session, int(org_id))
 
 
 async def create_organization(*, name: str, slug: str) -> Organization:

@@ -179,6 +179,28 @@ _STATEMENTS = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_app_users_org ON app_users (org_id)",
+    # Domain → org rules. Add a row to onboard a company without a redeploy.
+    # Unmapped company domains auto-create their own org at first login; public
+    # email domains get a personal org named after the username.
+    """
+    CREATE TABLE IF NOT EXISTS org_domains (
+        id serial PRIMARY KEY,
+        domain text NOT NULL UNIQUE,
+        org_id integer NOT NULL REFERENCES organizations(id)
+    )
+    """,
+    # Seed the known company-domain rules (idempotent). Placeholder domains —
+    # edit to the real ones, or just INSERT new rows in the Supabase editor.
+    """
+    INSERT INTO org_domains (domain, org_id)
+    SELECT 'anacostia.com', id FROM organizations WHERE slug = 'anacostia'
+    ON CONFLICT (domain) DO NOTHING
+    """,
+    """
+    INSERT INTO org_domains (domain, org_id)
+    SELECT 'omnitrax.com', id FROM organizations WHERE slug = 'omnitrax'
+    ON CONFLICT (domain) DO NOTHING
+    """,
 ]
 
 

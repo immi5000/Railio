@@ -49,18 +49,63 @@ def verify_supabase_jwt(token: str) -> dict:
     )
 
 
-def resolve_org_slug(email: str) -> str:
-    """Map a verified email to the org slug a first-time user belongs to.
+# Free / public email providers. A user on one of these gets a personal org
+# named after their username instead of a shared per-domain org.
+PUBLIC_EMAIL_DOMAINS = {
+    "gmail.com",
+    "googlemail.com",
+    "outlook.com",
+    "hotmail.com",
+    "live.com",
+    "msn.com",
+    "yahoo.com",
+    "ymail.com",
+    "icloud.com",
+    "me.com",
+    "mac.com",
+    "proton.me",
+    "protonmail.com",
+    "aol.com",
+    "gmx.com",
+    "zoho.com",
+}
 
-    Allowlist (exact email) wins, then email domain, then the fallback sandbox.
-    """
-    settings = get_settings()
+
+def _slugify(raw: str) -> str:
+    """Lowercase, keep [a-z0-9-], collapse the rest to single dashes."""
+    out: list[str] = []
+    prev_dash = False
+    for ch in raw.lower().strip():
+        if ch.isalnum():
+            out.append(ch)
+            prev_dash = False
+        elif not prev_dash:
+            out.append("-")
+            prev_dash = True
+    return "".join(out).strip("-") or "org"
+
+
+def split_email(email: str) -> tuple[str, str]:
+    """Return (local_part, domain) lowercased."""
     email = email.lower().strip()
-    allow = settings.email_allowlist
-    if email in allow:
-        return allow[email]
-    domain = email.rsplit("@", 1)[-1] if "@" in email else ""
-    domain_map = settings.domain_map
-    if domain in domain_map:
-        return domain_map[domain]
-    return settings.auth_fallback_org
+    local, _, domain = email.partition("@")
+    return local, domain
+
+
+def is_public_domain(domain: str) -> bool:
+    return domain in PUBLIC_EMAIL_DOMAINS
+
+
+def auto_org_for_email(email: str) -> tuple[str, str]:
+    """The (slug, display_name) to auto-create for an email with no domain rule.
+
+    Public email → personal org from the username. Company domain → org from the
+    domain's first label (newco.com → "newco" / "Newco").
+    """
+    local, domain = split_email(email)
+    if is_public_domain(domain):
+        slug = _slugify(local)
+        return slug, local
+    label = domain.split(".")[0] if domain else ""
+    slug = _slugify(label)
+    return slug, label.capitalize() if label else slug

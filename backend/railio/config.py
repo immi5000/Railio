@@ -26,9 +26,6 @@ class Settings:
     supabase_service_role_key: Optional[str]
     supabase_jwks_url: Optional[str]
     supabase_jwt_secret: Optional[str]
-    auth_domain_map: str
-    auth_email_allowlist: str
-    auth_fallback_org: str
 
     def __init__(self) -> None:
         self.openai_api_key = os.environ.get("OPENAI_API_KEY")
@@ -61,40 +58,10 @@ class Settings:
         # HS256 fallback for projects still on a symmetric JWT secret. When set
         # (and no JWKS), tokens are verified with this instead of the JWKS keys.
         self.supabase_jwt_secret = os.environ.get("SUPABASE_JWT_SECRET")
-        # First-login org assignment. domain map and allowlist are "key=val,key=val".
-        # Placeholders — swap in the real company email domains via env, no code change.
-        self.auth_domain_map = os.environ.get(
-            "AUTH_DOMAIN_MAP", "anacostia.com=anacostia,omnitrax.com=omnitrax"
-        )
-        self.auth_email_allowlist = os.environ.get(
-            "AUTH_EMAIL_ALLOWLIST", "imranhusain5000@gmail.com=test"
-        )
-        # Any email matching no domain rule and not allowlisted lands here — a
-        # shared public-demo sandbox org.
-        self.auth_fallback_org = os.environ.get("AUTH_FALLBACK_ORG", "test")
 
     @property
     def allowed_origins(self) -> list[str]:
         return [o.strip() for o in self.frontend_origin.split(",") if o.strip()]
-
-    @staticmethod
-    def _parse_kv(raw: str) -> dict[str, str]:
-        out: dict[str, str] = {}
-        for pair in raw.split(","):
-            pair = pair.strip()
-            if not pair or "=" not in pair:
-                continue
-            k, v = pair.split("=", 1)
-            out[k.strip().lower()] = v.strip()
-        return out
-
-    @property
-    def domain_map(self) -> dict[str, str]:
-        return self._parse_kv(self.auth_domain_map)
-
-    @property
-    def email_allowlist(self) -> dict[str, str]:
-        return self._parse_kv(self.auth_email_allowlist)
 
 
 @lru_cache(maxsize=1)
