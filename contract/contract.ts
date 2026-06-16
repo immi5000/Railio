@@ -95,6 +95,22 @@ export type Organization = {
   created_at: string | null;
 };
 
+export type OnboardingBody = {
+  name: string;
+  phone?: string;
+  join_code?: string;
+};
+
+export type MeResponse = {
+  id: number;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  profile_completed: boolean;
+  org: Organization | null;
+  locked_company: string | null;
+};
+
 export type Asset = {
   id: number;
   org_id: number;

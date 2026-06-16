@@ -1,9 +1,9 @@
-"""Supabase JWT verification + first-login org resolution.
+"""Supabase JWT verification + email→org helpers.
 
 Verifies the access token Supabase issues after Google/Microsoft sign-in, and
-maps a verified email to the org a new user should be provisioned into. The org
-is then persisted in app_users (see organizations_repo.get_or_provision_user)
-and that row — not this mapping — is the source of truth on later requests.
+provides the helpers onboarding uses to decide the org a new user joins (see
+organizations_repo.finalize_onboarding). The persisted app_users row — not these
+helpers — is the source of truth on later requests.
 """
 
 from __future__ import annotations

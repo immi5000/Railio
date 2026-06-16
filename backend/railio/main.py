@@ -19,6 +19,7 @@ from .routers import (
     photos,
     tickets,
     uploads,
+    users,
 )
 
 
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(parts.router, prefix="/api/parts", tags=["parts"])
     app.include_router(corpus.router, prefix="/api/corpus", tags=["corpus"])
     app.include_router(uploads.router, prefix="/api/uploads", tags=["uploads"])
+    app.include_router(users.router, prefix="/api", tags=["users"])
 
     return app
 

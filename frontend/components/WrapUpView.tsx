@@ -85,7 +85,7 @@ export function WrapUpView({ ticketId }: { ticketId: number }) {
       }}
     >
       <div className="wrap" style={{ marginBottom: 12 }}>
-        <Link href="/tech" className="micro" style={{ color: "var(--muted)" }}>
+        <Link href="/work" className="micro" style={{ color: "var(--muted)" }}>
           ← Back to queue
         </Link>
         <div
@@ -130,7 +130,7 @@ export function WrapUpView({ ticketId }: { ticketId: number }) {
                 history and will surface in future chats for this unit.
               </p>
               <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center" }}>
-                <Link href="/tech" className="btn btn-primary btn-sm">
+                <Link href="/work" className="btn btn-primary btn-sm">
                   Back to queue
                 </Link>
               </div>

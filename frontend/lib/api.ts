@@ -16,6 +16,9 @@ import type {
   CorpusChunk,
   Attachment,
   DocClass,
+  Organization,
+  OnboardingBody,
+  MeResponse,
 } from "./contract";
 
 export const API_BASE =
@@ -69,6 +72,16 @@ export function fileUrl(path: string | null | undefined): string {
   return apiUrl(path);
 }
 
+/** Carries the HTTP status so callers can branch (e.g. 409 = onboarding needed). */
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(apiUrl(path), {
     ...init,
@@ -83,7 +96,7 @@ async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       body = await res.text();
     } catch {}
-    throw new Error(`${res.status} ${res.statusText}: ${body || path}`);
+    throw new ApiError(res.status, `${res.status} ${res.statusText}: ${body || path}`);
   }
   return (await res.json()) as T;
 }
@@ -232,5 +245,19 @@ export async function listCorpusChunks(opts?: {
     `/api/corpus/chunks${qs ? `?${qs}` : ""}`,
   );
   return res.chunks;
+}
+
+// === Users / onboarding ===
+export async function getMe(): Promise<MeResponse> {
+  return jsonFetch<MeResponse>(`/api/me`);
+}
+
+export async function completeOnboarding(
+  body: OnboardingBody,
+): Promise<{ org: Organization | null }> {
+  return jsonFetch<{ org: Organization | null }>(`/api/onboarding`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 

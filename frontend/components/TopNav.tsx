@@ -14,8 +14,13 @@ export function TopNav() {
     setOpen(false);
   }, [pathname]);
 
-  // The sign-in and OAuth-callback screens stand alone — no app chrome.
-  if (pathname === "/signin" || pathname?.startsWith("/auth")) return null;
+  // The sign-in, onboarding, and OAuth-callback screens stand alone — no chrome.
+  if (
+    pathname === "/signin" ||
+    pathname === "/onboarding" ||
+    pathname?.startsWith("/auth")
+  )
+    return null;
 
   const isAdmin = pathname?.startsWith("/admin");
 

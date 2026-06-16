@@ -201,6 +201,49 @@ _STATEMENTS = [
     SELECT 'omnitrax.com', id FROM organizations WHERE slug = 'omnitrax'
     ON CONFLICT (domain) DO NOTHING
     """,
+    # === Onboarding: profile capture on app_users ===
+    # org_id becomes NULLABLE: a user is authenticated before they pick/join an
+    # org during onboarding. profile_completed gates access to the app.
+    "ALTER TABLE app_users ALTER COLUMN org_id DROP NOT NULL",
+    "ALTER TABLE app_users ADD COLUMN IF NOT EXISTS name text",
+    "ALTER TABLE app_users ADD COLUMN IF NOT EXISTS phone text",
+    "ALTER TABLE app_users ADD COLUMN IF NOT EXISTS profile_completed boolean NOT NULL DEFAULT false",
+    "ALTER TABLE app_users ADD COLUMN IF NOT EXISTS onboarded_at text",
+    # Existing users already have an org — treat them as onboarded so they're
+    # never bounced into the new onboarding flow.
+    "UPDATE app_users SET profile_completed = true WHERE org_id IS NOT NULL AND profile_completed = false",
+    # === Secure org-join: invite codes ===
+    # A code grants membership to exactly one org. The org a user joins is decided
+    # by the backend (domain rule OR a valid code OR auto-create) — never trusted
+    # from the client. code stored lowercased; expires_at is ISO-8601 UTC text.
+    """
+    CREATE TABLE IF NOT EXISTS org_invite_codes (
+        id serial PRIMARY KEY,
+        code text NOT NULL UNIQUE,
+        org_id integer NOT NULL REFERENCES organizations(id),
+        max_uses integer,
+        used_count integer NOT NULL DEFAULT 0,
+        expires_at text,
+        created_at text NOT NULL DEFAULT (now()::text)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_org_invite_codes_org ON org_invite_codes (org_id)",
+    # Seed one code per existing org (idempotent). Edit / add rows in Supabase.
+    """
+    INSERT INTO org_invite_codes (code, org_id)
+    SELECT 'test-join', id FROM organizations WHERE slug = 'test'
+    ON CONFLICT (code) DO NOTHING
+    """,
+    """
+    INSERT INTO org_invite_codes (code, org_id)
+    SELECT 'anacostia-join', id FROM organizations WHERE slug = 'anacostia'
+    ON CONFLICT (code) DO NOTHING
+    """,
+    """
+    INSERT INTO org_invite_codes (code, org_id)
+    SELECT 'omnitrax-join', id FROM organizations WHERE slug = 'omnitrax'
+    ON CONFLICT (code) DO NOTHING
+    """,
 ]
 
 

@@ -111,61 +111,135 @@ async def _auto_create_org(session, email: str) -> int:
         slug = f"{base_slug}-{n}"
 
 
-async def get_or_provision_user(
-    *, supabase_user_id: str, email: str
-) -> Organization:
-    """Return the org for a Supabase user, provisioning on first login.
+async def ensure_user(*, supabase_user_id: str, email: str) -> dict:
+    """Ensure an app_users row exists for this Supabase user; return its state.
 
-    Resolution order, all DB-driven (no env, no redeploy to onboard):
-      1. existing app_users row (per-user override you can edit in the DB)
-      2. an org_domains rule matching the email's domain
-      3. auto-create an org (company domain → domain label; public email →
-         username) and join it.
-    Later logins read the persisted app_users row, so editing org_domains never
-    silently moves an existing user.
+    Does NOT choose an org — a new user has org_id = NULL until onboarding
+    finalizes. Returns id, email, name, phone, profile_completed, org_id.
     """
-    _, domain = split_email(email)
     async with session_scope() as session:
-        existing = (
+        await session.execute(
+            text(
+                """
+                INSERT INTO app_users (supabase_user_id, email, created_at, profile_completed)
+                VALUES (:sub, :email, :at, false)
+                ON CONFLICT (supabase_user_id) DO NOTHING
+                """
+            ),
+            {"sub": supabase_user_id, "email": email.lower(), "at": _iso_now()},
+        )
+        row = (
             await session.execute(
                 text(
                     """
-                    SELECT o.id, o.name, o.slug, o.created_at
-                    FROM app_users u JOIN organizations o ON o.id = u.org_id
-                    WHERE u.supabase_user_id = :sub
+                    SELECT id, email, name, phone, profile_completed, org_id
+                    FROM app_users WHERE supabase_user_id = :sub
                     """
                 ),
                 {"sub": supabase_user_id},
             )
         ).mappings().first()
-        if existing:
-            return Organization(**existing)
+    return dict(row)
 
+
+async def redeem_invite_code(session, code: str) -> Optional[int]:
+    """Validate an invite code and return its org_id, or None if invalid.
+
+    Atomic: the guarded UPDATE checks usability (not expired, under max_uses)
+    and increments used_count in one statement, so concurrent redemptions can't
+    exceed max_uses. Code match is case-insensitive.
+    """
+    normalized = code.strip().lower()
+    if not normalized:
+        return None
+    org_id = (
+        await session.execute(
+            text(
+                """
+                UPDATE org_invite_codes
+                SET used_count = used_count + 1
+                WHERE lower(code) = :code
+                  AND (expires_at IS NULL OR expires_at > :now)
+                  AND (max_uses IS NULL OR used_count < max_uses)
+                RETURNING org_id
+                """
+            ),
+            {"code": normalized, "now": _iso_now()},
+        )
+    ).scalar()
+    return int(org_id) if org_id is not None else None
+
+
+async def finalize_onboarding(
+    *,
+    supabase_user_id: str,
+    email: str,
+    name: str,
+    phone: Optional[str],
+    join_code: Optional[str],
+) -> Organization:
+    """Resolve the user's org on the backend and complete their profile.
+
+    Secure resolution order (client cannot pick an arbitrary org):
+      1. org_domains rule for the VERIFIED email domain — authoritative.
+      2. a valid invite code — joins that code's org (invalid → ValueError).
+      3. neither — auto-create the user's personal/company org.
+    """
+    _, domain = split_email(email)
+    async with session_scope() as session:
         org_id = (
             await session.execute(
-                text("SELECT org_id FROM org_domains WHERE domain = :domain"),
-                {"domain": domain},
+                text("SELECT org_id FROM org_domains WHERE domain = :d"),
+                {"d": domain},
             )
         ).scalar()
+
+        if org_id is None and join_code and join_code.strip():
+            org_id = await redeem_invite_code(session, join_code)
+            if org_id is None:
+                raise ValueError("invalid join code")
+
         if org_id is None:
             org_id = await _auto_create_org(session, email)
 
         await session.execute(
             text(
                 """
-                INSERT INTO app_users (supabase_user_id, email, org_id, created_at)
-                VALUES (:sub, :email, :org, :at)
-                ON CONFLICT (supabase_user_id) DO NOTHING
+                UPDATE app_users
+                SET org_id = :org, name = :name, phone = :phone,
+                    profile_completed = true, onboarded_at = :at
+                WHERE supabase_user_id = :sub
                 """
             ),
             {
-                "sub": supabase_user_id,
-                "email": email.lower(),
                 "org": int(org_id),
+                "name": name.strip(),
+                "phone": (phone.strip() if phone and phone.strip() else None),
                 "at": _iso_now(),
+                "sub": supabase_user_id,
             },
         )
         return await _org_by_id(session, int(org_id))
+
+
+async def org_name_for_domain(email: str) -> Optional[str]:
+    """Display name of the org an email's domain maps to (for the locked company
+    step), or None. Advisory only — finalize_onboarding re-decides server-side."""
+    _, domain = split_email(email)
+    async with session_scope() as session:
+        row = (
+            await session.execute(
+                text(
+                    """
+                    SELECT o.name FROM org_domains d
+                    JOIN organizations o ON o.id = d.org_id
+                    WHERE d.domain = :d
+                    """
+                ),
+                {"d": domain},
+            )
+        ).mappings().first()
+    return row["name"] if row else None
 
 
 async def create_organization(*, name: str, slug: str) -> Organization:

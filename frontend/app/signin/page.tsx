@@ -1,19 +1,31 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Provider = "google" | "azure";
 
 function SignInInner() {
   const params = useSearchParams();
+  const router = useRouter();
   const [busy, setBusy] = useState<Provider | null>(null);
   const [error, setError] = useState<string | null>(
     params.get("error") ? "Sign-in failed. Please try again." : null,
   );
 
   const next = params.get("next") || "/app";
+  const isSignup = params.get("mode") === "signup";
+
+  // Already signed in (e.g. arriving from the landing CTA) — forward straight
+  // through the /app gate instead of asking them to authenticate again.
+  useEffect(() => {
+    createClient()
+      .auth.getSession()
+      .then(({ data }) => {
+        if (data.session) router.replace(next);
+      });
+  }, [router, next]);
 
   async function signIn(provider: Provider) {
     setError(null);
@@ -73,7 +85,7 @@ function SignInInner() {
           Railio
         </a>
         <h1 style={{ fontSize: 20, fontWeight: 700, margin: "16px 0 4px" }}>
-          Sign in
+          {isSignup ? "Create your account" : "Log in"}
         </h1>
         <p
           className="body"
@@ -89,7 +101,11 @@ function SignInInner() {
             disabled={busy !== null}
             onClick={() => signIn("google")}
           >
-            {busy === "google" ? "Redirecting…" : "Continue with Google"}
+            {busy === "google"
+              ? "Redirecting…"
+              : isSignup
+                ? "Sign up with Google"
+                : "Continue with Google"}
           </button>
           <button
             className="btn btn-ghost"
@@ -97,7 +113,11 @@ function SignInInner() {
             disabled={busy !== null}
             onClick={() => signIn("azure")}
           >
-            {busy === "azure" ? "Redirecting…" : "Continue with Microsoft"}
+            {busy === "azure"
+              ? "Redirecting…"
+              : isSignup
+                ? "Sign up with Microsoft"
+                : "Continue with Microsoft"}
           </button>
         </div>
 

@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getTicket, listParts, fileUrl } from "@/lib/api";
 import type { Citation, Part, TicketDetail, TicketStatus } from "@/lib/contract";
 import { formatDate, formatDateOnly, severityClass, statusLabel, statusPillClass } from "@/lib/format";
 import { CitationDrawer } from "./CitationDrawer";
-import { useState } from "react";
+import { ContextPanel, Empty } from "./ContextPanel";
 
 export function RepairContext({ ticketId }: { ticketId: number }) {
   const { data: ticket } = useQuery({
@@ -49,37 +49,32 @@ export function RepairContext({ ticketId }: { ticketId: number }) {
 
   if (!ticket) {
     return (
-      <aside style={skeletonStyle}>
+      <div style={{ padding: "var(--s5)" }}>
         <span className="micro" style={{ color: "var(--muted)" }}>
           Loading context…
         </span>
-      </aside>
+      </div>
     );
   }
 
+  // Smart defaults: before work starts, intake info matters most; once the
+  // repair is underway, parts/photos/citations are what the tech reaches for.
+  const started = ticket.status !== "AWAITING_TECH";
+  const faults = ticket.fault_dump_parsed || [];
+
   return (
-    <aside
-      className="repair-context"
-      style={{
-        height: "100%",
-        overflowY: "auto",
-        background: "#fff",
-        borderLeft: "1px solid var(--border)",
-        padding: 24,
-      }}
-    >
-      <div style={{ marginBottom: 16 }}>
+    <div style={{ padding: "var(--s4)" }}>
+      <div style={{ marginBottom: "var(--s4)" }}>
         <span className="sect-eyebrow">Repair context</span>
       </div>
 
       <TicketCard ticket={ticket} />
-
       <UnitInfo ticket={ticket} />
 
-      <Section title="Parsed faults">
-        {ticket.fault_dump_parsed && ticket.fault_dump_parsed.length > 0 ? (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {ticket.fault_dump_parsed.map((p, i) => (
+      <ContextPanel title="Parsed faults" count={faults.length || undefined} defaultOpen={!started}>
+        {faults.length > 0 ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s1)" }}>
+            {faults.map((p, i) => (
               <span
                 key={`${p.code}-${i}`}
                 className={severityClass(p.severity)}
@@ -92,34 +87,27 @@ export function RepairContext({ ticketId }: { ticketId: number }) {
         ) : (
           <Empty>No fault dump on file.</Empty>
         )}
-      </Section>
+      </ContextPanel>
 
-      <Section title="Pre-arrival summary">
+      <ContextPanel title="Pre-arrival briefing" defaultOpen={!started}>
         {ticket.pre_arrival_summary ? (
-          <p
-            style={{
-              fontSize: 14,
-              lineHeight: 1.5,
-              whiteSpace: "pre-wrap",
-              color: "var(--ink-2)",
-            }}
-          >
+          <p style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap", color: "var(--ink-2)" }}>
             {ticket.pre_arrival_summary}
           </p>
         ) : (
           <Empty>Dispatcher and AI haven&rsquo;t written one yet.</Empty>
         )}
-      </Section>
+      </ContextPanel>
 
-      <Section title="Suggested parts">
-        <SuggestedParts
-          ticket={ticket}
-          parts={parts || []}
-          ticketId={ticketId}
-        />
-      </Section>
+      <ContextPanel
+        title="Parts"
+        count={ticket.ticket_parts?.length || undefined}
+        defaultOpen={started}
+      >
+        <SuggestedParts ticket={ticket} parts={parts || []} />
+      </ContextPanel>
 
-      <Section title="Cited chunks">
+      <ContextPanel title="Citations" count={dedupedCitations.length || undefined} defaultOpen={started}>
         {dedupedCitations.length === 0 ? (
           <Empty>No citations yet.</Empty>
         ) : (
@@ -127,11 +115,7 @@ export function RepairContext({ ticketId }: { ticketId: number }) {
             {dedupedCitations.map((c) => (
               <button
                 key={c.chunk_id}
-                className={
-                  c.doc_class === "manual"
-                    ? "cite cite-manual"
-                    : "cite cite-tribal"
-                }
+                className={c.doc_class === "manual" ? "cite cite-manual" : "cite cite-tribal"}
                 onClick={() => setOpenChunk(c.chunk_id)}
               >
                 {c.doc_class === "manual" ? "📖" : "👤"} {c.source_label}
@@ -139,20 +123,13 @@ export function RepairContext({ ticketId }: { ticketId: number }) {
             ))}
           </div>
         )}
-      </Section>
+      </ContextPanel>
 
-      <Section title="Photos">
+      <ContextPanel title="Photos" count={allPhotos.length || undefined} defaultOpen={started}>
         {allPhotos.length === 0 ? (
           <Empty>No photos sent yet.</Empty>
         ) : (
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              overflowX: "auto",
-              paddingBottom: 4,
-            }}
-          >
+          <div style={{ display: "flex", gap: "var(--s2)", overflowX: "auto", paddingBottom: "var(--s1)" }}>
             {allPhotos.map((p, i) => (
               <a
                 key={`${p.path}-${i}`}
@@ -171,34 +148,20 @@ export function RepairContext({ ticketId }: { ticketId: number }) {
                 <img
                   src={fileUrl(p.path)}
                   alt="ticket photo"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                  }}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               </a>
             ))}
           </div>
         )}
-      </Section>
+      </ContextPanel>
 
       {openChunk != null && (
-        <CitationDrawer
-          chunkId={openChunk}
-          onClose={() => setOpenChunk(null)}
-        />
+        <CitationDrawer chunkId={openChunk} onClose={() => setOpenChunk(null)} />
       )}
-    </aside>
+    </div>
   );
 }
-
-const skeletonStyle: React.CSSProperties = {
-  height: "100%",
-  borderLeft: "1px solid var(--border)",
-  padding: 24,
-  background: "#fff",
-};
 
 function TicketCard({ ticket }: { ticket: TicketDetail }) {
   const [showRaw, setShowRaw] = useState(false);
@@ -211,8 +174,8 @@ function TicketCard({ ticket }: { ticket: TicketDetail }) {
     <div
       style={{
         border: "1px solid var(--border)",
-        padding: 16,
-        marginBottom: 16,
+        padding: "var(--s4)",
+        marginBottom: "var(--s3)",
         background: "var(--pale)",
       }}
     >
@@ -221,11 +184,11 @@ function TicketCard({ ticket }: { ticket: TicketDetail }) {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "baseline",
-          marginBottom: 8,
+          marginBottom: "var(--s2)",
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 14 }}>Ticket #{ticket.id}</div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "var(--s1)", alignItems: "center" }}>
           <span
             className={severityClass(ticket.severity)}
             style={{ textTransform: "capitalize" }}
@@ -238,39 +201,26 @@ function TicketCard({ ticket }: { ticket: TicketDetail }) {
           </span>
         </div>
       </div>
-      <div className="micro" style={{ color: "var(--muted)", marginBottom: 8 }}>
+      <div className="micro" style={{ color: "var(--muted)", marginBottom: "var(--s2)" }}>
         Opened {formatDate(ticket.opened_at)}
         {ticket.closed_at && ` · closed ${formatDate(ticket.closed_at)}`}
       </div>
 
       {codes.length > 0 && (
-        <div style={{ marginBottom: 8 }}>
-          <div className="micro" style={{ marginBottom: 4 }}>
-            Initial error codes
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        <div style={{ marginBottom: "var(--s2)" }}>
+          <div className="micro" style={{ marginBottom: "var(--s1)" }}>Initial error codes</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s1)" }}>
             {codes.map((c) => (
-              <span key={c} className="pill pill-soft">
-                {c}
-              </span>
+              <span key={c} className="pill pill-soft">{c}</span>
             ))}
           </div>
         </div>
       )}
 
       {ticket.initial_symptoms && (
-        <div style={{ marginBottom: hasRaw ? 8 : 0 }}>
-          <div className="micro" style={{ marginBottom: 4 }}>
-            Initial symptoms
-          </div>
-          <div
-            style={{
-              fontSize: 13,
-              lineHeight: 1.5,
-              color: "var(--ink-2)",
-              whiteSpace: "pre-wrap",
-            }}
-          >
+        <div style={{ marginBottom: hasRaw ? "var(--s2)" : 0 }}>
+          <div className="micro" style={{ marginBottom: "var(--s1)" }}>Initial symptoms</div>
+          <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--ink-2)", whiteSpace: "pre-wrap" }}>
             {ticket.initial_symptoms}
           </div>
         </div>
@@ -295,8 +245,8 @@ function TicketCard({ ticket }: { ticket: TicketDetail }) {
           {showRaw && (
             <pre
               style={{
-                marginTop: 6,
-                padding: 8,
+                marginTop: "var(--s1)",
+                padding: "var(--s2)",
                 background: "#0a0a0a",
                 color: "#e5e5e5",
                 fontSize: 11,
@@ -318,27 +268,19 @@ function TicketCard({ ticket }: { ticket: TicketDetail }) {
 function UnitInfo({ ticket }: { ticket: TicketDetail }) {
   const a = ticket.asset;
   return (
-    <div
-      style={{
-        border: "1px solid var(--ink)",
-        padding: 16,
-        marginBottom: 24,
-      }}
-    >
+    <div style={{ border: "1px solid var(--ink)", padding: "var(--s4)", marginBottom: "var(--s4)" }}>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "baseline",
           borderBottom: "1px solid var(--ink)",
-          paddingBottom: 8,
-          marginBottom: 12,
+          paddingBottom: "var(--s2)",
+          marginBottom: "var(--s3)",
         }}
       >
         <span className="micro">Unit</span>
-        <span className="micro" style={{ color: "var(--mta)" }}>
-          {a.unit_model}
-        </span>
+        <span className="micro" style={{ color: "var(--mta)" }}>{a.unit_model}</span>
       </div>
       <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.01em" }}>
         {a.reporting_mark} {a.road_number}
@@ -347,8 +289,8 @@ function UnitInfo({ ticket }: { ticket: TicketDetail }) {
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gap: 12,
-          marginTop: 12,
+          gap: "var(--s3)",
+          marginTop: "var(--s3)",
           fontSize: 12,
         }}
       >
@@ -365,47 +307,7 @@ function UnitInfo({ ticket }: { ticket: TicketDetail }) {
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <h4
-        className="h4"
-        style={{
-          fontSize: 13,
-          letterSpacing: "0.04em",
-          marginBottom: 8,
-          paddingBottom: 6,
-          borderBottom: "1px solid var(--pale)",
-        }}
-      >
-        {title}
-      </h4>
-      {children}
-    </div>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return (
-    <span style={{ fontSize: 13, color: "var(--muted)" }}>{children}</span>
-  );
-}
-
-function SuggestedParts({
-  ticket,
-  parts,
-  ticketId,
-}: {
-  ticket: TicketDetail;
-  parts: Part[];
-  ticketId: number;
-}) {
+function SuggestedParts({ ticket, parts }: { ticket: TicketDetail; parts: Part[] }) {
   if (!ticket.ticket_parts || ticket.ticket_parts.length === 0) {
     return <Empty>None yet — Railio adds them as it diagnoses.</Empty>;
   }
@@ -420,8 +322,8 @@ function SuggestedParts({
             style={{
               display: "grid",
               gridTemplateColumns: "1fr auto",
-              gap: 8,
-              padding: "8px 0",
+              gap: "var(--s2)",
+              padding: "var(--s2) 0",
               borderBottom: "1px solid var(--pale)",
               fontSize: 13,
             }}
@@ -429,14 +331,10 @@ function SuggestedParts({
             <div>
               <div style={{ fontWeight: 700 }}>{p?.name || "Unknown part"}</div>
               <div style={{ color: "var(--muted)", fontSize: 12 }}>
-                {p?.part_number || "—"} · Bin {p?.bin_location || "?"} · qty{" "}
-                {p?.qty_on_hand ?? "?"}
+                {p?.part_number || "—"} · Bin {p?.bin_location || "?"} · qty {p?.qty_on_hand ?? "?"}
               </div>
             </div>
-            <span
-              className="micro"
-              style={{ color: "var(--muted)", alignSelf: "center" }}
-            >
+            <span className="micro" style={{ color: "var(--muted)", alignSelf: "center" }}>
               {tp.added_via === "ai_suggestion" ? "AI" : "manual"}
             </span>
           </div>
@@ -445,4 +343,3 @@ function SuggestedParts({
     </div>
   );
 }
-

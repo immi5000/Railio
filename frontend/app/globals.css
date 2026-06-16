@@ -15,6 +15,22 @@
   --mta-soft: #e2eaf7;
   --link-hover: #1883fd;
   --ok: #8dc572;
+
+  /* Role accents: dispatch = the MTA blue; tech = a field green so the two
+     modes are unmistakable at a glance. */
+  --dispatch: #0039a6;
+  --dispatch-soft: #e2eaf7;
+  --tech: #1f7a4d;
+  --tech-soft: #e1f1e8;
+
+  /* Spacing scale — use instead of ad-hoc pixel values on touched screens. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
 }
 
 * {
@@ -783,25 +799,175 @@ button {
   }
 }
 
-/* === Workspace (master-detail) === */
+/* === Workspace (persistent 3-pane: rail · center · context) ===
+   The three regions are always reserved, so selecting a ticket fills the
+   center/context columns instead of reshaping the rail — no layout jump. */
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr) minmax(0, 360px);
+  height: calc(100vh - 56px);
+  min-height: 0;
+}
+.workspace > .pane {
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+.workspace-rail {
+  border-right: 1px solid var(--border);
+  background: #fff;
+}
+.workspace-center {
+  min-width: 0;
+}
+.workspace-context {
+  border-left: 1px solid var(--border);
+  background: #fff;
+}
+/* Tablet: drop the context column; tech reaches it via the in-detail toggle. */
+@media (max-width: 1024px) {
+  .workspace {
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+  }
+  .workspace-context {
+    display: none;
+  }
+}
+/* Phone: rail collapses; the selected detail owns the screen. */
+@media (max-width: 760px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+  .workspace-rail.rail-hidden {
+    display: none;
+  }
+}
+
 .ticket-card {
   transition: background 0.1s, border-color 0.1s;
 }
 .ticket-card:hover {
   background: var(--pale);
 }
-.ticket-card[style*="mta-soft"]:hover {
-  background: var(--mta-soft);
+
+/* === Role mode banner (rail header) === */
+.mode-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--border);
+  color: #fff;
 }
-/* On phones, focus mode is single-column: the detail owns the screen and the
-   list rail collapses (reachable via the "All tickets" back affordance). */
-@media (max-width: 760px) {
-  .workspace {
-    grid-template-columns: 1fr !important;
-  }
-  .workspace-rail {
-    display: none !important;
-  }
+.mode-banner .mode-title {
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.mode-banner .mode-sub {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+.mode-banner--dispatch {
+  background: var(--dispatch);
+}
+.mode-banner--tech {
+  background: var(--tech);
+}
+
+/* === Segmented role toggle === */
+.seg-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+}
+.seg-toggle-item {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: none;
+  cursor: pointer;
+  background: #fff;
+  color: var(--ink);
+}
+.seg-toggle-item[data-active="true"][data-role="dispatch"] {
+  background: var(--dispatch);
+  color: #fff;
+}
+.seg-toggle-item[data-active="true"][data-role="tech"] {
+  background: var(--tech);
+  color: #fff;
+}
+
+/* === Collapsible context panels === */
+.panel {
+  border: 1px solid var(--border);
+  background: #fff;
+  margin-bottom: var(--s3);
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  width: 100%;
+  padding: var(--s3) var(--s4);
+  background: var(--pale);
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.panel-header .panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.panel-header .panel-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  font-feature-settings: "tnum";
+}
+.panel-header .panel-chevron {
+  color: var(--muted);
+  font-size: 11px;
+  transition: transform 0.12s;
+}
+.panel-header[data-open="false"] .panel-chevron {
+  transform: rotate(-90deg);
+}
+.panel-body {
+  padding: var(--s4);
+}
+
+/* Slim placeholder shown in the context column when nothing is selected. */
+.context-placeholder {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: var(--s5);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Guided empty state in the center pane. */
+.workspace-empty {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: var(--s6);
+  text-align: center;
 }
 
 /* Toast */

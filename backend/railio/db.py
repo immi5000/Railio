@@ -9,6 +9,7 @@ from typing import AsyncIterator, Optional
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     JSON,
+    Boolean,
     Column,
     ForeignKey,
     Index,
@@ -60,7 +61,26 @@ class AppUser(Base):
     # email, so a user keeps their org even if their email later changes.
     supabase_user_id = Column(Text, nullable=False, unique=True)
     email = Column(Text, nullable=False)
+    # Nullable: a user is authenticated before they pick/join an org in onboarding.
+    org_id = Column(Integer, ForeignKey("organizations.id"))
+    name = Column(Text)
+    phone = Column(Text)
+    profile_completed = Column(Boolean, nullable=False, server_default="false")
+    onboarded_at = Column(Text)
+    created_at = Column(Text, nullable=False)
+
+
+class OrgInviteCode(Base):
+    __tablename__ = "org_invite_codes"
+
+    id = Column(Integer, primary_key=True)
+    # Stored lowercased; redemption matches case-insensitively. Grants membership
+    # to exactly one org — the secret that lets a non-company email join a team.
+    code = Column(Text, nullable=False, unique=True)
     org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    max_uses = Column(Integer)
+    used_count = Column(Integer, nullable=False, server_default="0")
+    expires_at = Column(Text)
     created_at = Column(Text, nullable=False)
 
 

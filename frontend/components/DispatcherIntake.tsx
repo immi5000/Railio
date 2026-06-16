@@ -99,12 +99,12 @@ export function DispatcherIntake() {
   return (
     <section style={{ padding: "32px 0 96px" }}>
       <div className="wrap">
-        <div style={{ marginBottom: 24 }}>
-          <span className="sect-eyebrow">02 — New ticket</span>
-          <h1 className="h1" style={{ marginTop: 12 }}>
+        <div style={{ marginBottom: "var(--s5)" }}>
+          <span className="sect-eyebrow">Dispatch · New ticket</span>
+          <h1 className="h1" style={{ marginTop: "var(--s3)" }}>
             Open A Ticket
           </h1>
-          <p className="lede" style={{ marginTop: 8 }}>
+          <p className="lede" style={{ marginTop: "var(--s2)" }}>
             Get the unit, the symptoms, and the fault dump in. The chat on the
             right wraps it into a pre-arrival briefing for the tech.
           </p>

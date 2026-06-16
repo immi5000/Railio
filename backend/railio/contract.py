@@ -24,6 +24,22 @@ class Organization(BaseModel):
     created_at: Optional[str] = None
 
 
+class OnboardingBody(BaseModel):
+    name: str
+    phone: Optional[str] = None
+    join_code: Optional[str] = None
+
+
+class MeResponse(BaseModel):
+    id: int
+    email: str
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    profile_completed: bool
+    org: Optional[Organization] = None
+    locked_company: Optional[str] = None
+
+
 class Asset(BaseModel):
     id: int
     org_id: int

@@ -187,7 +187,7 @@ export function ChatPane({
         const toolName = callIdToName.current.get(ev.call_id);
         if (toolName === "set_ticket_status") {
           // Backend has committed the new status; invalidate so every observer
-          // (TechTicketView's Start/Close buttons, status pill, queue badges)
+          // (TicketDetail's Start/wrap-up buttons, status pill, queue badges)
           // re-renders with the fresh ticket.
           qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
           qc.invalidateQueries({ queryKey: ["tickets"] });

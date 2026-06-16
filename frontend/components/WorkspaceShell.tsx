@@ -9,13 +9,14 @@ import { formatDate, statusLabel, statusPillClass } from "@/lib/format";
 import { getRoleCookie, setRoleCookie, type Role } from "@/lib/role";
 import type { Ticket, TicketStatus } from "@/lib/contract";
 import { TicketDetail } from "./TicketDetail";
+import { RepairContext } from "./RepairContext";
+import { IntakeContext } from "./IntakeContext";
 
 /**
- * Role-driven master-detail workspace. The ticket is the unit of work; the
- * locomotive is an attribute shown inside the detail. Dispatcher lands
- * list-forward (triage); tech lands detail-forward (focus). When a ticket is
- * open, the list collapses out of the way (focus mode) so the ticket owns the
- * screen.
+ * Persistent 3-pane workspace: ticket rail · chat · role context. All three
+ * regions are always reserved, so selecting a ticket fills the center/context
+ * columns rather than reshaping the rail — no layout jump, no throwaway landing
+ * screen. The mode banner + accent make the active role unmistakable.
  */
 export function WorkspaceShell() {
   const router = useRouter();
@@ -39,7 +40,8 @@ export function WorkspaceShell() {
     filter ? filter.includes(t.status) : true,
   );
 
-  const focusMode = selectedId != null;
+  const isDispatch = role === "dispatcher";
+  const accent = isDispatch ? "var(--dispatch)" : "var(--tech)";
 
   function select(id: number | null) {
     router.push(id == null ? "/work" : `/work?ticket=${id}`);
@@ -52,109 +54,74 @@ export function WorkspaceShell() {
   }
 
   return (
-    <div
-      className="workspace"
-      style={{
-        height: "calc(100vh - 56px)",
-        display: "grid",
-        gridTemplateColumns: focusMode ? "minmax(0, 320px) 1fr" : "1fr",
-        minHeight: 0,
-      }}
-    >
-      {/* Master list — full width when nothing selected, slim rail in focus mode */}
+    <div className="workspace">
+      {/* Left rail — ticket queue, always visible */}
       <aside
-        className={focusMode ? "workspace-rail" : ""}
-        style={{
-          borderRight: focusMode ? "1px solid var(--border)" : "none",
-          minHeight: 0,
-          overflow: "auto",
-          display: "flex",
-          flexDirection: "column",
-        }}
+        className={`pane workspace-rail${selectedId != null ? " rail-hidden" : ""}`}
       >
-        <div
-          style={{
-            padding: focusMode ? "16px 16px 12px" : "32px 0 16px",
-          }}
-          className={focusMode ? "" : "wrap"}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <span className="sect-eyebrow">
-                {role === "dispatcher" ? "Dispatcher" : "Tech"} · Tickets
-              </span>
-              {!focusMode && (
-                <h1 className="h2" style={{ marginTop: 12 }}>
-                  {role === "dispatcher" ? "Open Tickets" : "On The Floor"}
-                </h1>
-              )}
-            </div>
-            {!focusMode && (
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <RoleToggle role={role} onChange={switchRole} />
-                {role === "dispatcher" && (
-                  <Link href="/dispatcher/new" className="btn btn-super btn-sm">
-                    + New ticket
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
+        <div className={`mode-banner mode-banner--${isDispatch ? "dispatch" : "tech"}`}>
+          <span className="mode-title">
+            {isDispatch ? "Dispatch mode" : "Tech mode"}
+          </span>
+          <span className="mode-sub">
+            {isDispatch ? "Triage & hand off" : "Repair & wrap up"}
+          </span>
         </div>
 
         <div
-          className={focusMode ? "" : "wrap"}
-          style={{ flex: 1, minHeight: 0, paddingBottom: 24 }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "var(--s2)",
+            padding: "var(--s3) var(--s4)",
+            borderBottom: "1px solid var(--border)",
+          }}
         >
+          <RoleToggle role={role} onChange={switchRole} />
+          {isDispatch && (
+            <Link href="/dispatcher/new" className="btn btn-super btn-sm">
+              + New
+            </Link>
+          )}
+        </div>
+
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "var(--s3)" }}>
           {isLoading && (
-            <div style={{ padding: 16, color: "var(--muted)", fontSize: 13 }}>
+            <div style={{ padding: "var(--s4)", color: "var(--muted)", fontSize: 13 }}>
               Loading tickets…
             </div>
           )}
           {error && (
-            <div className="card" style={{ borderColor: "#f08d80" }}>
+            <div className="card-tight" style={{ borderColor: "#f08d80" }}>
               <div className="micro" style={{ color: "#8a1f15" }}>
                 Backend unreachable
               </div>
-              <p style={{ marginTop: 8, color: "var(--muted)", fontSize: 13 }}>
-                Could not load tickets. Make sure the backend is on port 3001.
+              <p style={{ marginTop: "var(--s2)", color: "var(--muted)", fontSize: 13 }}>
+                Make sure the backend is on port 3001.
               </p>
             </div>
           )}
           {!isLoading && !error && tickets.length === 0 && (
             <div
-              className="card"
+              className="card-tight"
               style={{ textAlign: "center", color: "var(--muted)" }}
             >
               <div className="micro">No tickets</div>
-              <p style={{ marginTop: 8, fontSize: 13 }}>
-                {role === "dispatcher"
+              <p style={{ marginTop: "var(--s2)", fontSize: 13 }}>
+                {isDispatch
                   ? "Open a ticket so the tech has context."
                   : "Tickets handed off by dispatch show up here."}
               </p>
             </div>
           )}
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: focusMode ? 6 : 8,
-            }}
-          >
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--s2)" }}>
             {tickets.map((t) => (
               <TicketCard
                 key={t.id}
                 ticket={t}
-                compact={focusMode}
+                accent={accent}
                 active={t.id === selectedId}
                 onClick={() => select(t.id)}
               />
@@ -163,16 +130,65 @@ export function WorkspaceShell() {
         </div>
       </aside>
 
-      {/* Detail — only in focus mode */}
-      {focusMode && selectedId != null && (
-        <main style={{ minHeight: 0, overflow: "hidden", position: "relative" }}>
+      {/* Center — chat or guided empty state */}
+      <main className="pane workspace-center">
+        {selectedId != null ? (
           <TicketDetail
             ticketId={selectedId}
             role={role}
             onBack={() => select(null)}
           />
-        </main>
-      )}
+        ) : (
+          <WorkspaceEmpty role={role} />
+        )}
+      </main>
+
+      {/* Right — role context (tech repair context / dispatcher intake) */}
+      <aside className="pane workspace-context">
+        {selectedId != null ? (
+          isDispatch ? (
+            <IntakeContext ticketId={selectedId} onHandedOff={() => select(null)} />
+          ) : (
+            <RepairContext ticketId={selectedId} />
+          )
+        ) : (
+          <div className="context-placeholder">
+            <span className="micro">
+              {isDispatch ? "Intake details" : "Repair context"}
+            </span>
+          </div>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+function WorkspaceEmpty({ role }: { role: Role }) {
+  const isDispatch = role === "dispatcher";
+  return (
+    <div className="workspace-empty">
+      <div style={{ maxWidth: 380 }}>
+        <span className="sect-eyebrow">
+          {isDispatch ? "Dispatch" : "Tech"}
+        </span>
+        <h2 className="h3" style={{ marginTop: "var(--s3)" }}>
+          {isDispatch ? "Select or open a ticket" : "Pick a unit to start"}
+        </h2>
+        <p style={{ marginTop: "var(--s3)", color: "var(--muted)", fontSize: 14 }}>
+          {isDispatch
+            ? "Choose a ticket from the queue to brief the tech, or open a new one."
+            : "Choose a ticket handed off by dispatch to begin the walk-through."}
+        </p>
+        {isDispatch && (
+          <Link
+            href="/dispatcher/new"
+            className="btn btn-super"
+            style={{ marginTop: "var(--s4)" }}
+          >
+            + New ticket
+          </Link>
+        )}
+      </div>
     </div>
   );
 }
@@ -180,12 +196,12 @@ export function WorkspaceShell() {
 function TicketCard({
   ticket,
   active,
-  compact,
+  accent,
   onClick,
 }: {
   ticket: Ticket;
   active: boolean;
-  compact: boolean;
+  accent: string;
   onClick: () => void;
 }) {
   return (
@@ -196,13 +212,13 @@ function TicketCard({
       style={{
         textAlign: "left",
         border: "1px solid var(--border)",
-        borderLeft: active ? "3px solid var(--mta)" : "3px solid transparent",
-        background: active ? "var(--mta-soft)" : "#fff",
-        padding: compact ? "10px 12px" : "16px",
+        borderLeft: active ? `3px solid ${accent}` : "3px solid transparent",
+        background: active ? "var(--pale)" : "#fff",
+        padding: "10px 12px",
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
-        gap: 6,
+        gap: "var(--s1)",
         width: "100%",
         font: "inherit",
       }}
@@ -212,7 +228,7 @@ function TicketCard({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: 8,
+          gap: "var(--s2)",
         }}
       >
         <span className="qid" style={{ fontWeight: 700 }}>
@@ -234,11 +250,9 @@ function TicketCard({
         {ticket.asset.unit_model} ·{" "}
         {ticket.initial_symptoms || ticket.initial_error_codes || "No symptoms"}
       </div>
-      {!compact && (
-        <div className="micro" style={{ color: "var(--muted)" }}>
-          Opened {formatDate(ticket.opened_at)}
-        </div>
-      )}
+      <div className="micro" style={{ color: "var(--muted)" }}>
+        Opened {formatDate(ticket.opened_at)}
+      </div>
     </button>
   );
 }
@@ -250,26 +264,22 @@ function RoleToggle({
   role: Role;
   onChange: (r: Role) => void;
 }) {
+  const items: { value: Role; data: "tech" | "dispatch" }[] = [
+    { value: "tech", data: "tech" },
+    { value: "dispatcher", data: "dispatch" },
+  ];
   return (
-    <div style={{ display: "inline-flex", border: "1px solid var(--border)" }}>
-      {(["tech", "dispatcher"] as Role[]).map((r) => (
+    <div className="seg-toggle">
+      {items.map((it) => (
         <button
-          key={r}
+          key={it.value}
           type="button"
-          onClick={() => onChange(r)}
-          style={{
-            padding: "6px 12px",
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            border: "none",
-            cursor: "pointer",
-            background: role === r ? "var(--mta)" : "#fff",
-            color: role === r ? "#fff" : "var(--ink)",
-          }}
+          className="seg-toggle-item"
+          data-role={it.data}
+          data-active={role === it.value}
+          onClick={() => onChange(it.value)}
         >
-          {r}
+          {it.value}
         </button>
       ))}
     </div>
