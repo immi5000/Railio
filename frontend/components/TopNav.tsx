@@ -102,7 +102,18 @@ export function TopNav() {
       <button
         type="button"
         onClick={signOut}
-        style={{ ...navLinkStyle(false), background: "none", border: "none", cursor: "pointer" }}
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          color: "var(--muted)",
+          background: "none",
+          border: "1px solid var(--border)",
+          borderRadius: 6,
+          padding: "6px 12px",
+          cursor: "pointer",
+        }}
       >
         Sign out
       </button>
