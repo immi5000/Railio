@@ -7,6 +7,7 @@ import {
   createAsset,
   createTicket,
   listAssets,
+  listKnowledgeModels,
   parseFaultDump,
   patchTicket,
 } from "@/lib/api";
@@ -26,7 +27,9 @@ export function DispatcherIntake() {
   const [faultDump, setFaultDump] = useState("");
   const [severity, setSeverity] = useState<Severity>("major");
   const [addingAsset, setAddingAsset] = useState(false);
-  const [newUnitModel, setNewUnitModel] = useState("ES44DC");
+  const [newUnitModel, setNewUnitModel] = useState("");
+  // Escape hatch: a model with no ingested manual yet (free-text entry).
+  const [modelIsOther, setModelIsOther] = useState(false);
 
   // The fleet roster is the source of truth for the asset selector.
   const { data: assets } = useQuery({
@@ -35,12 +38,21 @@ export function DispatcherIntake() {
   });
   const knownAssets: Asset[] = assets || [];
 
+  // Models that have ingested knowledge — the add-asset model picker binds the
+  // asset's unit_model directly to one of these, so the ticket scope always
+  // resolves to the right manual.
+  const { data: models } = useQuery({
+    queryKey: ["knowledge-models"],
+    queryFn: () => listKnowledgeModels(),
+  });
+  const knownModels = models || [];
+
   const addAssetMut = useMutation({
     mutationFn: () =>
       createAsset({
         reporting_mark: reportingMark.trim(),
         road_number: roadNumber.trim(),
-        unit_model: newUnitModel.trim() || "ES44DC",
+        unit_model: newUnitModel.trim(),
       }),
     onSuccess: (a) => {
       qc.invalidateQueries({ queryKey: ["assets"] });
@@ -182,20 +194,54 @@ export function DispatcherIntake() {
                       value={roadNumber}
                       onChange={(e) => setRoadNumber(e.target.value)}
                     />
-                    <input
-                      className="input"
-                      style={{ flex: "1 1 120px" }}
-                      placeholder="Unit model"
-                      value={newUnitModel}
-                      onChange={(e) => setNewUnitModel(e.target.value)}
-                    />
+                    {!modelIsOther ? (
+                      <select
+                        className="select"
+                        style={{ flex: "1 1 160px" }}
+                        value={newUnitModel}
+                        onChange={(e) => {
+                          if (e.target.value === "__other__") {
+                            setModelIsOther(true);
+                            setNewUnitModel("");
+                          } else {
+                            setNewUnitModel(e.target.value);
+                          }
+                        }}
+                      >
+                        <option value="">— Model (has manuals) —</option>
+                        {knownModels.map((m) => (
+                          <option key={m.model_code} value={m.model_code}>
+                            {m.model_code}
+                            {m.chunk_count
+                              ? ` · ${m.chunk_count} chunk${
+                                  m.chunk_count === 1 ? "" : "s"
+                                }`
+                              : " · no manual yet"}
+                          </option>
+                        ))}
+                        <option value="__other__">Other (type manually)…</option>
+                      </select>
+                    ) : (
+                      <input
+                        className="input"
+                        style={{ flex: "1 1 160px" }}
+                        placeholder="Unit model (no manual yet)"
+                        value={newUnitModel}
+                        autoFocus
+                        onChange={(e) => setNewUnitModel(e.target.value)}
+                        onBlur={() => {
+                          if (!newUnitModel.trim()) setModelIsOther(false);
+                        }}
+                      />
+                    )}
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
                       disabled={
                         addAssetMut.isPending ||
                         !reportingMark.trim() ||
-                        !roadNumber.trim()
+                        !roadNumber.trim() ||
+                        !newUnitModel.trim()
                       }
                       onClick={() => addAssetMut.mutate()}
                     >
@@ -203,6 +249,19 @@ export function DispatcherIntake() {
                     </button>
                   </div>
                 )}
+                {addingAsset &&
+                  !modelIsOther &&
+                  newUnitModel &&
+                  !knownModels.some(
+                    (m) => m.model_code === newUnitModel && m.chunk_count > 0,
+                  ) && (
+                    <div
+                      style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}
+                    >
+                      ⚠ This model has no ingested manual yet — Railio will only
+                      have shared 49 CFR to cite for it.
+                    </div>
+                  )}
                 {addAssetMut.error && (
                   <div style={{ color: "#8a1f15", fontSize: 12, marginTop: 6 }}>
                     {(addAssetMut.error as Error).message}

@@ -51,7 +51,11 @@ async def lookup_parts(
             WHERE p.name ILIKE term OR p.description ILIKE term OR p.part_number ILIKE term
           ) AS hit_count
         FROM parts p
-        WHERE p.compatible_units ? :unit
+        WHERE (
+            p.compatible_units IS NULL
+            OR p.compatible_units = '[]'::jsonb
+            OR p.compatible_units ? :unit
+          )
           {org_clause}
           AND EXISTS (
             SELECT 1 FROM unnest(CAST(:terms AS text[])) AS term

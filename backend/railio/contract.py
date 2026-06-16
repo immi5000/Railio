@@ -50,6 +50,24 @@ class Asset(BaseModel):
     last_inspection_at: Optional[str] = None
 
 
+class HistoricalTest(BaseModel):
+    date: Optional[str] = None
+    name: str
+
+
+class HistoricalRecord(BaseModel):
+    id: int
+    org_id: int
+    asset_id: int
+    reported_date: Optional[str] = None
+    completed_date: Optional[str] = None
+    record_type: Optional[str] = None
+    repairs: list[str] = []
+    tests: list[HistoricalTest] = []
+    technician: Optional[str] = None
+    created_at: str
+
+
 class Citation(BaseModel):
     doc_class: DocClass
     doc_id: str
@@ -107,18 +125,32 @@ class Ticket(BaseModel):
     is_pristine: Optional[bool] = None
 
 
+class PartLocation(BaseModel):
+    location: str
+    qty: float
+    avg_cost: Optional[float] = None
+    value: Optional[float] = None
+
+
 class Part(BaseModel):
     id: int
     part_number: str
     name: str
     description: Optional[str] = None
-    compatible_units: list[UnitModel]
-    bin_location: str
+    compatible_units: list[UnitModel] = Field(default_factory=list)
+    bin_location: Optional[str] = None
     qty_on_hand: int
     supplier: Optional[str] = None
     lead_time_days: Optional[int] = None
     alternate_part_numbers: list[str] = Field(default_factory=list)
     last_used_at: Optional[str] = None
+    # External-ledger fields (NetSuite stock ledger).
+    avg_cost: Optional[float] = None
+    on_hand_value: Optional[float] = None
+    locations: list[PartLocation] = Field(default_factory=list)
+    department: Optional[str] = None
+    subsidiary: Optional[str] = None
+    inv_class: Optional[str] = None
 
 
 class TicketPart(BaseModel):
@@ -127,6 +159,12 @@ class TicketPart(BaseModel):
     qty: int
     added_via: Literal["ai_suggestion", "tech_manual"]
     added_at: str
+
+
+class KnowledgeModel(BaseModel):
+    model_code: str
+    oem: Optional[str] = None
+    chunk_count: int = 0
 
 
 class CorpusFigure(BaseModel):
@@ -195,6 +233,15 @@ class FinalizeWrapUpBody(BaseModel):
     summary: str
     notes: Optional[str] = None
     author: Optional[str] = None
+
+
+class CreateHistoricalRecordBody(BaseModel):
+    reported_date: Optional[str] = None
+    completed_date: Optional[str] = None
+    record_type: Optional[str] = None
+    repairs: list[str] = []
+    tests: list[HistoricalTest] = []
+    technician: Optional[str] = None
 
 
 class AttachDocumentBody(BaseModel):

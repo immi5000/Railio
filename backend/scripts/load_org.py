@@ -74,6 +74,40 @@ def _scope_chunk(
     return {"unit_model": unit_model, "asset_id": asset_id}
 
 
+def _history_embed_text(asset: dict[str, Any], rec: dict[str, Any]) -> str:
+    parts = [
+        f"Maintenance record for {asset['reporting_mark']} {asset['unit_model']} "
+        f"{asset['road_number']}.",
+        f"Type: {rec.get('record_type') or '—'}.",
+        f"Reported: {rec.get('reported_date') or '—'}. "
+        f"Completed: {rec.get('completed_date') or '—'}.",
+    ]
+    repairs = rec.get("repairs") or []
+    tests = rec.get("tests") or []
+    if repairs:
+        parts.append("Repairs: " + "; ".join(repairs) + ".")
+    if tests:
+        parts.append(
+            "Tests: "
+            + "; ".join(
+                t["name"] + (f" ({t['date']})" if t.get("date") else "") for t in tests
+            )
+            + "."
+        )
+    if rec.get("technician"):
+        parts.append(f"Technician: {rec['technician']}.")
+    return " ".join(parts)
+
+
+def _history_source_label(asset: dict[str, Any], rec: dict[str, Any]) -> str:
+    when = rec.get("completed_date") or rec.get("reported_date") or "—"
+    kind = rec.get("record_type") or "Maintenance"
+    return (
+        f"Maintenance Record — {asset['reporting_mark']} {asset['unit_model']} "
+        f"{asset['road_number']} — {kind} — {when}"
+    )
+
+
 async def main() -> None:
     if len(sys.argv) < 2:
         print("usage: python -m scripts.load_org <slug>")
@@ -92,11 +126,15 @@ async def main() -> None:
     assets = _read_json(org_dir / "assets.json") if (org_dir / "assets.json").exists() else []
     parts = _read_json(org_dir / "parts.json") if (org_dir / "parts.json").exists() else []
     corpus_files = sorted((org_dir / "corpus").glob("*.json")) if (org_dir / "corpus").is_dir() else []
+    # history.json: {road_number: [ {reported_date, completed_date, record_type,
+    #   repairs[], tests[{date,name}], technician}, ... ]}
+    history = _read_json(org_dir / "history.json") if (org_dir / "history.json").exists() else {}
 
     engine = get_engine()
 
     # 1) Upsert the organization, get its id.
     async with engine.begin() as conn:
+        await conn.execute(text("SET statement_timeout = '10min'"))
         org_id = (
             await conn.execute(
                 text(
@@ -143,6 +181,7 @@ async def main() -> None:
         await conn.execute(text("DELETE FROM tickets WHERE org_id = :org"), {"org": org_id})
         await conn.execute(text("DELETE FROM parts WHERE org_id = :org"), {"org": org_id})
         await conn.execute(text("DELETE FROM corpus_chunks WHERE org_id = :org"), {"org": org_id})
+        await conn.execute(text("DELETE FROM historical_records WHERE org_id = :org"), {"org": org_id})
         await conn.execute(text("DELETE FROM assets WHERE org_id = :org"), {"org": org_id})
 
         # 3) Assets.
@@ -168,7 +207,12 @@ async def main() -> None:
                     },
                 )
             ).scalar_one()
-            road_to_asset[str(a["road_number"])] = {"id": aid, "unit_model": a["unit_model"]}
+            road_to_asset[str(a["road_number"])] = {
+                "id": aid,
+                "unit_model": a["unit_model"],
+                "reporting_mark": a["reporting_mark"],
+                "road_number": str(a["road_number"]),
+            }
 
         # 4) Parts (org-exclusive inventory).
         ins_part = (
@@ -177,17 +221,20 @@ async def main() -> None:
                 INSERT INTO parts (
                     org_id, part_number, name, description, compatible_units,
                     bin_location, qty_on_hand, supplier, lead_time_days,
-                    alternate_part_numbers, last_used_at
+                    alternate_part_numbers, last_used_at,
+                    avg_cost, on_hand_value, locations, department, subsidiary, inv_class
                 )
                 VALUES (
                     :org, :part_number, :name, :description, :compatible_units,
                     :bin_location, :qty_on_hand, :supplier, :lead_time_days,
-                    :alternate_part_numbers, :last_used_at
+                    :alternate_part_numbers, :last_used_at,
+                    :avg_cost, :on_hand_value, :locations, :department, :subsidiary, :inv_class
                 )
                 """
             ).bindparams(
                 bindparam("compatible_units", type_=JSONB),
                 bindparam("alternate_part_numbers", type_=JSONB),
+                bindparam("locations", type_=JSONB),
             )
         )
         for p in parts:
@@ -198,19 +245,64 @@ async def main() -> None:
                     "part_number": p["part_number"],
                     "name": p["name"],
                     "description": p.get("description"),
-                    "compatible_units": p["compatible_units"],
-                    "bin_location": p["bin_location"],
+                    "compatible_units": p.get("compatible_units") or [],
+                    "bin_location": p.get("bin_location"),
                     "qty_on_hand": int(p["qty_on_hand"]),
                     "supplier": p.get("supplier"),
                     "lead_time_days": p.get("lead_time_days"),
                     "alternate_part_numbers": p.get("alternate_part_numbers") or [],
                     "last_used_at": p.get("last_used_at"),
+                    "avg_cost": p.get("avg_cost"),
+                    "on_hand_value": p.get("on_hand_value"),
+                    "locations": p.get("locations") or [],
+                    "department": p.get("department"),
+                    "subsidiary": p.get("subsidiary"),
+                    "inv_class": p.get("inv_class"),
                 },
             )
 
-    print(f"load_org[{slug}]: org #{org_id} — {len(assets)} assets, {len(parts)} parts")
+        # 5) Historical records (structured maintenance history per unit). Each
+        #    record also becomes a tribal_knowledge corpus chunk (appended below)
+        #    so the copilot can cite a unit's past work.
+        ins_hist = text(
+            """
+            INSERT INTO historical_records
+                (org_id, asset_id, reported_date, completed_date, record_type,
+                 repairs, tests, technician, created_at)
+            VALUES
+                (:org, :asset, :reported, :completed, :rtype,
+                 :repairs, :tests, :tech, :at)
+            """
+        ).bindparams(bindparam("repairs", type_=JSONB), bindparam("tests", type_=JSONB))
+        n_hist = 0
+        for road_number, records in (history or {}).items():
+            asset = road_to_asset.get(str(road_number))
+            if not asset:
+                print(f"load_org[{slug}]: history.json road {road_number} has no asset — skipped")
+                continue
+            for rec in records:
+                await conn.execute(
+                    ins_hist,
+                    {
+                        "org": org_id,
+                        "asset": asset["id"],
+                        "reported": rec.get("reported_date"),
+                        "completed": rec.get("completed_date"),
+                        "rtype": rec.get("record_type"),
+                        "repairs": rec.get("repairs") or [],
+                        "tests": rec.get("tests") or [],
+                        "tech": rec.get("technician"),
+                        "at": _iso_now(),
+                    },
+                )
+                n_hist += 1
 
-    # 5) Corpus (org-private). Collect, scope, embed in batches, insert.
+    print(
+        f"load_org[{slug}]: org #{org_id} — {len(assets)} assets, "
+        f"{len(parts)} parts, {n_hist} historical records"
+    )
+
+    # 6) Corpus (org-private). Collect file chunks + history chunks, scope, embed.
     chunks: list[dict[str, Any]] = []
     for f in corpus_files:
         data = _read_json(f)
@@ -218,6 +310,27 @@ async def main() -> None:
         print(f"load_org[{slug}]: {f.name} — {len(data)} chunks")
     for c in chunks:
         c.update(_scope_chunk(c, road_to_asset))
+
+    # History → tribal_knowledge chunks (already asset-scoped, no _scope_chunk).
+    for road_number, records in (history or {}).items():
+        asset = road_to_asset.get(str(road_number))
+        if not asset:
+            continue
+        doc_slug = f"{asset['reporting_mark']}_{asset['road_number']}".lower().replace(" ", "_")
+        for i, rec in enumerate(records):
+            chunks.append(
+                {
+                    "doc_class": "tribal_knowledge",
+                    "doc_id": f"history_{doc_slug}_{i}",
+                    "doc_title": f"Maintenance History — {asset['reporting_mark']} "
+                    f"{asset['unit_model']} {asset['road_number']}",
+                    "source_label": _history_source_label(asset, rec),
+                    "text": _history_embed_text(asset, rec),
+                    "page": None,
+                    "unit_model": asset["unit_model"],
+                    "asset_id": asset["id"],
+                }
+            )
 
     if chunks:
         print(f"load_org[{slug}]: embedding {len(chunks)} corpus chunks…")

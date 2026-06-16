@@ -19,6 +19,7 @@ org-data/<slug>/
   org.json          REQUIRED  {"name": "Display Name", "slug": "<slug>"}
   assets.json       optional  the org's locomotive fleet
   parts.json        optional  the org's parts inventory (org-exclusive)
+  history.json      optional  structured maintenance history, keyed by road number
   corpus/*.json     optional  knowledge docs (manuals, tribal notes, history)
 ```
 
@@ -28,6 +29,23 @@ org-data/<slug>/
   { "reporting_mark": "BNSF", "road_number": "7670", "unit_model": "ES44DC",
     "in_service_date": "2006-08-15", "last_inspection_at": "2026-04-15T09:00:00Z" }
 ]
+```
+
+### history.json
+Structured maintenance history per unit (rendered as a table in `/admin/fleet`
+and embedded into the corpus as `tribal_knowledge` so the copilot can cite it).
+Keyed by `road_number`; each value is a list of records. A road number with no
+matching asset is skipped.
+```json
+{
+  "3901": [
+    { "reported_date": "2026-05-04", "completed_date": "2026-05-19",
+      "record_type": "Quarterly Periodic Inspection",
+      "repairs": ["Replaced: main air valve leak front and rear"],
+      "tests": [{ "date": "2026-05-05", "name": "AFM CAL" }],
+      "technician": "Pate, Phillip" }
+  ]
+}
 ```
 A new locomotive model needs **no code change** — just use its name in `unit_model`
 and add the matching manual under `corpus/`.

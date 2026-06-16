@@ -14,6 +14,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
 )
@@ -142,13 +143,25 @@ class Part(Base):
     part_number = Column(Text, nullable=False)
     name = Column(Text, nullable=False)
     description = Column(Text)
-    compatible_units = Column(JSONB, nullable=False)
-    bin_location = Column(Text, nullable=False)
+    # Nullable: inventory ingested from an external ledger (e.g. NetSuite) may have
+    # no locomotive mapping ([]) and may be stocked at many warehouses rather than
+    # one bin — neither field is guaranteed for such parts.
+    compatible_units = Column(JSONB)
+    bin_location = Column(Text)
     qty_on_hand = Column(Integer, nullable=False)
     supplier = Column(Text)
     lead_time_days = Column(Integer)
     alternate_part_numbers = Column(JSONB)
     last_used_at = Column(Text)
+    # External-ledger fields (NetSuite stock ledger). avg_cost/on_hand_value are
+    # item-level; locations is the per-warehouse breakdown [{location, qty,
+    # avg_cost, value}].
+    avg_cost = Column(Numeric)
+    on_hand_value = Column(Numeric)
+    locations = Column(JSONB)
+    department = Column(Text)
+    subsidiary = Column(Text)
+    inv_class = Column(Text)
 
 
 class TicketPart(Base):
@@ -189,6 +202,22 @@ class TribalCapture(Base):
     text = Column(Text, nullable=False)
     captured_at = Column(Text, nullable=False)
     promoted_chunk_id = Column(Integer)
+
+
+class HistoricalRecord(Base):
+    __tablename__ = "historical_records"
+
+    id = Column(Integer, primary_key=True)
+    org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"))
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"))
+    reported_date = Column(Text)
+    completed_date = Column(Text)
+    record_type = Column(Text)
+    # repairs: list[str]; tests: list[{date, name}]
+    repairs = Column(JSONB)
+    tests = Column(JSONB)
+    technician = Column(Text)
+    created_at = Column(Text, nullable=False)
 
 
 # --- Engine + session helpers ---

@@ -118,6 +118,25 @@ _STATEMENTS = [
         promoted_chunk_id integer
     )
     """,
+    # Structured maintenance history per unit (Reported/Completed/Type/Repairs/
+    # Tests/Technician). Distinct from the free-text repair-history corpus chunk:
+    # this is the queryable, table-rendered record; each row is ALSO embedded into
+    # corpus_chunks as tribal_knowledge so the copilot can cite it.
+    """
+    CREATE TABLE IF NOT EXISTS historical_records (
+        id serial PRIMARY KEY,
+        org_id integer NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        asset_id integer NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+        reported_date text,
+        completed_date text,
+        record_type text,
+        repairs jsonb,
+        tests jsonb,
+        technician text,
+        created_at text NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_historical_records_asset ON historical_records (org_id, asset_id)",
     # === Multi-tenancy (by organization) ===
     # An organization is a railroad tenant. Org-private data (assets, tickets,
     # parts inventory, tribal/repair history) is never visible to another org;
@@ -165,6 +184,17 @@ _STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS idx_tickets_org ON tickets (org_id, status)",
     "CREATE INDEX IF NOT EXISTS idx_parts_org ON parts (org_id)",
     "CREATE INDEX IF NOT EXISTS idx_corpus_chunks_scope2 ON corpus_chunks (org_id, unit_model, asset_id)",
+    # === Parts: external-ledger fields (NetSuite stock ledger) ===
+    # compatible_units / bin_location are no longer required: ledger-ingested
+    # inventory has no locomotive mapping and is stocked across many warehouses.
+    "ALTER TABLE parts ALTER COLUMN compatible_units DROP NOT NULL",
+    "ALTER TABLE parts ALTER COLUMN bin_location DROP NOT NULL",
+    "ALTER TABLE parts ADD COLUMN IF NOT EXISTS avg_cost numeric",
+    "ALTER TABLE parts ADD COLUMN IF NOT EXISTS on_hand_value numeric",
+    "ALTER TABLE parts ADD COLUMN IF NOT EXISTS locations jsonb",
+    "ALTER TABLE parts ADD COLUMN IF NOT EXISTS department text",
+    "ALTER TABLE parts ADD COLUMN IF NOT EXISTS subsidiary text",
+    "ALTER TABLE parts ADD COLUMN IF NOT EXISTS inv_class text",
     # === Auth (Supabase) ===
     # One membership row per Supabase auth user, keyed on the JWT `sub`. Created
     # at first login by get_or_provision_user (domain-map / allowlist → org). This

@@ -6,10 +6,24 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
 from ..assets_repo import attach_document, create_asset, list_assets
-from ..contract import AttachDocumentBody, CreateAssetBody, Organization
+from ..contract import (
+    AttachDocumentBody,
+    CreateAssetBody,
+    CreateHistoricalRecordBody,
+    Organization,
+)
+from ..historical_repo import create_historical_record, list_historical_records
 from ..org_context import get_current_org
 
 router = APIRouter()
+
+
+async def _require_asset(asset_id: int, org_id: int):
+    assets = await list_assets(org_id)
+    asset = next((a for a in assets if a.id == asset_id), None)
+    if not asset:
+        raise HTTPException(status_code=404, detail="asset not found")
+    return asset
 
 
 @router.get("")
@@ -39,10 +53,7 @@ async def post_asset_document(
     body: AttachDocumentBody,
     org: Organization = Depends(get_current_org),
 ) -> JSONResponse:
-    assets = await list_assets(org.id)
-    asset = next((a for a in assets if a.id == asset_id), None)
-    if not asset:
-        raise HTTPException(status_code=404, detail="asset not found")
+    asset = await _require_asset(asset_id, org.id)
     chunk_id = await attach_document(
         asset,
         doc_class=body.doc_class,
@@ -55,3 +66,31 @@ async def post_asset_document(
     if chunk_id is None:
         raise HTTPException(status_code=502, detail="embedding failed")
     return JSONResponse({"chunk_id": chunk_id})
+
+
+@router.get("/{asset_id}/history")
+async def get_asset_history(
+    asset_id: int, org: Organization = Depends(get_current_org)
+) -> JSONResponse:
+    await _require_asset(asset_id, org.id)
+    records = await list_historical_records(org.id, asset_id)
+    return JSONResponse([r.model_dump() for r in records])
+
+
+@router.post("/{asset_id}/history")
+async def post_asset_history(
+    asset_id: int,
+    body: CreateHistoricalRecordBody,
+    org: Organization = Depends(get_current_org),
+) -> JSONResponse:
+    asset = await _require_asset(asset_id, org.id)
+    rec = await create_historical_record(
+        asset,
+        reported_date=body.reported_date,
+        completed_date=body.completed_date,
+        record_type=body.record_type,
+        repairs=body.repairs,
+        tests=body.tests,
+        technician=body.technician,
+    )
+    return JSONResponse(rec.model_dump())

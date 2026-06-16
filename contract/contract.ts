@@ -121,6 +121,33 @@ export type Asset = {
   last_inspection_at: string | null;
 };
 
+export type HistoricalTest = {
+  date: string | null;
+  name: string;
+};
+
+export type HistoricalRecord = {
+  id: number;
+  org_id: number;
+  asset_id: number;
+  reported_date: string | null;
+  completed_date: string | null;
+  record_type: string | null;
+  repairs: string[];
+  tests: HistoricalTest[];
+  technician: string | null;
+  created_at: string;
+};
+
+export type CreateHistoricalRecordBody = {
+  reported_date?: string | null;
+  completed_date?: string | null;
+  record_type?: string | null;
+  repairs?: string[];
+  tests?: HistoricalTest[];
+  technician?: string | null;
+};
+
 export type Citation = {
   doc_class: DocClass;
   doc_id: string;
@@ -183,18 +210,32 @@ export type TicketDetail = Ticket & {
   ticket_parts: TicketPart[];
 };
 
+export type PartLocation = {
+  location: string;
+  qty: number;
+  avg_cost: number | null;
+  value: number | null;
+};
+
 export type Part = {
   id: number;
   part_number: string;
   name: string;
   description: string | null;
   compatible_units: UnitModel[];
-  bin_location: string;
+  bin_location: string | null;
   qty_on_hand: number;
   supplier: string | null;
   lead_time_days: number | null;
   alternate_part_numbers: string[];
   last_used_at: string | null;
+  // External-ledger fields (NetSuite stock ledger).
+  avg_cost: number | null;
+  on_hand_value: number | null;
+  locations: PartLocation[];
+  department: string | null;
+  subsidiary: string | null;
+  inv_class: string | null;
 };
 
 export type TicketPart = {
@@ -203,6 +244,15 @@ export type TicketPart = {
   qty: number;
   added_via: "ai_suggestion" | "tech_manual";
   added_at: string;
+};
+
+// A locomotive model that has ingested knowledge (manuals). Drives the
+// add-asset model picker so an asset's unit_model always matches a model that
+// actually has a manual behind it.
+export type KnowledgeModel = {
+  model_code: string;
+  oem: string | null;
+  chunk_count: number;
 };
 
 export type CorpusFigure = {

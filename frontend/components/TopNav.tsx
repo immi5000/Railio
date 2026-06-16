@@ -32,8 +32,6 @@ export function TopNav() {
   // The sign-in, onboarding, and OAuth-callback screens stand alone — no chrome.
   if (standalone) return null;
 
-  const isAdmin = pathname?.startsWith("/admin");
-
   async function signOut() {
     try {
       await createClient().auth.signOut();
@@ -64,7 +62,17 @@ export function TopNav() {
       >
         Knowledge
       </Link>
-      <Link href="/admin/parts" style={navLinkStyle(!!isAdmin)}>
+      <Link
+        href="/admin/fleet"
+        style={navLinkStyle(pathname?.startsWith("/admin/fleet") ?? false)}
+        title="Fleet roster & historical records"
+      >
+        Fleet
+      </Link>
+      <Link
+        href="/admin/parts"
+        style={navLinkStyle(pathname?.startsWith("/admin/parts") ?? false)}
+      >
         Parts
       </Link>
       {(me?.name || me?.org) && (

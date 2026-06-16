@@ -3,6 +3,8 @@ import type {
   CreateTicketBody,
   CreateAssetBody,
   AttachDocumentBody,
+  HistoricalRecord,
+  CreateHistoricalRecordBody,
   DeleteTicketResponse,
   ResetTicketResponse,
   ListCorpusChunksResponse,
@@ -14,6 +16,7 @@ import type {
   Ticket,
   TicketDetail,
   CorpusChunk,
+  KnowledgeModel,
   Attachment,
   DocClass,
   Organization,
@@ -206,6 +209,22 @@ export async function attachAssetDocument(
   });
 }
 
+export async function listHistoricalRecords(
+  assetId: number,
+): Promise<HistoricalRecord[]> {
+  return jsonFetch<HistoricalRecord[]>(`/api/assets/${assetId}/history`);
+}
+
+export async function createHistoricalRecord(
+  assetId: number,
+  body: CreateHistoricalRecordBody,
+): Promise<HistoricalRecord> {
+  return jsonFetch<HistoricalRecord>(`/api/assets/${assetId}/history`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 // === Parts ===
 export async function listParts(opts?: {
   unit_model?: string;
@@ -245,6 +264,14 @@ export async function listCorpusChunks(opts?: {
     `/api/corpus/chunks${qs ? `?${qs}` : ""}`,
   );
   return res.chunks;
+}
+
+/** Locomotive models that have ingested knowledge — drives the add-asset model picker. */
+export async function listKnowledgeModels(): Promise<KnowledgeModel[]> {
+  const res = await jsonFetch<{ models: KnowledgeModel[] }>(
+    `/api/corpus/models`,
+  );
+  return res.models;
 }
 
 // === Users / onboarding ===

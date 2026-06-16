@@ -87,6 +87,74 @@ async def list_chunks(
     return JSONResponse({"chunks": chunks})
 
 
+@router.get("/models")
+async def list_models(
+    org: Organization = Depends(get_current_org),
+) -> JSONResponse:
+    """Locomotive models that have ingested knowledge, for the add-asset dropdown.
+
+    Source of truth is the offline-ingest `models` table when present; otherwise
+    we derive the list from the distinct `unit_model`s on manual chunks the org
+    can see. Each row carries a chunk count so the UI can show coverage and never
+    let a dispatcher type a model string that has no manual behind it.
+    """
+    async with session_scope() as session:
+        has_models = (
+            await session.execute(
+                text(
+                    "SELECT 1 FROM information_schema.tables "
+                    "WHERE table_name = 'models'"
+                )
+            )
+        ).first() is not None
+
+        if has_models:
+            rows = (
+                await session.execute(
+                    text(
+                        """
+                        SELECT m.model_code, m.oem,
+                               COUNT(c.id) FILTER (
+                                 WHERE c.org_id = :org OR c.org_id IS NULL
+                               ) AS chunk_count
+                        FROM models m
+                        LEFT JOIN corpus_chunks c ON c.model_id = m.id
+                        GROUP BY m.model_code, m.oem
+                        ORDER BY m.model_code
+                        """
+                    ),
+                    {"org": org.id},
+                )
+            ).mappings().all()
+        else:
+            rows = (
+                await session.execute(
+                    text(
+                        """
+                        SELECT unit_model AS model_code, NULL AS oem,
+                               COUNT(*) AS chunk_count
+                        FROM corpus_chunks
+                        WHERE doc_class = 'manual' AND unit_model IS NOT NULL
+                          AND (org_id = :org OR org_id IS NULL)
+                        GROUP BY unit_model
+                        ORDER BY unit_model
+                        """
+                    ),
+                    {"org": org.id},
+                )
+            ).mappings().all()
+
+    models = [
+        {
+            "model_code": r["model_code"],
+            "oem": r["oem"],
+            "chunk_count": int(r["chunk_count"] or 0),
+        }
+        for r in rows
+    ]
+    return JSONResponse({"models": models})
+
+
 @router.get("/chunks/{chunk_id}")
 async def get_chunk(
     chunk_id: int, org: Organization = Depends(get_current_org)

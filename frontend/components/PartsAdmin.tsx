@@ -3,7 +3,27 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { listAssets, listParts, patchPart } from "@/lib/api";
-import type { Part, UnitModel } from "@/lib/contract";
+import type { Part, PartLocation, UnitModel } from "@/lib/contract";
+
+function fmtMoney(n: number | null): string {
+  if (n == null) return "";
+  return n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  });
+}
+
+function fmtLocations(locs: PartLocation[]): string {
+  if (!locs || locs.length === 0) return "";
+  if (locs.length === 1) return `${locs[0].location} · ${locs[0].qty}`;
+  return `${locs.length} locations`;
+}
+
+function locTitle(locs: PartLocation[]): string {
+  if (!locs || locs.length === 0) return "";
+  return locs.map((l) => `${l.location}: ${l.qty}`).join("\n");
+}
 
 export function PartsAdmin() {
   const qc = useQueryClient();
@@ -128,6 +148,10 @@ export function PartsAdmin() {
                   <Th>Compatible</Th>
                   <Th>Bin</Th>
                   <Th>On hand</Th>
+                  <Th>Avg cost</Th>
+                  <Th>Value</Th>
+                  <Th>Locations</Th>
+                  <Th>Dept</Th>
                   <Th>Supplier</Th>
                   <Th>Lead (d)</Th>
                   <Th>Alternates</Th>
@@ -217,8 +241,8 @@ function PartRow({
       </Td>
       <Td>
         <Cell
-          value={part.bin_location}
-          onCommit={(v) => commit({ bin_location: v })}
+          value={part.bin_location || ""}
+          onCommit={(v) => commit({ bin_location: v || null })}
         />
       </Td>
       <Td>
@@ -226,6 +250,25 @@ function PartRow({
           value={String(part.qty_on_hand)}
           numeric
           onCommit={(v) => commit({ qty_on_hand: Number(v) || 0 })}
+        />
+      </Td>
+      <Td>
+        <Cell
+          value={part.avg_cost != null ? String(part.avg_cost) : ""}
+          numeric
+          onCommit={(v) => commit({ avg_cost: v === "" ? null : Number(v) })}
+        />
+      </Td>
+      <Td>
+        <ReadCell value={fmtMoney(part.on_hand_value)} />
+      </Td>
+      <Td>
+        <ReadCell value={fmtLocations(part.locations)} title={locTitle(part.locations)} />
+      </Td>
+      <Td>
+        <Cell
+          value={part.department || ""}
+          onCommit={(v) => commit({ department: v || null })}
         />
       </Td>
       <Td>
@@ -267,6 +310,23 @@ function Td({ children }: { children: React.ReactNode }) {
     >
       {children}
     </td>
+  );
+}
+
+function ReadCell({ value, title }: { value: string; title?: string }) {
+  return (
+    <div
+      title={title}
+      style={{
+        padding: "10px 12px",
+        width: "100%",
+        fontSize: 13,
+        color: "var(--muted)",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {value}
+    </div>
   );
 }
 

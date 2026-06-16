@@ -26,8 +26,18 @@ _COLS = {
     "lead_time_days",
     "alternate_part_numbers",
     "last_used_at",
+    "avg_cost",
+    "on_hand_value",
+    "locations",
+    "department",
+    "subsidiary",
+    "inv_class",
 }
-_JSONB_COLS = {"compatible_units", "alternate_part_numbers"}
+_JSONB_COLS = {"compatible_units", "alternate_part_numbers", "locations"}
+
+
+def _num(v) -> Optional[float]:
+    return float(v) if v is not None else None
 
 
 def _row_to_part(r) -> dict[str, Any]:
@@ -43,6 +53,12 @@ def _row_to_part(r) -> dict[str, Any]:
         "lead_time_days": r["lead_time_days"],
         "alternate_part_numbers": r["alternate_part_numbers"] or [],
         "last_used_at": r["last_used_at"],
+        "avg_cost": _num(r["avg_cost"]),
+        "on_hand_value": _num(r["on_hand_value"]),
+        "locations": r["locations"] or [],
+        "department": r["department"],
+        "subsidiary": r["subsidiary"],
+        "inv_class": r["inv_class"],
     }
 
 
@@ -56,7 +72,10 @@ async def list_parts(
     params: dict[str, Any] = {"org": org.id}
     where = ["p.org_id = :org"]
     if unit_model:
-        where.append("p.compatible_units ? :unit")
+        where.append(
+            "(p.compatible_units IS NULL OR p.compatible_units = '[]'::jsonb "
+            "OR p.compatible_units ? :unit)"
+        )
         params["unit"] = unit_model
     if like:
         where.append(
