@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getCorpusChunk } from "@/lib/api";
+import { getCorpusChunk, fileUrl } from "@/lib/api";
 import { techNameForChunk } from "@/lib/techNames";
 
 export function CitationDrawer({
@@ -116,6 +116,67 @@ export function CitationDrawer({
             >
               {data.text}
             </p>
+            {data.figures?.length > 0 && (
+              <div style={{ marginTop: 28 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    color: "var(--muted)",
+                    marginBottom: 12,
+                  }}
+                >
+                  Figures from this page
+                </div>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 20 }}
+                >
+                  {data.figures.map((f, i) => (
+                    <figure key={i} style={{ margin: 0 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={fileUrl(f.path)}
+                        alt={f.figure_label || f.caption || "figure"}
+                        style={{
+                          width: "100%",
+                          height: "auto",
+                          border: "1px solid var(--border)",
+                          background: "#fff",
+                        }}
+                      />
+                      <figcaption
+                        style={{
+                          fontSize: 12,
+                          color: "var(--ink-2)",
+                          marginTop: 8,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {f.figure_label && (
+                          <strong>{f.figure_label}. </strong>
+                        )}
+                        {f.caption}
+                        {f.callouts && f.callouts.length > 0 && (
+                          <span
+                            style={{
+                              display: "block",
+                              color: "var(--muted)",
+                              marginTop: 4,
+                            }}
+                          >
+                            {f.callouts
+                              .map((co) => `(${co.num}) ${co.text}`)
+                              .join("  ·  ")}
+                          </span>
+                        )}
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </aside>

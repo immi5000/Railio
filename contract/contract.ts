@@ -205,6 +205,15 @@ export type TicketPart = {
   added_at: string;
 };
 
+export type CorpusFigure = {
+  path: string;
+  caption: string;
+  page: number | null;
+  figure_label: string | null;
+  bbox?: number[];
+  callouts?: { num: string; text: string }[];
+};
+
 export type CorpusChunk = {
   id: number;
   doc_class: DocClass;
@@ -213,6 +222,10 @@ export type CorpusChunk = {
   source_label: string;
   page: number | null;
   text: string;
+  // Scope key: the locomotive model a manual chunk belongs to. Null = shared
+  // reference with no model (e.g. 49 CFR).
+  unit_model: string | null;
+  figures: CorpusFigure[];
 };
 
 // === Streaming events on POST /api/tickets/:id/messages ===

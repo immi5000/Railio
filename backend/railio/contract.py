@@ -129,6 +129,15 @@ class TicketPart(BaseModel):
     added_at: str
 
 
+class CorpusFigure(BaseModel):
+    path: str
+    caption: str = ""
+    page: Optional[int] = None
+    figure_label: Optional[str] = None
+    bbox: Optional[list[float]] = None
+    callouts: list[dict[str, str]] = Field(default_factory=list)
+
+
 class CorpusChunk(BaseModel):
     id: int
     doc_class: DocClass
@@ -137,6 +146,8 @@ class CorpusChunk(BaseModel):
     source_label: str
     page: Optional[int] = None
     text: str
+    unit_model: Optional[str] = None
+    figures: list[CorpusFigure] = Field(default_factory=list)
 
 
 class TicketDetail(Ticket):

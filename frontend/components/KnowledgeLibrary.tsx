@@ -2,43 +2,88 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { listCorpusChunks } from "@/lib/api";
-import type { CorpusChunk, DocClass } from "@/lib/contract";
+import { listCorpusChunks, fileUrl } from "@/lib/api";
+import type { CorpusChunk } from "@/lib/contract";
 import { CitationDrawer } from "./CitationDrawer";
 import { techNameForChunk } from "@/lib/techNames";
 
 type DocGroup = {
   doc_id: string;
   doc_title: string;
-  doc_class: DocClass;
   chunks: CorpusChunk[];
 };
 
+// One tab per knowledge slice. Manuals split by locomotive model; shared
+// reference manuals with no model (49 CFR) get their own tab; tribal is its own.
+type Tab = {
+  key: string;
+  label: string;
+  kind: "all" | "cfr" | "model" | "tribal";
+  chunks: CorpusChunk[];
+};
+
+function isTribal(c: CorpusChunk) {
+  return c.doc_class === "tribal_knowledge";
+}
+
+function buildTabs(chunks: CorpusChunk[]): Tab[] {
+  const cfr: CorpusChunk[] = [];
+  const tribal: CorpusChunk[] = [];
+  const byModel = new Map<string, CorpusChunk[]>();
+
+  for (const c of chunks) {
+    if (isTribal(c)) {
+      tribal.push(c);
+    } else if (c.unit_model) {
+      const arr = byModel.get(c.unit_model) || [];
+      arr.push(c);
+      byModel.set(c.unit_model, arr);
+    } else {
+      // A manual with no model scope is shared federal reference → 49 CFR.
+      cfr.push(c);
+    }
+  }
+
+  const tabs: Tab[] = [
+    { key: "all", label: "All", kind: "all", chunks },
+  ];
+  if (cfr.length) {
+    tabs.push({ key: "cfr", label: "49 CFR", kind: "cfr", chunks: cfr });
+  }
+  for (const model of [...byModel.keys()].sort()) {
+    tabs.push({
+      key: `model:${model}`,
+      label: model,
+      kind: "model",
+      chunks: byModel.get(model)!,
+    });
+  }
+  if (tribal.length) {
+    tabs.push({ key: "tribal", label: "Tribal", kind: "tribal", chunks: tribal });
+  }
+  return tabs;
+}
+
+function figureCount(chunks: CorpusChunk[]): number {
+  return chunks.reduce((n, c) => n + (c.figures?.length || 0), 0);
+}
+
 export function KnowledgeLibrary() {
-  const [filter, setFilter] = useState<DocClass | "all">("all");
+  const [active, setActive] = useState("all");
   const [q, setQ] = useState("");
   const [openChunk, setOpenChunk] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["corpus", filter, q],
-    queryFn: () =>
-      listCorpusChunks({
-        doc_class: filter === "all" ? undefined : filter,
-        q: q || undefined,
-        limit: 500,
-      }),
+    queryKey: ["corpus", q],
+    queryFn: () => listCorpusChunks({ q: q || undefined, limit: 2000 }),
   });
 
-  const groups: DocGroup[] = useMemo(() => groupByDoc(data || []), [data]);
-  const totals = useMemo(() => {
-    let manual = 0;
-    let tribal = 0;
-    for (const c of data || []) {
-      if (c.doc_class === "manual") manual++;
-      else tribal++;
-    }
-    return { manual, tribal, all: (data || []).length };
-  }, [data]);
+  const tabs = useMemo(() => buildTabs(data || []), [data]);
+  const activeTab = tabs.find((t) => t.key === active) || tabs[0];
+  const groups: DocGroup[] = useMemo(
+    () => groupByDoc(activeTab?.chunks || []),
+    [activeTab],
+  );
 
   return (
     <section style={{ padding: "32px 0 96px" }}>
@@ -56,9 +101,9 @@ export function KnowledgeLibrary() {
           }}
         >
           Every answer the assistant gives is grounded in one of these sources.
-          Each citation in a chat bubble links straight back to the underlying
-          chunk on this page — manuals are neutral-bordered, tribal notes are
-          blue.
+          Manuals are organized by locomotive model; 49 CFR is shared federal
+          regulation; tribal notes are the senior techs&apos; own knowledge. Each
+          chunk shows the exact page and PDF it came from, so you can verify it.
         </p>
 
         <div
@@ -81,25 +126,24 @@ export function KnowledgeLibrary() {
           <div
             style={{
               display: "inline-flex",
+              flexWrap: "wrap",
               border: "1px solid var(--ink)",
               background: "#fff",
             }}
           >
-            <FilterButton
-              label={`All · ${totals.all}`}
-              active={filter === "all"}
-              onClick={() => setFilter("all")}
-            />
-            <FilterButton
-              label={`📖 Manuals · ${totals.manual}`}
-              active={filter === "manual"}
-              onClick={() => setFilter("manual")}
-            />
-            <FilterButton
-              label={`👤 Tribal · ${totals.tribal}`}
-              active={filter === "tribal_knowledge"}
-              onClick={() => setFilter("tribal_knowledge")}
-            />
+            {tabs.map((t) => {
+              const figs = figureCount(t.chunks);
+              return (
+                <FilterButton
+                  key={t.key}
+                  label={`${tabIcon(t.kind)}${t.label} · ${t.chunks.length}${
+                    figs ? ` · ${figs}🖼` : ""
+                  }`}
+                  active={activeTab?.key === t.key}
+                  onClick={() => setActive(t.key)}
+                />
+              );
+            })}
           </div>
         </div>
 
@@ -130,7 +174,7 @@ export function KnowledgeLibrary() {
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {groups.map((g) => (
               <DocBlock
-                key={`${g.doc_class}-${g.doc_id}`}
+                key={`${g.doc_id}`}
                 group={g}
                 onOpen={(id) => setOpenChunk(id)}
               />
@@ -140,13 +184,17 @@ export function KnowledgeLibrary() {
       </div>
 
       {openChunk != null && (
-        <CitationDrawer
-          chunkId={openChunk}
-          onClose={() => setOpenChunk(null)}
-        />
+        <CitationDrawer chunkId={openChunk} onClose={() => setOpenChunk(null)} />
       )}
     </section>
   );
+}
+
+function tabIcon(kind: Tab["kind"]): string {
+  if (kind === "cfr") return "§ ";
+  if (kind === "model") return "🚂 ";
+  if (kind === "tribal") return "👤 ";
+  return "";
 }
 
 function FilterButton({
@@ -189,11 +237,13 @@ function DocBlock({
   group: DocGroup;
   onOpen: (chunkId: number) => void;
 }) {
-  const isTribal = group.doc_class === "tribal_knowledge";
+  const tribal = isTribal(group.chunks[0]);
+  const figs = figureCount(group.chunks);
+  const model = group.chunks[0]?.unit_model;
   return (
     <div
       style={{
-        border: `1px solid ${isTribal ? "var(--mta)" : "var(--border)"}`,
+        border: `1px solid ${tribal ? "var(--mta)" : "var(--border)"}`,
         background: "#fff",
       }}
     >
@@ -203,8 +253,8 @@ function DocBlock({
           justifyContent: "space-between",
           alignItems: "baseline",
           padding: "16px 20px",
-          background: isTribal ? "var(--mta-soft)" : "var(--pale)",
-          borderBottom: `1px solid ${isTribal ? "var(--mta)" : "var(--border)"}`,
+          background: tribal ? "var(--mta-soft)" : "var(--pale)",
+          borderBottom: `1px solid ${tribal ? "var(--mta)" : "var(--border)"}`,
           gap: 16,
           flexWrap: "wrap",
         }}
@@ -216,11 +266,15 @@ function DocBlock({
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.06em",
-              color: isTribal ? "var(--mta)" : "var(--muted)",
+              color: tribal ? "var(--mta)" : "var(--muted)",
               marginBottom: 4,
             }}
           >
-            {isTribal ? "👤 Tribal knowledge" : "📖 Manual"}
+            {tribal
+              ? "👤 Tribal knowledge"
+              : model
+              ? `🚂 ${model}`
+              : "§ 49 CFR"}
           </div>
           <h3 className="h4" style={{ fontSize: 18 }}>
             {group.doc_title}
@@ -239,110 +293,152 @@ function DocBlock({
         <span className="micro" style={{ color: "var(--muted)" }}>
           {group.chunks.length} chunk
           {group.chunks.length === 1 ? "" : "s"}
+          {figs ? ` · ${figs} figure${figs === 1 ? "" : "s"}` : ""}
         </span>
       </div>
       <div>
         {group.chunks.map((c) => {
-          const author = isTribal ? techNameForChunk(c) : null;
+          const author = tribal ? techNameForChunk(c) : null;
+          const nFigs = c.figures?.length || 0;
           return (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => onOpen(c.id)}
-            className="form-item-row"
-            style={{
-              appearance: "none",
-              background: "#fff",
-              border: 0,
-              borderBottom: "1px solid var(--pale)",
-              padding: "14px 20px",
-              width: "100%",
-              textAlign: "left",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              transition: "background 0.1s",
-              display: "grid",
-              gridTemplateColumns: "180px 1fr 24px",
-              gap: 16,
-              alignItems: "start",
-            }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.background =
-                "var(--pale)")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.background = "#fff")
-            }
-          >
-            <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  color: "var(--ink-2)",
-                }}
-              >
-                {c.source_label}
-              </div>
-              {c.page != null && (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onOpen(c.id)}
+              className="form-item-row"
+              style={{
+                appearance: "none",
+                background: "#fff",
+                border: 0,
+                borderBottom: "1px solid var(--pale)",
+                padding: "14px 20px",
+                width: "100%",
+                textAlign: "left",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "background 0.1s",
+                display: "grid",
+                gridTemplateColumns: "200px 1fr 24px",
+                gap: 16,
+                alignItems: "start",
+              }}
+              onMouseEnter={(e) =>
+                ((e.currentTarget as HTMLButtonElement).style.background =
+                  "var(--pale)")
+              }
+              onMouseLeave={(e) =>
+                ((e.currentTarget as HTMLButtonElement).style.background = "#fff")
+              }
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    color: "var(--ink-2)",
+                  }}
+                >
+                  {c.source_label}
+                </div>
                 <div
                   style={{
                     fontSize: 11,
                     color: "var(--muted)",
                     marginTop: 4,
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, monospace",
                   }}
                 >
-                  Page {c.page}
+                  {c.page != null ? `Page ${c.page}` : "Unpaginated"} · {c.doc_id}
                 </div>
-              )}
-              {author && (
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "var(--mta)",
-                    marginTop: 4,
-                    fontWeight: 700,
-                  }}
-                >
-                  By {author.name}
-                  <span
+                {nFigs > 0 && (
+                  <div
                     style={{
-                      color: "var(--muted)",
-                      fontWeight: 400,
-                      marginLeft: 4,
+                      fontSize: 11,
+                      color: "var(--ink-2)",
+                      marginTop: 4,
+                      fontWeight: 700,
                     }}
                   >
-                    · {author.shift}
-                  </span>
+                    🖼 {nFigs} figure{nFigs === 1 ? "" : "s"}
+                  </div>
+                )}
+                {author && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--mta)",
+                      marginTop: 4,
+                      fontWeight: 700,
+                    }}
+                  >
+                    By {author.name}
+                    <span
+                      style={{
+                        color: "var(--muted)",
+                        fontWeight: 400,
+                        marginLeft: 4,
+                      }}
+                    >
+                      · {author.shift}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "var(--ink-2)",
+                    lineHeight: 1.55,
+                    overflow: "hidden",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: "vertical",
+                  }}
+                >
+                  {c.text}
                 </div>
-              )}
-            </div>
-            <div
-              style={{
-                fontSize: 13,
-                color: "var(--ink-2)",
-                lineHeight: 1.55,
-                overflow: "hidden",
-                display: "-webkit-box",
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: "vertical",
-              }}
-            >
-              {c.text}
-            </div>
-            <span
-              style={{
-                color: "var(--mta)",
-                fontSize: 14,
-                alignSelf: "center",
-                textAlign: "right",
-              }}
-            >
-              →
-            </span>
-          </button>
+                {nFigs > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      marginTop: 8,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {c.figures.slice(0, 4).map((f, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={i}
+                        src={fileUrl(f.path)}
+                        alt={f.figure_label || f.caption || "figure"}
+                        style={{
+                          height: 56,
+                          width: "auto",
+                          border: "1px solid var(--border)",
+                          background: "#fff",
+                          objectFit: "contain",
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+              <span
+                style={{
+                  color: "var(--mta)",
+                  fontSize: 14,
+                  alignSelf: "center",
+                  textAlign: "right",
+                }}
+              >
+                →
+              </span>
+            </button>
           );
         })}
       </div>
@@ -353,24 +449,15 @@ function DocBlock({
 function groupByDoc(chunks: CorpusChunk[]): DocGroup[] {
   const map = new Map<string, DocGroup>();
   for (const c of chunks) {
-    const key = `${c.doc_class}::${c.doc_id}`;
+    const key = `${c.doc_class}::${c.unit_model || ""}::${c.doc_id}`;
     let g = map.get(key);
     if (!g) {
-      g = {
-        doc_id: c.doc_id,
-        doc_title: c.doc_title,
-        doc_class: c.doc_class,
-        chunks: [],
-      };
+      g = { doc_id: c.doc_id, doc_title: c.doc_title, chunks: [] };
       map.set(key, g);
     }
     g.chunks.push(c);
   }
-  // Sort: manuals first, then tribal; within each, alphabetical by title.
-  return [...map.values()].sort((a, b) => {
-    if (a.doc_class !== b.doc_class) {
-      return a.doc_class === "manual" ? -1 : 1;
-    }
-    return a.doc_title.localeCompare(b.doc_title);
-  });
+  return [...map.values()].sort((a, b) =>
+    a.doc_title.localeCompare(b.doc_title),
+  );
 }

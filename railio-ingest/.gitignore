@@ -1,0 +1,13 @@
+# This whole tool is admin-only and must NEVER be deployed. It also holds prod
+# credentials. Keep secrets and outputs out of git.
+.env
+.env.*
+!.env.example
+out/
+*.pdf
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.surya/
+models--*/

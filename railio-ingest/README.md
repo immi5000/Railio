@@ -1,0 +1,77 @@
+# railio-ingest
+
+**Isolated admin tool. NEVER deployed.** It extracts OEM manual PDFs into
+model-scoped corpus chunks + figure crops and writes them **directly into the
+production Supabase**. The only thing that reaches prod is the data in the DB +
+storage; this code stays on your machine.
+
+## What it does
+
+For one manual PDF:
+
+1. Renders each page (PyMuPDF, 300 DPI) and **adaptively splits two-up spreads**
+   into left/right book-pages (single-page PDFs pass through untouched).
+2. Gets text from the **native text layer** where present; **OpenAI `gpt-4o`
+   OCR** only on pages without a usable text layer (triage).
+3. **`gpt-4o` validates/captions figures** and extracts numbered callouts; crops
+   each figure **tight but caption/attached-table-inclusive**; uploads PNGs to
+   the `railio-uploads` bucket.
+4. Embeds chunk text with **OpenAI `text-embedding-3-large` @ 1024 dims** (same
+   as prod) and writes:
+   - a `models` row (created if missing),
+   - a `documents` row (`org_id = NULL` → **shared by model**),
+   - `corpus_chunks` rows with `embedding` + a `figures` JSONB list.
+
+Figure captions are appended to each chunk's embeddable text, so a diagram is
+findable by what it shows.
+
+## Scope
+
+**Model-level OEM manuals only** — shared across every org that owns the model,
+stored once. Per-asset history/inspection docs are a separate, later effort and
+are NOT handled here; this tool never touches the `assets` table.
+
+## Setup
+
+```bash
+cd railio-ingest
+python -m venv .venv && source .venv/bin/activate
+pip install -e .            # core
+pip install -e ".[layout]"  # + Surya figure-box hints (pulls torch ~2GB; optional)
+cp .env.example .env        # fill with PROD DATABASE_URL / SUPABASE / OPENAI_API_KEY
+```
+
+## Run
+
+Always dry-run first to inspect extraction before touching prod:
+
+```bash
+python -m railio_ingest.extract \
+  --pdf ./SD60.pdf \
+  --model "EMD SD60" \
+  --doc-id emd_sd60_computer_troubleshooting \
+  --doc-title "EMD SD60 Computer & Troubleshooting Guide" \
+  --oem "Electro-Motive Division" \
+  --dry-run
+# → out/<doc_id>/chunks.json + out/<doc_id>/figures/*.png ; no DB/storage writes
+```
+
+Then the real write (creates schema if needed, prompts before creating a model):
+
+```bash
+python -m railio_ingest.extract \
+  --pdf ./SD60.pdf --model "EMD SD60" \
+  --doc-id emd_sd60_computer_troubleshooting \
+  --doc-title "EMD SD60 Computer & Troubleshooting Guide" \
+  --oem "Electro-Motive Division"
+```
+
+Re-running the same `--doc-id` **replaces** that document's chunks (scoped
+delete + reinsert); other docs/models/orgs are untouched.
+
+## Notes
+
+- `--dpi` defaults to 300. Bump for very fine schematics.
+- Without the `[layout]` extra, figure detection relies entirely on `gpt-4o`
+  (lighter, slightly less precise boxes).
+- Cost is single-digit $/manual (vision runs only on figure/scanned pages).

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,6 +14,37 @@ from ..db import session_scope
 from ..org_context import get_current_org
 
 router = APIRouter()
+
+# `unit_model` is core schema; `figures` is added by the offline manual-ingest
+# tool and may be absent on a DB that has never ingested an OEM manual. Detect it
+# once so the library query degrades gracefully instead of erroring.
+_has_figures: Optional[bool] = None
+
+
+async def _figures_supported(session: Any) -> bool:
+    global _has_figures
+    if _has_figures is None:
+        row = (
+            await session.execute(
+                text(
+                    "SELECT 1 FROM information_schema.columns "
+                    "WHERE table_name = 'corpus_chunks' AND column_name = 'figures'"
+                )
+            )
+        ).first()
+        _has_figures = row is not None
+    return _has_figures
+
+
+def _normalize(row: dict[str, Any]) -> dict[str, Any]:
+    figs = row.get("figures")
+    if isinstance(figs, str):
+        try:
+            figs = json.loads(figs)
+        except (ValueError, TypeError):
+            figs = None
+    row["figures"] = figs or []
+    return row
 
 
 @router.get("/chunks")
@@ -38,18 +70,20 @@ async def list_chunks(
         )
         params["like"] = like
 
-    sql = text(
-        f"""
-        SELECT id, doc_class, doc_id, doc_title, source_label, page, text
-        FROM corpus_chunks
-        WHERE {' AND '.join(where)}
-        ORDER BY doc_class, doc_title, COALESCE(page, 0), id
-        LIMIT :lim
-        """
-    )
     async with session_scope() as session:
+        fig_col = ", figures" if await _figures_supported(session) else ""
+        sql = text(
+            f"""
+            SELECT id, doc_class, doc_id, doc_title, source_label, page, text,
+                   unit_model{fig_col}
+            FROM corpus_chunks
+            WHERE {' AND '.join(where)}
+            ORDER BY doc_class, doc_title, COALESCE(page, 0), id
+            LIMIT :lim
+            """
+        )
         rows = (await session.execute(sql, params)).mappings().all()
-    chunks: list[dict[str, Any]] = [dict(r) for r in rows]
+    chunks = [_normalize(dict(r)) for r in rows]
     return JSONResponse({"chunks": chunks})
 
 
@@ -58,11 +92,13 @@ async def get_chunk(
     chunk_id: int, org: Organization = Depends(get_current_org)
 ) -> JSONResponse:
     async with session_scope() as session:
+        fig_col = ", figures" if await _figures_supported(session) else ""
         row = (
             await session.execute(
                 text(
-                    """
-                    SELECT id, doc_class, doc_id, doc_title, source_label, page, text
+                    f"""
+                    SELECT id, doc_class, doc_id, doc_title, source_label, page,
+                           text, unit_model{fig_col}
                     FROM corpus_chunks
                     WHERE id = :id AND (org_id = :org OR org_id IS NULL)
                     """
@@ -72,4 +108,4 @@ async def get_chunk(
         ).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="not found")
-    return JSONResponse(dict(row))
+    return JSONResponse(_normalize(dict(row)))

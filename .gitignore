@@ -19,3 +19,11 @@ node_modules/
 .next/
 *.tsbuildinfo
 .vercel
+
+# isolated admin ingestion tool — secrets + heavy outputs (the code is tracked,
+# but it must never enter the backend/frontend deploy contexts)
+railio-ingest/.env
+railio-ingest/.env.*
+!railio-ingest/.env.example
+railio-ingest/out/
+railio-ingest/.venv/
