@@ -50,7 +50,7 @@ class OrgDomain(Base):
     # provisioned into org_id on first login. Add a row to onboard a company —
     # no redeploy. Per-user exceptions live in app_users instead.
     domain = Column(Text, nullable=False, unique=True)
-    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
 
 
 class AppUser(Base):
@@ -62,7 +62,7 @@ class AppUser(Base):
     supabase_user_id = Column(Text, nullable=False, unique=True)
     email = Column(Text, nullable=False)
     # Nullable: a user is authenticated before they pick/join an org in onboarding.
-    org_id = Column(Integer, ForeignKey("organizations.id"))
+    org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"))
     name = Column(Text)
     phone = Column(Text)
     profile_completed = Column(Boolean, nullable=False, server_default="false")
@@ -77,7 +77,7 @@ class OrgInviteCode(Base):
     # Stored lowercased; redemption matches case-insensitively. Grants membership
     # to exactly one org — the secret that lets a non-company email join a team.
     code = Column(Text, nullable=False, unique=True)
-    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     max_uses = Column(Integer)
     used_count = Column(Integer, nullable=False, server_default="0")
     expires_at = Column(Text)
@@ -90,7 +90,7 @@ class Asset(Base):
     id = Column(Integer, primary_key=True)
     # org_id is NOT NULL in the DB after backfill; nullable here only so existing
     # in-memory construction paths don't need to set it before the column lands.
-    org_id = Column(Integer, ForeignKey("organizations.id"))
+    org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"))
     reporting_mark = Column(Text, nullable=False)
     road_number = Column(Text, nullable=False)
     unit_model = Column(Text, nullable=False)
@@ -102,8 +102,8 @@ class Ticket(Base):
     __tablename__ = "tickets"
 
     id = Column(Integer, primary_key=True)
-    org_id = Column(Integer, ForeignKey("organizations.id"))
-    asset_id = Column(Integer, ForeignKey("assets.id"))
+    org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"))
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"))
     status = Column(Text, nullable=False)
     severity = Column(Text, nullable=False, default="major", server_default="major")
     opened_by_role = Column(Text, nullable=False)
@@ -121,7 +121,7 @@ class Message(Base):
     __table_args__ = (Index("idx_messages_ticket", "ticket_id", "id"),)
 
     id = Column(Integer, primary_key=True)
-    ticket_id = Column(Integer, ForeignKey("tickets.id"))
+    ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="CASCADE"))
     role = Column(Text, nullable=False)
     content = Column(Text, nullable=False)
     citations = Column(JSONB)
@@ -136,7 +136,7 @@ class Part(Base):
     __tablename__ = "parts"
 
     id = Column(Integer, primary_key=True)
-    org_id = Column(Integer, ForeignKey("organizations.id"))
+    org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"))
     # part_number is unique per org, not globally — two railroads may stock the
     # same OEM part number. Enforced by a partial unique index in migrate.py.
     part_number = Column(Text, nullable=False)
@@ -155,8 +155,8 @@ class TicketPart(Base):
     __tablename__ = "ticket_parts"
 
     id = Column(Integer, primary_key=True)
-    ticket_id = Column(Integer, ForeignKey("tickets.id"))
-    part_id = Column(Integer, ForeignKey("parts.id"))
+    ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="CASCADE"))
+    part_id = Column(Integer, ForeignKey("parts.id", ondelete="CASCADE"))
     qty = Column(Integer, nullable=False)
     added_via = Column(Text, nullable=False)
     added_at = Column(Text, nullable=False)
@@ -174,17 +174,17 @@ class CorpusChunk(Base):
     text = Column(Text, nullable=False)
     embedding = Column(Vector(1024))
     # null org_id = shared across all orgs (e.g. CFR); non-null = org-private
-    org_id = Column(Integer, ForeignKey("organizations.id"))
+    org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"))
     # null unit_model = shared across all models; null asset_id = not unit-specific
     unit_model = Column(Text)
-    asset_id = Column(Integer, ForeignKey("assets.id"))
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"))
 
 
 class TribalCapture(Base):
     __tablename__ = "tribal_capture"
 
     id = Column(Integer, primary_key=True)
-    ticket_id = Column(Integer, ForeignKey("tickets.id"))
+    ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="CASCADE"))
     author = Column(Text)
     text = Column(Text, nullable=False)
     captured_at = Column(Text, nullable=False)

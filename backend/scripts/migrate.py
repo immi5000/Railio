@@ -244,6 +244,41 @@ _STATEMENTS = [
     SELECT 'omnitrax-join', id FROM organizations WHERE slug = 'omnitrax'
     ON CONFLICT (code) DO NOTHING
     """,
+    # === Cascade deletes from an organization ===
+    # Rebuild every FK in the org's dependency graph with ON DELETE CASCADE so
+    # deleting an organization removes all of its data (assets → their tickets →
+    # messages/parts/captures, parts, corpus, memberships, domains, codes). The
+    # FKs were originally created NO ACTION, which blocked org deletion.
+    # Idempotent: drop the known constraint name, recreate it with CASCADE.
+    # org_id → organizations
+    "ALTER TABLE app_users DROP CONSTRAINT IF EXISTS app_users_org_id_fkey",
+    "ALTER TABLE app_users ADD CONSTRAINT app_users_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+    "ALTER TABLE org_domains DROP CONSTRAINT IF EXISTS org_domains_org_id_fkey",
+    "ALTER TABLE org_domains ADD CONSTRAINT org_domains_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+    "ALTER TABLE org_invite_codes DROP CONSTRAINT IF EXISTS org_invite_codes_org_id_fkey",
+    "ALTER TABLE org_invite_codes ADD CONSTRAINT org_invite_codes_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+    "ALTER TABLE assets DROP CONSTRAINT IF EXISTS assets_org_id_fkey",
+    "ALTER TABLE assets ADD CONSTRAINT assets_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+    "ALTER TABLE parts DROP CONSTRAINT IF EXISTS parts_org_id_fkey",
+    "ALTER TABLE parts ADD CONSTRAINT parts_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+    "ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_org_id_fkey",
+    "ALTER TABLE tickets ADD CONSTRAINT tickets_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+    "ALTER TABLE corpus_chunks DROP CONSTRAINT IF EXISTS corpus_chunks_org_id_fkey",
+    "ALTER TABLE corpus_chunks ADD CONSTRAINT corpus_chunks_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE",
+    # asset_id → assets (so an org's assets cascade into their dependents)
+    "ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_asset_id_assets_id_fk",
+    "ALTER TABLE tickets ADD CONSTRAINT tickets_asset_id_assets_id_fk FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE",
+    "ALTER TABLE corpus_chunks DROP CONSTRAINT IF EXISTS corpus_chunks_asset_id_fkey",
+    "ALTER TABLE corpus_chunks ADD CONSTRAINT corpus_chunks_asset_id_fkey FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE",
+    # ticket_id / part_id → tickets / parts
+    "ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_ticket_id_tickets_id_fk",
+    "ALTER TABLE messages ADD CONSTRAINT messages_ticket_id_tickets_id_fk FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE",
+    "ALTER TABLE ticket_parts DROP CONSTRAINT IF EXISTS ticket_parts_ticket_id_tickets_id_fk",
+    "ALTER TABLE ticket_parts ADD CONSTRAINT ticket_parts_ticket_id_tickets_id_fk FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE",
+    "ALTER TABLE ticket_parts DROP CONSTRAINT IF EXISTS ticket_parts_part_id_parts_id_fk",
+    "ALTER TABLE ticket_parts ADD CONSTRAINT ticket_parts_part_id_parts_id_fk FOREIGN KEY (part_id) REFERENCES parts(id) ON DELETE CASCADE",
+    "ALTER TABLE tribal_capture DROP CONSTRAINT IF EXISTS tribal_capture_ticket_id_tickets_id_fk",
+    "ALTER TABLE tribal_capture ADD CONSTRAINT tribal_capture_ticket_id_tickets_id_fk FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE",
 ]
 
 

@@ -3,24 +3,34 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { getMe } from "@/lib/api";
 
 export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
+  const standalone =
+    pathname === "/signin" ||
+    pathname === "/onboarding" ||
+    (pathname?.startsWith("/auth") ?? false);
+
+  const { data: me } = useQuery({
+    queryKey: ["me"],
+    queryFn: getMe,
+    enabled: !standalone,
+    staleTime: 60_000,
+    retry: false,
+  });
+
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
   // The sign-in, onboarding, and OAuth-callback screens stand alone — no chrome.
-  if (
-    pathname === "/signin" ||
-    pathname === "/onboarding" ||
-    pathname?.startsWith("/auth")
-  )
-    return null;
+  if (standalone) return null;
 
   const isAdmin = pathname?.startsWith("/admin");
 
@@ -57,6 +67,38 @@ export function TopNav() {
       <Link href="/admin/parts" style={navLinkStyle(!!isAdmin)}>
         Parts
       </Link>
+      {(me?.name || me?.org) && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            lineHeight: 1.2,
+            paddingLeft: 8,
+            borderLeft: "1px solid var(--pale)",
+          }}
+          title={me?.email ?? undefined}
+        >
+          {me?.name && (
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>
+              {me.name}
+            </span>
+          )}
+          {me?.org && (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                color: "var(--mta)",
+              }}
+            >
+              {me.org.name}
+            </span>
+          )}
+        </div>
+      )}
       <button
         type="button"
         onClick={signOut}
