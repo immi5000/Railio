@@ -1,0 +1,68 @@
+{
+  "3950": [
+    {
+      "reported_date": "2026-05-12",
+      "completed_date": "2026-05-15",
+      "record_type": "Quarterly Periodic Inspection",
+      "repairs": [
+        "Replaced: load regulator assembly — unit was hunting in notch 6 under load",
+        "Replaced: 6 brake shoes (1-wear), both trucks",
+        "Adjusted: 645E governor low-oil trip linkage, verified clean trip"
+      ],
+      "tests": [
+        { "date": "2026-05-13", "name": "AFM Calibration" },
+        { "date": "2026-05-13", "name": "Engine Inspection Form" },
+        { "date": "2026-05-13", "name": "Oil Pressure & Resistance Form" },
+        { "date": "2026-05-14", "name": "Wheel Inspection Report (4 Axle)" }
+      ],
+      "technician": "Reyes, Marcus"
+    },
+    {
+      "reported_date": "2026-03-20",
+      "completed_date": "2026-03-21",
+      "record_type": "Unscheduled",
+      "repairs": [
+        "Replaced: dynamic brake grid blower motor — no dynamic braking on lead, blower not coming up",
+        "Cleaned and reseated grid blower contactor"
+      ],
+      "tests": [
+        { "date": "2026-03-21", "name": "Dynamic Brake Functional Check" }
+      ],
+      "technician": "Okafor, Dele"
+    },
+    {
+      "reported_date": "2026-02-08",
+      "completed_date": "2026-02-10",
+      "record_type": "Unscheduled",
+      "repairs": [
+        "Replaced: 26-L brake valve service portion — slow brake pipe charge, leak at the stand",
+        "Replaced: main air reservoir drain valve, front and rear"
+      ],
+      "tests": [
+        { "date": "2026-02-10", "name": "Air Brakes Level 1" },
+        { "date": "2026-02-10", "name": "Single Car Test" }
+      ],
+      "technician": "Reyes, Marcus"
+    },
+    {
+      "reported_date": "2026-01-15",
+      "completed_date": "2026-01-18",
+      "record_type": "Annual Inspection",
+      "repairs": [
+        "Replaced: overhead water-pipe gasket set — 645E coolant weep",
+        "Replaced: 2 unit fuel injectors, #4 and #9 cylinders — misfire and low power",
+        "Repaired: reattached access-door platform hardware between cab and long hood"
+      ],
+      "tests": [
+        { "date": "2026-01-16", "name": "AFM Calibration" },
+        { "date": "2026-01-16", "name": "Annual Tests" },
+        { "date": "2026-01-16", "name": "Air Brakes Level 1" },
+        { "date": "2026-01-17", "name": "Engine Inspection Form" },
+        { "date": "2026-01-17", "name": "Event Recorder" },
+        { "date": "2026-01-17", "name": "Hand Brake" },
+        { "date": "2026-01-18", "name": "Wheel Inspection Report (4 Axle)" }
+      ],
+      "technician": "Okafor, Dele"
+    }
+  ]
+}
