@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 from typing import Optional
 
 from sqlalchemy import text
@@ -41,6 +42,47 @@ async def get_asset(asset_id: int, org_id: Optional[int] = None) -> Optional[Ass
             )
         ).mappings().first()
     return Asset(**row) if row else None
+
+
+# short_id alphabet: lowercase + digits, minus look-alikes (o/0, i/1/l) for
+# legibility when a tech reads a code off a screen.
+_SHORT_ID_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
+
+
+def _gen_short_id() -> str:
+    return "".join(secrets.choice(_SHORT_ID_ALPHABET) for _ in range(6))
+
+
+def _derive_title(unit_model: str, symptoms: str | None, error_codes: str | None) -> str:
+    """Readable ticket title from asset + intake. Kept short for list rows."""
+    detail = (symptoms or "").strip() or (error_codes or "").strip() or "Maintenance ticket"
+    detail = " ".join(detail.split())
+    if len(detail) > 60:
+        detail = detail[:57].rstrip() + "…"
+    return f"{unit_model} — {detail}"
+
+
+async def resolve_ticket_id(ref: str | int, org_id: Optional[int] = None) -> Optional[int]:
+    """Map a user-facing ticket ref (short_id, or a numeric id for back-compat) to
+    the internal int id, scoped to the org. Returns None if not found in the org."""
+    s = str(ref).strip()
+    where = ["short_id = :ref"]
+    params: dict[str, object] = {"ref": s}
+    if s.isdigit():
+        where = ["(short_id = :ref OR id = :nref)"]
+        params["nref"] = int(s)
+    if org_id is not None:
+        clause = " AND ".join(where) + " AND org_id = :org"
+        params["org"] = org_id
+    else:
+        clause = " AND ".join(where)
+    async with session_scope() as session:
+        row = (
+            await session.execute(
+                text(f"SELECT id FROM tickets WHERE {clause}"), params
+            )
+        ).scalar_one_or_none()
+    return int(row) if row is not None else None
 
 
 async def list_tickets(
@@ -122,6 +164,8 @@ async def _row_to_ticket(r) -> Ticket:
     )
     return Ticket(
         id=r["id"],
+        short_id=r["short_id"],
+        title=r.get("title"),
         org_id=r["org_id"] if r.get("org_id") is not None else asset.org_id,
         asset=asset,
         status=r["status"],
@@ -266,7 +310,7 @@ async def finalize_wrap_up(
     now = _iso_now()
     date = now[:10]
     body_parts = [
-        f"Ticket #{ticket_id} (closed {date}). "
+        f"Ticket {t.short_id} (closed {date}). "
         f"Unit: {a.reporting_mark} {a.unit_model} {a.road_number}.",
         f"Symptoms: {t.initial_symptoms or '—'}.",
         f"Error codes: {t.initial_error_codes or '—'}.",
@@ -280,9 +324,9 @@ async def finalize_wrap_up(
 
     source_label = (
         f"Repair Record — {a.reporting_mark} {a.unit_model} {a.road_number} — "
-        f"{date} — Ticket #{ticket_id}"
+        f"{date} — Ticket {t.short_id}"
     )
-    doc_id = f"repair_{a.reporting_mark}_{a.road_number}_{date}_t{ticket_id}".lower().replace(" ", "_")
+    doc_id = f"repair_{a.reporting_mark}_{a.road_number}_{date}_{t.short_id}".lower().replace(" ", "_")
 
     chunk_id = await insert_corpus_chunk(
         doc_class="tribal_knowledge",
@@ -324,6 +368,7 @@ async def create_ticket(
     *,
     asset_id: int,
     org_id: Optional[int] = None,
+    title: str | None = None,
     initial_symptoms: str | None = None,
     initial_error_codes: str | None = None,
     fault_dump_raw: str | None = None,
@@ -337,18 +382,36 @@ async def create_ticket(
     ticket_org = asset.org_id
     opened_at = _iso_now()
     sev: Severity = severity or "major"
+    ticket_title = (title or "").strip() or _derive_title(
+        asset.unit_model, initial_symptoms, initial_error_codes
+    )
 
     async with session_scope() as session:
+        # Pick a short_id not already taken, then insert once. Collisions are
+        # astronomically unlikely (31^6 codes), but the unique index is the
+        # backstop; pre-checking avoids a mid-transaction rollback.
+        short_id = _gen_short_id()
+        for _ in range(6):
+            taken = (
+                await session.execute(
+                    text("SELECT 1 FROM tickets WHERE short_id = :s"), {"s": short_id}
+                )
+            ).scalar_one_or_none()
+            if not taken:
+                break
+            short_id = _gen_short_id()
         ticket_id = (
             await session.execute(
                 text(
                     """
                     INSERT INTO tickets (
-                        org_id, asset_id, status, severity, opened_by_role, opened_at,
+                        org_id, asset_id, title, short_id, status, severity,
+                        opened_by_role, opened_at,
                         initial_error_codes, initial_symptoms, fault_dump_raw
                     )
                     VALUES (
-                        :org_id, :asset_id, 'AWAITING_TECH', :sev, 'dispatcher', :opened_at,
+                        :org_id, :asset_id, :title, :short_id, 'AWAITING_TECH', :sev,
+                        'dispatcher', :opened_at,
                         :err, :sym, :raw
                     )
                     RETURNING id
@@ -357,6 +420,8 @@ async def create_ticket(
                 {
                     "org_id": ticket_org,
                     "asset_id": asset_id,
+                    "title": ticket_title,
+                    "short_id": short_id,
                     "sev": sev,
                     "opened_at": opened_at,
                     "err": initial_error_codes,

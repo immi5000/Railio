@@ -8,7 +8,7 @@ import { formatDate, formatDateOnly, severityClass, statusLabel, statusPillClass
 import { CitationDrawer } from "./CitationDrawer";
 import { ContextPanel, Empty } from "./ContextPanel";
 
-export function RepairContext({ ticketId }: { ticketId: number }) {
+export function RepairContext({ ticketId }: { ticketId: string }) {
   const { data: ticket } = useQuery({
     queryKey: ["ticket", ticketId],
     queryFn: () => getTicket(ticketId),
@@ -187,7 +187,9 @@ function TicketCard({ ticket }: { ticket: TicketDetail }) {
           marginBottom: "var(--s2)",
         }}
       >
-        <div style={{ fontWeight: 700, fontSize: 14 }}>Ticket #{ticket.id}</div>
+        <div style={{ fontWeight: 700, fontSize: 14 }} title={ticket.short_id}>
+          {ticket.title || "Ticket"}
+        </div>
         <div style={{ display: "flex", gap: "var(--s1)", alignItems: "center" }}>
           <span
             className={severityClass(ticket.severity)}

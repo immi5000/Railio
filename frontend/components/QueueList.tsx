@@ -97,8 +97,8 @@ export function QueueList({
             {tickets.map((t) => {
               const href =
                 audience === "tech"
-                  ? `/tech/ticket/${t.id}`
-                  : `/dispatcher/ticket/${t.id}`;
+                  ? `/tech/ticket/${t.short_id}`
+                  : `/dispatcher/ticket/${t.short_id}`;
               return (
                 <div
                   key={t.id}
@@ -114,11 +114,18 @@ export function QueueList({
                   }}
                   style={{ color: "inherit" }}
                 >
-                  <span className="qid">#{t.id}</span>
+                  <span className="qid">{t.short_id}</span>
                   <span>
-                    <div style={{ fontWeight: 700 }}>
-                      {t.asset.reporting_mark} {t.asset.road_number} ·{" "}
-                      {t.asset.unit_model}
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {t.title ||
+                        `${t.asset.reporting_mark} ${t.asset.road_number}`}
                     </div>
                     <div
                       style={{
@@ -130,7 +137,8 @@ export function QueueList({
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {t.initial_symptoms || t.initial_error_codes || "—"}
+                      {t.asset.reporting_mark} {t.asset.road_number} ·{" "}
+                      {t.asset.unit_model}
                     </div>
                   </span>
                   <span style={{ fontSize: 13, color: "var(--muted)" }}>
@@ -152,10 +160,10 @@ export function QueueList({
                     {audience === "dispatcher" && (
                       <>
                         <ResetTicketButton
-                          ticketId={t.id}
+                          ticketId={t.short_id}
                           disabled={!!t.is_pristine}
                         />
-                        <DeleteTicketButton ticketId={t.id} />
+                        <DeleteTicketButton ticketId={t.short_id} />
                       </>
                     )}
                     <span style={{ fontSize: 16, color: "var(--mta)" }}>→</span>

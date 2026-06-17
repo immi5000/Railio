@@ -16,7 +16,7 @@ export function ResetTicketButton({
   variant = "ghost",
   label = "Reset",
 }: {
-  ticketId: number;
+  ticketId: string;
   disabled?: boolean;
   size?: "sm" | "md";
   variant?: "ghost" | "primary";

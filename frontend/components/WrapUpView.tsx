@@ -20,7 +20,7 @@ import type { Part } from "@/lib/contract";
  * used, and the date/time, with the chat still visible alongside. Filing writes
  * the record into the unit's corpus and marks the ticket CLOSED.
  */
-export function WrapUpView({ ticketId }: { ticketId: number }) {
+export function WrapUpView({ ticketId }: { ticketId: string }) {
   const router = useRouter();
   const qc = useQueryClient();
 
@@ -98,7 +98,7 @@ export function WrapUpView({ ticketId }: { ticketId: number }) {
             marginTop: 4,
           }}
         >
-          <h1 className="h2">Wrap up · Ticket #{ticketId}</h1>
+          <h1 className="h2">Wrap up · {ticket?.title || `Ticket ${ticketId}`}</h1>
           <span className="pill pill-ok">Repair complete</span>
         </div>
         {ticket && (

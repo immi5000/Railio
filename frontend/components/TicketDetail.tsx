@@ -18,7 +18,7 @@ export function TicketDetail({
   role,
   onBack,
 }: {
-  ticketId: number;
+  ticketId: string;
   role: Role;
   onBack: () => void;
 }) {
@@ -76,11 +76,11 @@ export function TicketDetail({
             ← All tickets
           </button>
           <div style={{ display: "flex", alignItems: "baseline", gap: "var(--s3)", flexWrap: "wrap" }}>
-            <h1 className="h3">Ticket #{ticketId}</h1>
+            <h1 className="h3">{ticket?.title || "Ticket"}</h1>
             {ticket && (
               <span className="micro" style={{ color: "var(--muted)" }}>
-                {ticket.asset.reporting_mark} {ticket.asset.road_number} ·{" "}
-                {ticket.asset.unit_model}
+                {ticket.short_id} · {ticket.asset.reporting_mark}{" "}
+                {ticket.asset.road_number} · {ticket.asset.unit_model}
               </span>
             )}
           </div>

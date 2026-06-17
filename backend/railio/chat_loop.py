@@ -64,7 +64,9 @@ async def _build_ticket_context(ticket_id: int, org_id: int) -> str | None:
         return None
     lines = ["=== TICKET CONTEXT ==="]
     lines.append(
-        f"Ticket: #{t.id} · status: {t.status} · severity: {t.severity} · opened: {t.opened_at}"
+        f"Ticket: {t.short_id}"
+        + (f" — {t.title}" if t.title else "")
+        + f" · status: {t.status} · severity: {t.severity} · opened: {t.opened_at}"
         + (f" · closed: {t.closed_at}" if t.closed_at else "")
     )
     a = t.asset

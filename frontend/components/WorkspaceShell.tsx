@@ -21,7 +21,7 @@ import { IntakeContext } from "./IntakeContext";
 export function WorkspaceShell() {
   const router = useRouter();
   const params = useSearchParams();
-  const selectedId = params.get("ticket") ? Number(params.get("ticket")) : null;
+  const selectedId = params.get("ticket") || null;
 
   const [role, setRole] = useState<Role>("tech");
   useEffect(() => {
@@ -43,8 +43,8 @@ export function WorkspaceShell() {
   const isDispatch = role === "dispatcher";
   const accent = isDispatch ? "var(--dispatch)" : "var(--tech)";
 
-  function select(id: number | null) {
-    router.push(id == null ? "/work" : `/work?ticket=${id}`);
+  function select(shortId: string | null) {
+    router.push(shortId == null ? "/work" : `/work?ticket=${shortId}`);
   }
 
   function switchRole(next: Role) {
@@ -122,8 +122,8 @@ export function WorkspaceShell() {
                 key={t.id}
                 ticket={t}
                 accent={accent}
-                active={t.id === selectedId}
-                onClick={() => select(t.id)}
+                active={t.short_id === selectedId}
+                onClick={() => select(t.short_id)}
               />
             ))}
           </div>
@@ -231,8 +231,16 @@ function TicketCard({
           gap: "var(--s2)",
         }}
       >
-        <span className="qid" style={{ fontWeight: 700 }}>
-          #{ticket.id} · {ticket.asset.reporting_mark} {ticket.asset.road_number}
+        <span
+          style={{
+            fontWeight: 700,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            minWidth: 0,
+          }}
+        >
+          {ticket.title || `${ticket.asset.reporting_mark} ${ticket.asset.road_number}`}
         </span>
         <span className={statusPillClass(ticket.status as TicketStatus)}>
           {statusLabel(ticket.status as TicketStatus)}
@@ -247,8 +255,9 @@ function TicketCard({
           whiteSpace: "nowrap",
         }}
       >
-        {ticket.asset.unit_model} ·{" "}
-        {ticket.initial_symptoms || ticket.initial_error_codes || "No symptoms"}
+        <span className="qid">{ticket.short_id}</span> ·{" "}
+        {ticket.asset.reporting_mark} {ticket.asset.road_number} ·{" "}
+        {ticket.asset.unit_model}
       </div>
       <div className="micro" style={{ color: "var(--muted)" }}>
         Opened {formatDate(ticket.opened_at)}

@@ -16,7 +16,7 @@ export function DeleteTicketButton({
   label = "Delete",
   onDeleted,
 }: {
-  ticketId: number;
+  ticketId: string;
   size?: "sm" | "md";
   variant?: "ghost" | "primary";
   label?: string;

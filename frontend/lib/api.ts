@@ -110,8 +110,9 @@ export async function listTickets(status?: string): Promise<Ticket[]> {
   return jsonFetch<Ticket[]>(`/api/tickets${q}`);
 }
 
-export async function getTicket(id: number): Promise<TicketDetail> {
-  return jsonFetch<TicketDetail>(`/api/tickets/${id}`);
+// Ticket lookups use the public short_id (string); the numeric id is internal.
+export async function getTicket(ref: string): Promise<TicketDetail> {
+  return jsonFetch<TicketDetail>(`/api/tickets/${ref}`);
 }
 
 export async function createTicket(body: CreateTicketBody): Promise<Ticket> {
@@ -122,50 +123,50 @@ export async function createTicket(body: CreateTicketBody): Promise<Ticket> {
 }
 
 export async function patchTicket(
-  id: number,
+  ref: string,
   patch: Partial<Pick<Ticket, "status">> & Record<string, unknown>,
 ): Promise<Ticket> {
-  return jsonFetch<Ticket>(`/api/tickets/${id}`, {
+  return jsonFetch<Ticket>(`/api/tickets/${ref}`, {
     method: "PATCH",
     body: JSON.stringify(patch),
   });
 }
 
 /** Permanently delete a ticket and all of its messages/parts. */
-export async function deleteTicket(id: number): Promise<DeleteTicketResponse> {
-  return jsonFetch<DeleteTicketResponse>(`/api/tickets/${id}`, {
+export async function deleteTicket(ref: string): Promise<DeleteTicketResponse> {
+  return jsonFetch<DeleteTicketResponse>(`/api/tickets/${ref}`, {
     method: "DELETE",
   });
 }
 
 /** Demo-only: wipe the chat and restore the ticket to its original state. */
-export async function resetTicket(id: number): Promise<ResetTicketResponse> {
-  return jsonFetch<ResetTicketResponse>(`/api/tickets/${id}/reset`, {
+export async function resetTicket(ref: string): Promise<ResetTicketResponse> {
+  return jsonFetch<ResetTicketResponse>(`/api/tickets/${ref}/reset`, {
     method: "POST",
   });
 }
 
 /** AI-drafted repair record (summary + notes) for the post-ticket wrap-up. */
-export async function getWrapUpDraft(id: number): Promise<WrapUpDraft> {
-  return jsonFetch<WrapUpDraft>(`/api/tickets/${id}/wrap-up/draft`);
+export async function getWrapUpDraft(ref: string): Promise<WrapUpDraft> {
+  return jsonFetch<WrapUpDraft>(`/api/tickets/${ref}/wrap-up/draft`);
 }
 
 /** File the repair record into the unit's corpus and close the ticket. */
 export async function finalizeWrapUp(
-  id: number,
+  ref: string,
   body: FinalizeWrapUpBody,
 ): Promise<{ chunk_id: number; ticket: TicketDetail }> {
   return jsonFetch<{ chunk_id: number; ticket: TicketDetail }>(
-    `/api/tickets/${id}/wrap-up`,
+    `/api/tickets/${ref}/wrap-up`,
     { method: "POST", body: JSON.stringify(body) },
   );
 }
 
 export async function parseFaultDump(
-  ticketId: number,
+  ref: string,
   raw: string,
 ): Promise<{ parsed: ParsedFault[] }> {
-  return jsonFetch(`/api/tickets/${ticketId}/parse-fault-dump`, {
+  return jsonFetch(`/api/tickets/${ref}/parse-fault-dump`, {
     method: "POST",
     body: JSON.stringify({ raw }),
   });
@@ -173,12 +174,12 @@ export async function parseFaultDump(
 
 // === Photos ===
 export async function uploadPhotos(
-  ticketId: number,
+  ref: string,
   files: File[],
 ): Promise<{ attachments: Attachment[] }> {
   const fd = new FormData();
   files.forEach((f) => fd.append("files", f));
-  const res = await fetch(apiUrl(`/api/tickets/${ticketId}/photos`), {
+  const res = await fetch(apiUrl(`/api/tickets/${ref}/photos`), {
     method: "POST",
     body: fd,
     headers: await authHeaders(),

@@ -111,6 +111,8 @@ class Message(BaseModel):
 
 class Ticket(BaseModel):
     id: int
+    short_id: str
+    title: Optional[str] = None
     org_id: int
     asset: Asset
     status: TicketStatus
@@ -197,6 +199,7 @@ class TicketDetail(Ticket):
 
 class CreateTicketBody(BaseModel):
     asset_id: int
+    title: Optional[str] = None
     initial_symptoms: Optional[str] = None
     initial_error_codes: Optional[str] = None
     fault_dump_raw: Optional[str] = None

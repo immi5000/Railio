@@ -83,16 +83,16 @@ export function DispatcherIntake() {
       qc.invalidateQueries({ queryKey: ["tickets"] });
       // If a fault dump was provided, parse it now (sync)
       if (faultDump.trim()) {
-        await runParse(t.id);
+        await runParse(t.short_id);
       }
     },
   });
 
-  async function runParse(ticketId: number) {
+  async function runParse(ticketRef: string) {
     setParseBusy(true);
     setParseError(null);
     try {
-      const { parsed } = await parseFaultDump(ticketId, faultDump);
+      const { parsed } = await parseFaultDump(ticketRef, faultDump);
       setParsed(parsed);
     } catch (e) {
       setParseError(e instanceof Error ? e.message : "Parse failed");
@@ -103,7 +103,7 @@ export function DispatcherIntake() {
 
   async function handoffToTech() {
     if (!createdTicket) return;
-    await patchTicket(createdTicket.id, { status: "AWAITING_TECH" });
+    await patchTicket(createdTicket.short_id, { status: "AWAITING_TECH" });
     qc.invalidateQueries({ queryKey: ["tickets"] });
     router.push("/work");
   }
@@ -331,7 +331,7 @@ export function DispatcherIntake() {
                   onChange={(e) => setFaultDump(e.target.value)}
                   onBlur={() => {
                     if (createdTicket && faultDump.trim()) {
-                      runParse(createdTicket.id);
+                      runParse(createdTicket.short_id);
                     }
                   }}
                 />
@@ -347,7 +347,7 @@ export function DispatcherIntake() {
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
-                      onClick={() => runParse(createdTicket.id)}
+                      onClick={() => runParse(createdTicket.short_id)}
                       disabled={parseBusy || !faultDump.trim()}
                     >
                       {parseBusy ? "Parsing…" : "Parse fault dump"}
@@ -406,7 +406,7 @@ export function DispatcherIntake() {
                 ) : (
                   <>
                     <span className="pill pill-ok">
-                      Ticket #{createdTicket.id} opened
+                      Ticket {createdTicket.short_id} opened
                     </span>
                     <button className="btn btn-primary" onClick={handoffToTech}>
                       Hand off to tech →
@@ -436,7 +436,7 @@ export function DispatcherIntake() {
               {createdTicket ? (
                 <div style={{ flex: 1 }}>
                   <ChatPane
-                    ticketId={createdTicket.id}
+                    ticketId={createdTicket.short_id}
                     role="dispatcher"
                     emptyHint="Tell Railio what the engineer said. It&rsquo;ll write the pre-arrival summary for the tech."
                   />

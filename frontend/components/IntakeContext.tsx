@@ -15,7 +15,7 @@ export function IntakeContext({
   ticketId,
   onHandedOff,
 }: {
-  ticketId: number;
+  ticketId: string;
   onHandedOff: () => void;
 }) {
   const qc = useQueryClient();

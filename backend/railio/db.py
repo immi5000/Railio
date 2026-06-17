@@ -71,6 +71,19 @@ class AppUser(Base):
     created_at = Column(Text, nullable=False)
 
 
+class ChatRateEvent(Base):
+    __tablename__ = "chat_rate_events"
+    __table_args__ = (Index("idx_rate_user_time", "supabase_user_id", "created_at"),)
+
+    id = Column(Integer, primary_key=True)
+    # Keyed on the JWT `sub`, not app_users.id — the limiter resolves identity from
+    # the verified token directly, before any onboarding/org lookup.
+    supabase_user_id = Column(Text, nullable=False)
+    # ISO-8601 UTC with Z suffix (sortable lexicographically); one row per accepted
+    # chat message. Pruned to the active window on each check.
+    created_at = Column(Text, nullable=False)
+
+
 class OrgInviteCode(Base):
     __tablename__ = "org_invite_codes"
 
@@ -105,6 +118,8 @@ class Ticket(Base):
     id = Column(Integer, primary_key=True)
     org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"))
     asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"))
+    title = Column(Text)
+    short_id = Column(Text, unique=True)
     status = Column(Text, nullable=False)
     severity = Column(Text, nullable=False, default="major", server_default="major")
     opened_by_role = Column(Text, nullable=False)

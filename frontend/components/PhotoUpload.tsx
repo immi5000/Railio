@@ -13,7 +13,7 @@ export function PhotoUpload({
   onRemove,
   compact,
 }: {
-  ticketId: number;
+  ticketId: string;
   pending: PendingAttachment[];
   onAdd: (a: PendingAttachment[]) => void;
   onRemove: (path: string) => void;

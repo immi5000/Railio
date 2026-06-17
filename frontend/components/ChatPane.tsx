@@ -26,7 +26,7 @@ type LiveAssistant = {
 };
 
 type Props = {
-  ticketId: number;
+  ticketId: string;
   role: "dispatcher" | "tech";
   /** Render an empty-state hint when there are no messages yet. */
   emptyHint?: string;
@@ -58,6 +58,9 @@ export function ChatPane({
   const callIdToName = useRef<Map<string, string>>(new Map());
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Timestamp (ms) until which sending is blocked after a 429. null = no cooldown.
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const listRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -75,10 +78,25 @@ export function ChatPane({
     return () => clearTimeout(t);
   }, [toast]);
 
+  // Tick once a second while a cooldown is active so the countdown updates and
+  // the composer re-enables when the window passes.
+  useEffect(() => {
+    if (cooldownUntil == null) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [cooldownUntil]);
+
+  const cooldownLeft =
+    cooldownUntil != null ? Math.max(0, Math.ceil((cooldownUntil - now) / 1000)) : 0;
+  const inCooldown = cooldownLeft > 0;
+
   async function send(overrideContent?: string) {
     const content = (overrideContent ?? draft).trim();
     if (!content && pending.length === 0) return;
     if (streaming) return;
+    // Block sends (incl. auto-send paths: photo attach, suggestion clicks) while
+    // a server-issued rate-limit cooldown is active.
+    if (cooldownUntil != null && Date.now() < cooldownUntil) return;
 
     setError(null);
     setStreaming(true);
@@ -104,6 +122,30 @@ export function ChatPane({
         body: JSON.stringify(body),
         signal: ac.signal,
         openWhenHidden: true,
+        async onopen(response) {
+          if (response.ok) return; // SSE stream opened normally
+          if (response.status === 429) {
+            const ra = Number(response.headers.get("Retry-After") || "30");
+            const secs = Number.isFinite(ra) && ra > 0 ? ra : 30;
+            setCooldownUntil(Date.now() + secs * 1000);
+            setNow(Date.now());
+            setError(
+              `You're sending messages too fast — try again in ${secs}s.`,
+            );
+            // RateLimited is non-retriable: throw a plain Error so fetchEventSource
+            // stops and our catch swallows it without re-opening the stream.
+            throw new Error("rate_limited");
+          }
+          let detail = `Request failed (${response.status})`;
+          try {
+            const j = await response.json();
+            if (j?.detail) detail = j.detail;
+          } catch {
+            // non-JSON body; keep the status message
+          }
+          setError(detail);
+          throw new Error(detail);
+        },
         onmessage(ev) {
           if (!ev.data) return;
           let payload: StreamEvent;
@@ -115,13 +157,19 @@ export function ChatPane({
           handleEvent(payload);
         },
         onerror(err) {
-          setError(err instanceof Error ? err.message : "Stream error");
+          // Re-throw to stop retries; onopen already set a user-facing message
+          // for HTTP errors (incl. 429). Don't overwrite it here.
           throw err;
         },
       });
     } catch (e) {
-      if (!ac.signal.aborted) {
-        setError(e instanceof Error ? e.message : "Connection failed");
+      // onopen sets the precise message for HTTP errors (e.g. the 429 cooldown);
+      // only fill in a generic message if nothing was surfaced and we weren't
+      // intentionally aborted.
+      const msg = e instanceof Error ? e.message : "";
+      const handled = msg === "rate_limited" || (cooldownUntil != null && Date.now() < cooldownUntil);
+      if (!ac.signal.aborted && !handled) {
+        setError((prev) => prev ?? "Connection failed");
       }
     } finally {
       setStreaming(false);
@@ -270,7 +318,7 @@ export function ChatPane({
           <EmptyState
             hint={emptyHint || "Press the mic to talk, or type."}
             ticket={data}
-            disabled={streaming}
+            disabled={streaming || inCooldown}
             onPick={(q) => send(q)}
           />
         )}
@@ -292,7 +340,7 @@ export function ChatPane({
         )}
       </div>
 
-      {error && (
+      {(inCooldown || error) && (
         <div
           style={{
             background: "#ffe6e3",
@@ -302,7 +350,9 @@ export function ChatPane({
             borderTop: "1px solid #f08d80",
           }}
         >
-          {error}
+          {inCooldown
+            ? `You're sending messages too fast — try again in ${cooldownLeft}s.`
+            : error}
         </div>
       )}
 
@@ -364,10 +414,12 @@ export function ChatPane({
           <button
             className="btn btn-super chat-send"
             onClick={() => send()}
-            disabled={streaming || (!draft.trim() && pending.length === 0)}
+            disabled={
+              streaming || inCooldown || (!draft.trim() && pending.length === 0)
+            }
             style={{ alignSelf: "stretch" }}
           >
-            {streaming ? "Sending…" : "Send"}
+            {streaming ? "Sending…" : inCooldown ? `Wait ${cooldownLeft}s` : "Send"}
           </button>
         </div>
       </div>

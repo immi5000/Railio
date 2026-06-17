@@ -33,6 +33,8 @@ _STATEMENTS = [
     CREATE TABLE IF NOT EXISTS tickets (
         id serial PRIMARY KEY,
         asset_id integer REFERENCES assets(id),
+        title text,
+        short_id text,
         status text NOT NULL,
         severity text NOT NULL DEFAULT 'major',
         opened_by_role text NOT NULL,
@@ -258,6 +260,18 @@ _STATEMENTS = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_org_invite_codes_org ON org_invite_codes (org_id)",
+    # === Chat rate limiting ===
+    # One row per accepted chat message, keyed on the JWT sub. The limiter counts
+    # rows in a sliding window per user and prunes older rows on each check, so the
+    # table stays small. No FK to app_users: the limiter keys on the raw token sub.
+    """
+    CREATE TABLE IF NOT EXISTS chat_rate_events (
+        id serial PRIMARY KEY,
+        supabase_user_id text NOT NULL,
+        created_at text NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_rate_user_time ON chat_rate_events (supabase_user_id, created_at)",
     # Seed one code per existing org (idempotent). Edit / add rows in Supabase.
     """
     INSERT INTO org_invite_codes (code, org_id)
@@ -273,6 +287,34 @@ _STATEMENTS = [
     INSERT INTO org_invite_codes (code, org_id)
     SELECT 'omnitrax-join', id FROM organizations WHERE slug = 'omnitrax'
     ON CONFLICT (code) DO NOTHING
+    """,
+    """
+    INSERT INTO org_invite_codes (code, org_id)
+    SELECT 'progress-join', id FROM organizations WHERE slug = 'progress-rail'
+    ON CONFLICT (code) DO NOTHING
+    """,
+    # === Tickets: human title + short public id (replaces the numeric #id in the UI) ===
+    # short_id is the user-facing handle used for lookup/URLs; the numeric id stays
+    # the internal PK + FK target (messages/ticket_parts/tribal_capture unchanged).
+    "ALTER TABLE tickets ADD COLUMN IF NOT EXISTS title text",
+    "ALTER TABLE tickets ADD COLUMN IF NOT EXISTS short_id text",
+    # Backfill short_id for any pre-existing tickets: 6 lowercased base32-ish chars
+    # off md5(id+opened_at), unique by construction (id is unique). Only fills NULLs.
+    """
+    UPDATE tickets SET short_id =
+        substr(translate(md5(id::text || opened_at), 'oil019', 'qkm234'), 1, 6)
+    WHERE short_id IS NULL
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_tickets_short_id ON tickets (short_id)",
+    # Backfill a readable title for pre-existing tickets from asset + symptoms.
+    """
+    UPDATE tickets t SET title =
+        a.unit_model || ' — ' ||
+        COALESCE(NULLIF(btrim(t.initial_symptoms), ''),
+                 NULLIF(btrim(t.initial_error_codes), ''),
+                 'Maintenance ticket')
+    FROM assets a
+    WHERE a.id = t.asset_id AND t.title IS NULL
     """,
     # === Cascade deletes from an organization ===
     # Rebuild every FK in the org's dependency graph with ON DELETE CASCADE so

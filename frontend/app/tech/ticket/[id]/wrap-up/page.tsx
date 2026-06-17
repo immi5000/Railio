@@ -6,5 +6,5 @@ export default async function WrapUpPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <WrapUpView ticketId={Number(id)} />;
+  return <WrapUpView ticketId={id} />;
 }

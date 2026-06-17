@@ -18,6 +18,7 @@ export type Severity = "minor" | "major" | "critical";
 // === API request bodies ===
 export type CreateTicketBody = {
   asset_id: number;
+  title?: string;
   initial_symptoms?: string;
   initial_error_codes?: string;
   fault_dump_raw?: string;
@@ -191,6 +192,8 @@ export type Message = {
 
 export type Ticket = {
   id: number;
+  short_id: string;
+  title: string | null;
   org_id: number;
   asset: Asset;
   status: TicketStatus;

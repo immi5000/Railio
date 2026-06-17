@@ -12,6 +12,7 @@ from ..organizations_repo import (
     get_org_by_id,
     org_name_for_domain,
 )
+from ..posthog_client import get_posthog
 
 router = APIRouter()
 
@@ -56,4 +57,15 @@ async def post_onboarding(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+    ph = get_posthog()
+    if ph:
+        distinct_id = user["supabase_user_id"]
+        ph.set(distinct_id=distinct_id, properties={"has_phone": bool(body.phone), "org_id": org.id})
+        ph.capture(
+            distinct_id=distinct_id,
+            event="user_onboarded",
+            properties={"has_join_code": bool(body.join_code), "has_phone": bool(body.phone)},
+        )
+
     return JSONResponse({"org": org.model_dump()})

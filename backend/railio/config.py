@@ -26,6 +26,10 @@ class Settings:
     supabase_service_role_key: Optional[str]
     supabase_jwks_url: Optional[str]
     supabase_jwt_secret: Optional[str]
+    posthog_project_token: Optional[str]
+    posthog_host: str
+    rate_limit_per_user_per_min: int
+    rate_limit_window_seconds: int
 
     def __init__(self) -> None:
         self.openai_api_key = os.environ.get("OPENAI_API_KEY")
@@ -58,6 +62,12 @@ class Settings:
         # HS256 fallback for projects still on a symmetric JWT secret. When set
         # (and no JWKS), tokens are verified with this instead of the JWKS keys.
         self.supabase_jwt_secret = os.environ.get("SUPABASE_JWT_SECRET")
+        self.posthog_project_token = os.environ.get("POSTHOG_PROJECT_TOKEN")
+        self.posthog_host = os.environ.get("POSTHOG_HOST", "https://us.i.posthog.com")
+        # Per-user chat rate limit (sliding window). Set _PER_MIN to 0 to disable
+        # (e.g. for the e2e script). Keyed on the verified supabase_user_id.
+        self.rate_limit_per_user_per_min = int(os.environ.get("RATE_LIMIT_PER_USER_PER_MIN", "20"))
+        self.rate_limit_window_seconds = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"))
 
     @property
     def allowed_origins(self) -> list[str]:

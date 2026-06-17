@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, Response
 
 from .config import get_settings
 from .db import close_engine, get_engine
+from .posthog_client import init_posthog, shutdown_posthog
 from .routers import (
     assets,
     corpus,
@@ -25,9 +26,11 @@ from .routers import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_posthog()
     get_engine()  # warm the connection pool
     yield
     await close_engine()
+    shutdown_posthog()
 
 
 def create_app() -> FastAPI:
