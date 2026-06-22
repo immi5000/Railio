@@ -4,5 +4,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
+*.egg-info/
 corpus-sources/raw/*
 !corpus-sources/raw/.gitkeep

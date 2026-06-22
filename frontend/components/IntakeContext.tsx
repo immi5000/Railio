@@ -5,6 +5,7 @@ import { getTicket, patchTicket } from "@/lib/api";
 import type { TicketStatus } from "@/lib/contract";
 import { formatDate, severityClass, statusLabel, statusPillClass } from "@/lib/format";
 import { ContextPanel, Empty } from "./ContextPanel";
+import { DeleteTicketButton } from "./DeleteTicketButton";
 
 /**
  * Dispatcher counterpart to RepairContext. Surfaces what the dispatcher
@@ -149,6 +150,16 @@ export function IntakeContext({
           {(handoffMut.error as Error).message}
         </div>
       )}
+
+      <div
+        style={{
+          marginTop: "var(--s4)",
+          paddingTop: "var(--s3)",
+          borderTop: "1px solid var(--border)",
+        }}
+      >
+        <DeleteTicketButton ticketId={ticketId} onDeleted={onHandedOff} />
+      </div>
     </div>
   );
 }

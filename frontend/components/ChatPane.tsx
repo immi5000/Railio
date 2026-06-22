@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import { apiUrl, authHeaders, fileUrl, getTicket, uploadPhotos } from "@/lib/api";
 import type {
   Citation,
+  CorpusFigure,
   Message,
   StreamEvent,
   TicketDetail,
@@ -18,11 +19,14 @@ import { CitationDrawer } from "./CitationDrawer";
 import { MicButton } from "./MicButton";
 import { PhotoUpload, type PendingAttachment } from "./PhotoUpload";
 
+type ShownFigure = { chunkId: number; figure: CorpusFigure };
+
 type LiveAssistant = {
   text: string;
   citations: Citation[];
   toolCalls: ToolCall[];
   requestPhoto: { prompt: string; reason: string } | null;
+  figures: ShownFigure[];
 };
 
 type Props = {
@@ -100,7 +104,7 @@ export function ChatPane({
 
     setError(null);
     setStreaming(true);
-    setLive({ text: "", citations: [], toolCalls: [], requestPhoto: null });
+    setLive({ text: "", citations: [], toolCalls: [], requestPhoto: null, figures: [] });
 
     const body = {
       role,
@@ -199,6 +203,7 @@ export function ChatPane({
                 citations: [],
                 toolCalls: [],
                 requestPhoto: null,
+                figures: [],
               },
         );
         break;
@@ -257,6 +262,26 @@ export function ChatPane({
                 citations: [],
                 toolCalls: [],
                 requestPhoto: { prompt: ev.prompt, reason: ev.reason },
+                figures: [],
+              },
+        );
+        break;
+      case "show_figure":
+        setLive((prev) =>
+          prev
+            ? {
+                ...prev,
+                figures: [
+                  ...prev.figures,
+                  { chunkId: ev.chunk_id, figure: ev.figure },
+                ],
+              }
+            : {
+                text: "",
+                citations: [],
+                toolCalls: [],
+                requestPhoto: null,
+                figures: [{ chunkId: ev.chunk_id, figure: ev.figure }],
               },
         );
         break;
@@ -328,6 +353,7 @@ export function ChatPane({
             key={m.id}
             message={m}
             onCitationClick={(c) => setOpenChunk(c.chunk_id)}
+            onOpenChunk={(id) => setOpenChunk(id)}
           />
         ))}
 
@@ -335,6 +361,7 @@ export function ChatPane({
           <LiveBubble
             live={live}
             onCitationClick={(c) => setOpenChunk(c.chunk_id)}
+            onOpenChunk={(id) => setOpenChunk(id)}
             onPhotoSend={uploadAndSend}
           />
         )}
@@ -515,12 +542,27 @@ function buildSuggestedQuestions(ticket: TicketDetail | undefined): string[] {
 function MessageBubble({
   message,
   onCitationClick,
+  onOpenChunk,
 }: {
   message: Message;
   onCitationClick: (c: Citation) => void;
+  onOpenChunk: (chunkId: number) => void;
 }) {
   const isUser = message.role === "tech" || message.role === "dispatcher";
   const isSystem = message.role === "system" || message.role === "tool";
+  // Figures the assistant chose to show are reconstructed from persisted
+  // show_figure tool_calls — no separate field on the message, so the hash
+  // chain is untouched.
+  const shownFigures: ShownFigure[] = (message.tool_calls ?? [])
+    .filter(
+      (tc) =>
+        tc.name === "show_figure" &&
+        (tc.output as { ok?: boolean } | undefined)?.ok,
+    )
+    .map((tc) => {
+      const out = tc.output as { chunk_id: number; figure: CorpusFigure };
+      return { chunkId: out.chunk_id, figure: out.figure };
+    });
 
   if (isSystem) {
     return (
@@ -578,6 +620,18 @@ function MessageBubble({
           </div>
         )}
 
+        {shownFigures.length > 0 && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+            {shownFigures.map((f, i) => (
+              <FigureThumb
+                key={`${f.chunkId}-${i}`}
+                figure={f.figure}
+                onOpen={() => onOpenChunk(f.chunkId)}
+              />
+            ))}
+          </div>
+        )}
+
         {message.tool_calls && message.tool_calls.length > 0 && (
           <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap" }}>
             {message.tool_calls.map((tc, i) => (
@@ -611,6 +665,37 @@ function MessageBubble({
         )}
       </div>
     </div>
+  );
+}
+
+function FigureThumb({
+  figure,
+  onOpen,
+}: {
+  figure: CorpusFigure;
+  onOpen: () => void;
+}) {
+  const url = fileUrl(figure.path);
+  const label = figure.figure_label || figure.caption || "figure";
+  return (
+    <button
+      onClick={onOpen}
+      title={label}
+      style={{
+        padding: 0,
+        border: "1px solid var(--border)",
+        background: "#fff",
+        cursor: "pointer",
+        lineHeight: 0,
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt={label}
+        style={{ width: 96, height: 96, objectFit: "cover", display: "block" }}
+      />
+    </button>
   );
 }
 
@@ -687,6 +772,8 @@ function describeTool(tc: ToolCall): string {
       return "Parsing fault codes";
     case "request_photo":
       return "Requested photo";
+    case "show_figure":
+      return "Showed figure";
     case "set_ticket_status":
       return "Status changed";
     default:
@@ -697,10 +784,12 @@ function describeTool(tc: ToolCall): string {
 function LiveBubble({
   live,
   onCitationClick,
+  onOpenChunk,
   onPhotoSend,
 }: {
   live: LiveAssistant;
   onCitationClick: (c: Citation) => void;
+  onOpenChunk: (chunkId: number) => void;
   onPhotoSend: (file: File) => void;
 }) {
   return (
@@ -747,6 +836,18 @@ function LiveBubble({
             reason={live.requestPhoto.reason}
             onPick={onPhotoSend}
           />
+        )}
+
+        {live.figures.length > 0 && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+            {live.figures.map((f, i) => (
+              <FigureThumb
+                key={`${f.chunkId}-${i}`}
+                figure={f.figure}
+                onOpen={() => onOpenChunk(f.chunkId)}
+              />
+            ))}
+          </div>
         )}
 
         {live.citations.length > 0 && (

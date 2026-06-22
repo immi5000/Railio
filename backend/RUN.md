@@ -9,7 +9,6 @@ FastAPI service on `:3001`. The frontend in `frontend/` talks to it over CORS.
 - SQLAlchemy 2 (async) + asyncpg + pgvector
 - OpenAI async SDK (streaming chat with tool-use accumulation)
 - supabase-py (storage; `railio-uploads` bucket)
-- reportlab (FRA-styled form PDFs)
 - httpx (corpus fetch + e2e)
 - stdlib `xml.etree.ElementTree` (eCFR section chunking)
 
@@ -49,5 +48,4 @@ uvicorn railio.main:app --reload --port 3001
 ## Notes
 
 - `scripts/migrate.py` is idempotent (`IF NOT EXISTS` everywhere). Safe to re-run.
-- SSE events emitted by `/api/tickets/{id}/messages`: `assistant_token`, `tool_call_started`, `tool_call_completed`, `form_updated`, `request_photo`, `user_message_persisted`, `assistant_message_persisted`, `done`, `error`.
-- PDFs use reportlab; layout is close but not pixel-perfect.
+- SSE events emitted by `/api/tickets/{id}/messages`: `assistant_token`, `tool_call_started`, `tool_call_completed`, `user_message_persisted`, `assistant_message_persisted`, `done`, `error`.

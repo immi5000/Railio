@@ -214,12 +214,32 @@ async def delete_ticket(ticket_id: int, org_id: Optional[int] = None) -> bool:
         ).scalar_one_or_none()
         if not exists:
             return False
-        for stmt in (
-            "DELETE FROM messages WHERE ticket_id = :id",
-            "DELETE FROM ticket_parts WHERE ticket_id = :id",
-            "DELETE FROM tickets WHERE id = :id",
-        ):
-            await session.execute(text(stmt), {"id": ticket_id})
+        await session.execute(
+            text("DELETE FROM messages WHERE ticket_id = :id"), {"id": ticket_id}
+        )
+        await session.execute(
+            text("DELETE FROM ticket_parts WHERE ticket_id = :id"), {"id": ticket_id}
+        )
+        # Promoted repair-history chunks have no FK back to the ticket, so they'd
+        # orphan unless removed explicitly (tribal_capture cascades, but the chunk
+        # it points at does not).
+        await session.execute(
+            text(
+                """
+                DELETE FROM corpus_chunks WHERE id IN (
+                    SELECT promoted_chunk_id FROM tribal_capture
+                    WHERE ticket_id = :id AND promoted_chunk_id IS NOT NULL
+                )
+                """
+            ),
+            {"id": ticket_id},
+        )
+        await session.execute(
+            text("DELETE FROM tribal_capture WHERE ticket_id = :id"), {"id": ticket_id}
+        )
+        await session.execute(
+            text("DELETE FROM tickets WHERE id = :id"), {"id": ticket_id}
+        )
     return True
 
 

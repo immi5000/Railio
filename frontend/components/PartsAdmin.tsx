@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { listAssets, listParts, patchPart } from "@/lib/api";
+import { createPart, listAssets, listParts, patchPart } from "@/lib/api";
 import type { Part, PartLocation, UnitModel } from "@/lib/contract";
 
 function fmtMoney(n: number | null): string {
@@ -29,6 +29,7 @@ export function PartsAdmin() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [unit, setUnit] = useState<UnitModel | "">("");
+  const [adding, setAdding] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["parts", q, unit],
@@ -94,6 +95,13 @@ export function PartsAdmin() {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => setAdding((v) => !v)}
+          >
+            {adding ? "Cancel" : "+ Add part"}
+          </button>
           <span
             className="micro"
             style={{ color: "var(--muted)", marginLeft: "auto" }}
@@ -101,6 +109,8 @@ export function PartsAdmin() {
             {data?.length ?? 0} part{(data?.length ?? 0) === 1 ? "" : "s"}
           </span>
         </div>
+
+        {adding && <AddPartForm onDone={() => setAdding(false)} />}
 
         {isLoading && (
           <div className="card" style={{ color: "var(--muted)" }}>
@@ -177,6 +187,167 @@ export function PartsAdmin() {
         )}
       </div>
     </section>
+  );
+}
+
+function AddPartForm({ onDone }: { onDone: () => void }) {
+  const qc = useQueryClient();
+  const [partNumber, setPartNumber] = useState("");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [compatible, setCompatible] = useState("");
+  const [bin, setBin] = useState("");
+  const [qty, setQty] = useState("0");
+  const [avgCost, setAvgCost] = useState("");
+  const [supplier, setSupplier] = useState("");
+  const [lead, setLead] = useState("");
+  const [alternates, setAlternates] = useState("");
+
+  const mut = useMutation({
+    mutationFn: () =>
+      createPart({
+        part_number: partNumber.trim(),
+        name: name.trim(),
+        description: description.trim() || null,
+        compatible_units: compatible
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        bin_location: bin.trim() || null,
+        qty_on_hand: Number(qty) || 0,
+        avg_cost: avgCost === "" ? null : Number(avgCost),
+        supplier: supplier.trim() || null,
+        lead_time_days: lead === "" ? null : Number(lead),
+        alternate_part_numbers: alternates
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["parts"] });
+      onDone();
+    },
+  });
+
+  const canSubmit = !!partNumber.trim() && !!name.trim();
+
+  return (
+    <div
+      className="card"
+      style={{
+        marginBottom: 16,
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+        gap: 8,
+        alignItems: "end",
+      }}
+    >
+      <Field label="Part # *">
+        <input
+          className="input"
+          value={partNumber}
+          onChange={(e) => setPartNumber(e.target.value)}
+        />
+      </Field>
+      <Field label="Name *">
+        <input
+          className="input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </Field>
+      <Field label="Description">
+        <input
+          className="input"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </Field>
+      <Field label="Compatible (comma-sep)">
+        <input
+          className="input"
+          value={compatible}
+          onChange={(e) => setCompatible(e.target.value)}
+        />
+      </Field>
+      <Field label="Bin">
+        <input
+          className="input"
+          value={bin}
+          onChange={(e) => setBin(e.target.value)}
+        />
+      </Field>
+      <Field label="On hand">
+        <input
+          className="input"
+          type="number"
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+        />
+      </Field>
+      <Field label="Avg cost">
+        <input
+          className="input"
+          type="number"
+          value={avgCost}
+          onChange={(e) => setAvgCost(e.target.value)}
+        />
+      </Field>
+      <Field label="Supplier">
+        <input
+          className="input"
+          value={supplier}
+          onChange={(e) => setSupplier(e.target.value)}
+        />
+      </Field>
+      <Field label="Lead (d)">
+        <input
+          className="input"
+          type="number"
+          value={lead}
+          onChange={(e) => setLead(e.target.value)}
+        />
+      </Field>
+      <Field label="Alternates (comma-sep)">
+        <input
+          className="input"
+          value={alternates}
+          onChange={(e) => setAlternates(e.target.value)}
+        />
+      </Field>
+      <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8, alignItems: "center" }}>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={!canSubmit || mut.isPending}
+          onClick={() => mut.mutate()}
+        >
+          {mut.isPending ? "Adding…" : "Add part"}
+        </button>
+        {mut.error && (
+          <span className="micro" style={{ color: "#8a1f15" }}>
+            {(mut.error as Error).message}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label style={{ display: "grid", gap: 4 }}>
+      <span className="micro" style={{ color: "var(--muted)" }}>
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }
 

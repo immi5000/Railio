@@ -17,7 +17,6 @@ dependencies = [
   "supabase>=2.10.0",
   "pyjwt[crypto]>=2.9.0",
   "python-multipart>=0.0.20",
-  "reportlab>=4.2.0",
   "posthog>=3.0.0",
 ]
 

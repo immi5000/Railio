@@ -12,6 +12,7 @@ import type {
   FinalizeWrapUpBody,
   Asset,
   Part,
+  CreatePartBody,
   ParsedFault,
   Ticket,
   TicketDetail,
@@ -236,6 +237,13 @@ export async function listParts(opts?: {
   if (opts?.q) params.set("q", opts.q);
   const qs = params.toString();
   return jsonFetch<Part[]>(`/api/parts${qs ? `?${qs}` : ""}`);
+}
+
+export async function createPart(body: CreatePartBody): Promise<Part> {
+  return jsonFetch<Part>(`/api/parts`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 export async function patchPart(id: number, patch: Partial<Part>): Promise<Part> {

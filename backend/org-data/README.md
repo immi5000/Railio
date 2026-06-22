@@ -1,16 +1,23 @@
-# org-data — per-tenant onboarding data
+# org-data — per-tenant onboarding format
+
+Tenant data lives in **Supabase**, not in this folder. These subfolders are
+**ephemeral, not committed**: to onboard a railroad you drop a `<slug>/` folder
+here, load it into Supabase, then delete the folder. This file documents the
+folder format `load_org` expects.
 
 Each subfolder is **one organization (railroad tenant)**. You (the admin) prepare
 a company's data here, then load it with:
 
 ```bash
 python -m scripts.load_org <slug>
+# then remove the local folder — Supabase is the source of truth
+rm -r org-data/<slug>
 ```
 
-Tenants do **not** upload their own data in the pilot — everything is loaded from
-this folder by the admin. Data loaded for one org is invisible to every other org.
-Shared federal regulation (49 CFR) is loaded separately by `scripts.corpus_build`
-with `org_id = NULL` and is visible to all orgs.
+Tenants do **not** upload their own data in the pilot — everything is loaded by
+the admin. Data loaded for one org is invisible to every other org. Shared federal
+regulation (49 CFR) is loaded separately by `scripts.corpus_build` with
+`org_id = NULL` and is visible to all orgs.
 
 ## Folder layout
 

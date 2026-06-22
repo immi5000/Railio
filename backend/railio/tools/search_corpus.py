@@ -6,6 +6,7 @@ from typing import Any, Literal, Optional
 
 from sqlalchemy import text
 
+from ..corpus_figures import figures_supported, parse_figures
 from ..db import session_scope
 from ..embeddings import embed
 
@@ -50,24 +51,43 @@ async def search_corpus(
         where.append("(asset_id = :asset_id OR asset_id IS NULL)")
         params["asset_id"] = asset_id
 
-    sql = text(
-        f"""
-        SELECT id, doc_class, doc_id, doc_title, source_label, page, text,
-               (embedding <-> CAST(:vec AS vector)) AS distance
-        FROM corpus_chunks
-        WHERE {' AND '.join(where)}
-        ORDER BY embedding <-> CAST(:vec AS vector)
-        LIMIT :k
-        """
-    )
-
     rows: list[Any] = []
+    has_figs = False
     try:
         async with session_scope() as session:
+            has_figs = await figures_supported(session)
+            fig_col = ", figures" if has_figs else ""
+            sql = text(
+                f"""
+                SELECT id, doc_class, doc_id, doc_title, source_label, page, text,
+                       (embedding <-> CAST(:vec AS vector)) AS distance{fig_col}
+                FROM corpus_chunks
+                WHERE {' AND '.join(where)}
+                ORDER BY embedding <-> CAST(:vec AS vector)
+                LIMIT :k
+                """
+            )
             rows = (await session.execute(sql, params)).mappings().all()
     except Exception as e:
         print(f"search_corpus query failed: {e}")
         rows = []
+
+    def _fig_meta(r: Any) -> list[dict[str, Any]]:
+        # Lightweight per-figure metadata only — enough for the model to pick a
+        # figure via show_figure(chunk_id, figure_index) without flooding it with
+        # paths/bboxes/callouts.
+        if not has_figs:
+            return []
+        out = []
+        for i, f in enumerate(parse_figures(r.get("figures"))):
+            out.append(
+                {
+                    "index": i,
+                    "figure_label": f.get("figure_label"),
+                    "caption": f.get("caption", ""),
+                }
+            )
+        return out
 
     return {
         "query": query,
@@ -81,6 +101,7 @@ async def search_corpus(
                 "page": r["page"],
                 "text": r["text"],
                 "distance": float(r["distance"]),
+                "figures": _fig_meta(r),
             }
             for r in rows
         ],

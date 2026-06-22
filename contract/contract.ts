@@ -249,6 +249,19 @@ export type TicketPart = {
   added_at: string;
 };
 
+export type CreatePartBody = {
+  part_number: string;
+  name: string;
+  description?: string | null;
+  compatible_units?: UnitModel[];
+  bin_location?: string | null;
+  qty_on_hand?: number;
+  supplier?: string | null;
+  lead_time_days?: number | null;
+  alternate_part_numbers?: string[];
+  avg_cost?: number | null;
+};
+
 // A locomotive model that has ingested knowledge (manuals). Drives the
 // add-asset model picker so an asset's unit_model always matches a model that
 // actually has a manual behind it.
@@ -297,6 +310,7 @@ export type StreamEvent =
       output: Record<string, unknown>;
     }
   | { type: "request_photo"; prompt: string; reason: string }
+  | { type: "show_figure"; chunk_id: number; figure: CorpusFigure }
   | { type: "assistant_message_persisted"; message: Message }
   | { type: "done" }
   | { type: "error"; error: string };

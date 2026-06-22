@@ -1,9 +1,14 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { listAssets, listHistoricalRecords } from "@/lib/api";
-import type { Asset, HistoricalRecord } from "@/lib/contract";
+import {
+  createAsset,
+  createHistoricalRecord,
+  listAssets,
+  listHistoricalRecords,
+} from "@/lib/api";
+import type { Asset, HistoricalRecord, HistoricalTest } from "@/lib/contract";
 
 function fmtDate(d: string | null): string {
   if (!d) return "—";
@@ -26,6 +31,9 @@ export function FleetAdmin() {
   }, [assets, selected]);
 
   const selectedAsset = assets?.find((a) => a.id === selected) ?? null;
+  const unitModels = Array.from(
+    new Set((assets || []).map((a) => a.unit_model)),
+  ).sort();
 
   return (
     <section style={{ padding: "32px 0 96px" }}>
@@ -57,6 +65,11 @@ export function FleetAdmin() {
             alignItems: "start",
           }}
         >
+          <div>
+          <AddUnitForm
+            unitModels={unitModels}
+            onAdded={(a) => setSelected(a.id)}
+          />
           <div style={{ border: "1px solid var(--border)", background: "#fff" }}>
             {assetsLoading && (
               <div className="micro" style={{ padding: 12, color: "var(--muted)" }}>
@@ -76,6 +89,7 @@ export function FleetAdmin() {
                 onClick={() => setSelected(a.id)}
               />
             ))}
+          </div>
           </div>
 
           {selectedAsset ? (
@@ -149,6 +163,8 @@ function HistoryTable({ asset }: { asset: Asset }) {
           {data?.length ?? 0} record{(data?.length ?? 0) === 1 ? "" : "s"}
         </span>
       </div>
+
+      <AddRecordForm asset={asset} />
 
       {isLoading && (
         <div className="card" style={{ color: "var(--muted)" }}>
@@ -241,6 +257,251 @@ function HistoryRow({ record }: { record: HistoricalRecord }) {
       </Td>
       <Td>{record.technician ?? "—"}</Td>
     </tr>
+  );
+}
+
+function AddUnitForm({
+  unitModels,
+  onAdded,
+}: {
+  unitModels: string[];
+  onAdded: (a: Asset) => void;
+}) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [reportingMark, setReportingMark] = useState("");
+  const [roadNumber, setRoadNumber] = useState("");
+  const [unitModel, setUnitModel] = useState("");
+  const [inService, setInService] = useState("");
+  const [lastInspection, setLastInspection] = useState("");
+
+  const mut = useMutation({
+    mutationFn: () =>
+      createAsset({
+        reporting_mark: reportingMark.trim(),
+        road_number: roadNumber.trim(),
+        unit_model: unitModel.trim(),
+        in_service_date: inService.trim() || undefined,
+        last_inspection_at: lastInspection.trim() || undefined,
+      }),
+    onSuccess: (a) => {
+      qc.invalidateQueries({ queryKey: ["assets"] });
+      onAdded(a);
+      setReportingMark("");
+      setRoadNumber("");
+      setUnitModel("");
+      setInService("");
+      setLastInspection("");
+      setOpen(false);
+    },
+  });
+
+  const canSubmit =
+    !!reportingMark.trim() && !!roadNumber.trim() && !!unitModel.trim();
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        style={{ marginBottom: 12, width: "100%" }}
+        onClick={() => setOpen(true)}
+      >
+        + Add unit
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className="card"
+      style={{ marginBottom: 12, display: "grid", gap: 8 }}
+    >
+      <input
+        className="input"
+        placeholder="Reporting mark"
+        value={reportingMark}
+        onChange={(e) => setReportingMark(e.target.value)}
+      />
+      <input
+        className="input"
+        placeholder="Road number"
+        value={roadNumber}
+        onChange={(e) => setRoadNumber(e.target.value)}
+      />
+      <input
+        className="input"
+        placeholder="Unit model"
+        list="fleet-unit-models"
+        value={unitModel}
+        onChange={(e) => setUnitModel(e.target.value)}
+      />
+      <datalist id="fleet-unit-models">
+        {unitModels.map((m) => (
+          <option key={m} value={m} />
+        ))}
+      </datalist>
+      <input
+        className="input"
+        placeholder="In-service date (YYYY-MM-DD)"
+        value={inService}
+        onChange={(e) => setInService(e.target.value)}
+      />
+      <input
+        className="input"
+        placeholder="Last inspection (YYYY-MM-DD)"
+        value={lastInspection}
+        onChange={(e) => setLastInspection(e.target.value)}
+      />
+      {mut.error && (
+        <span className="micro" style={{ color: "#8a1f15" }}>
+          {(mut.error as Error).message}
+        </span>
+      )}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={!canSubmit || mut.isPending}
+          onClick={() => mut.mutate()}
+        >
+          {mut.isPending ? "Adding…" : "Add unit"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => setOpen(false)}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AddRecordForm({ asset }: { asset: Asset }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [reported, setReported] = useState("");
+  const [completed, setCompleted] = useState("");
+  const [recordType, setRecordType] = useState("");
+  const [technician, setTechnician] = useState("");
+  const [repairsText, setRepairsText] = useState("");
+  const [testsText, setTestsText] = useState("");
+
+  const mut = useMutation({
+    mutationFn: () => {
+      const repairs = repairsText
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const tests: HistoricalTest[] = testsText
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((name) => ({ date: null, name }));
+      return createHistoricalRecord(asset.id, {
+        reported_date: reported.trim() || null,
+        completed_date: completed.trim() || null,
+        record_type: recordType.trim() || null,
+        technician: technician.trim() || null,
+        repairs,
+        tests,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["asset-history", asset.id] });
+      setReported("");
+      setCompleted("");
+      setRecordType("");
+      setTechnician("");
+      setRepairsText("");
+      setTestsText("");
+      setOpen(false);
+    },
+  });
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        style={{ marginBottom: 12 }}
+        onClick={() => setOpen(true)}
+      >
+        + Add record
+      </button>
+    );
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 12, display: "grid", gap: 8 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <input
+          className="input"
+          placeholder="Reported date (YYYY-MM-DD)"
+          value={reported}
+          onChange={(e) => setReported(e.target.value)}
+        />
+        <input
+          className="input"
+          placeholder="Completed date (YYYY-MM-DD)"
+          value={completed}
+          onChange={(e) => setCompleted(e.target.value)}
+        />
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <input
+          className="input"
+          placeholder="Record type (e.g. Quarterly Periodic Inspection)"
+          style={{ flex: 1, minWidth: 220 }}
+          value={recordType}
+          onChange={(e) => setRecordType(e.target.value)}
+        />
+        <input
+          className="input"
+          placeholder="Technician"
+          value={technician}
+          onChange={(e) => setTechnician(e.target.value)}
+        />
+      </div>
+      <textarea
+        className="input"
+        placeholder="Repairs — one per line"
+        rows={3}
+        value={repairsText}
+        onChange={(e) => setRepairsText(e.target.value)}
+      />
+      <textarea
+        className="input"
+        placeholder="Tests — one per line"
+        rows={3}
+        value={testsText}
+        onChange={(e) => setTestsText(e.target.value)}
+      />
+      {mut.error && (
+        <span className="micro" style={{ color: "#8a1f15" }}>
+          {(mut.error as Error).message}
+        </span>
+      )}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={mut.isPending}
+          onClick={() => mut.mutate()}
+        >
+          {mut.isPending ? "Adding…" : "Add record"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => setOpen(false)}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }
 

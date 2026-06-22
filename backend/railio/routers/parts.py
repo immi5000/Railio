@@ -9,9 +9,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import bindparam, text
 from sqlalchemy.dialects.postgresql import JSONB
 
-from ..contract import Organization
+from ..contract import CreatePartBody, Organization
 from ..db import session_scope
 from ..org_context import get_current_org
+from ..parts_repo import DuplicatePartNumber, create_part
 
 router = APIRouter()
 
@@ -88,6 +89,29 @@ async def list_parts(
     async with session_scope() as session:
         rows = (await session.execute(sql, params)).mappings().all()
     return JSONResponse([_row_to_part(r) for r in rows])
+
+
+@router.post("")
+async def post_part(
+    body: CreatePartBody, org: Organization = Depends(get_current_org)
+) -> JSONResponse:
+    try:
+        part = await create_part(
+            org_id=org.id,
+            part_number=body.part_number,
+            name=body.name,
+            description=body.description,
+            compatible_units=body.compatible_units,
+            bin_location=body.bin_location,
+            qty_on_hand=body.qty_on_hand,
+            supplier=body.supplier,
+            lead_time_days=body.lead_time_days,
+            alternate_part_numbers=body.alternate_part_numbers,
+            avg_cost=body.avg_cost,
+        )
+    except DuplicatePartNumber:
+        raise HTTPException(status_code=409, detail="part number already exists")
+    return JSONResponse(part)
 
 
 @router.patch("/{part_id}")

@@ -2,6 +2,6 @@
 
 This folder holds the single source of truth for types and API shapes used by both `../backend/` and `../frontend/`.
 
-The backend chat populates `contract.ts` first (during BE step 1 — see [../backend/MVP_v0_BACKEND.md](../backend/MVP_v0_BACKEND.md)). The frontend imports from here — never redefines.
+`contract.ts` is the canonical TypeScript definition; the backend mirrors it in [../backend/railio/contract.py](../backend/railio/contract.py). The frontend imports from here — never redefines. Both must update together when types change.
 
-If either side needs a type or endpoint that doesn't exist yet, edit `contract.ts` here, post in your shared chat, and update the relevant spec file's §4 so the docs stay aligned with reality.
+If either side needs a type or endpoint that doesn't exist yet, edit `contract.ts` here and update `contract.py` to match.

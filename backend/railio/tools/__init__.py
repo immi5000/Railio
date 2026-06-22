@@ -9,6 +9,7 @@ from .parse_fault_dump import parse_fault_dump
 from .record_part_used import record_part_used
 from .search_corpus import search_corpus
 from .set_ticket_status import set_ticket_status
+from .show_figure import show_figure
 
 # OpenAI Chat Completions tool definitions (function calling).
 TOOL_DEFS: list[dict[str, Any]] = [
@@ -70,6 +71,28 @@ TOOL_DEFS: list[dict[str, Any]] = [
                     "reason": {"type": "string"},
                 },
                 "required": ["prompt", "reason"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "show_figure",
+            "description": (
+                "Display a knowledge-base figure inline in the chat as a thumbnail the "
+                "tech can tap to enlarge. Use when a chunk returned by search_corpus has "
+                "a figure (diagram, exploded view, wiring schematic) that helps the tech "
+                "physically locate or identify a component you're describing. Pass the "
+                "chunk's id as chunk_id and the figure's index from that chunk's figures "
+                "list."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "chunk_id": {"type": "number"},
+                    "figure_index": {"type": "number", "default": 0},
+                },
+                "required": ["chunk_id"],
             },
         },
     },
@@ -175,6 +198,22 @@ async def execute_tool(
             }
         )
         return {"ok": True, "requested": True}
+    if name == "show_figure":
+        # The model picks chunk_id; the runtime injects org_id so the tenant
+        # boundary is enforced (the model must never pick org).
+        args = {k: v for k, v in inp.items() if k != "org_id"}
+        if scope:
+            args["org_id"] = scope.get("org_id")
+        output = await show_figure(**args)
+        if output.get("ok"):
+            emit(
+                {
+                    "type": "show_figure",
+                    "chunk_id": output["chunk_id"],
+                    "figure": output["figure"],
+                }
+            )
+        return output
     if name == "lookup_parts":
         # Parts are org-private; the runtime injects the tenant's org_id.
         args = {k: v for k, v in inp.items() if k != "org_id"}

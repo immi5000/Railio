@@ -169,6 +169,7 @@ class KnowledgeModel(BaseModel):
     chunk_count: int = 0
 
 
+# Also the payload of the `show_figure` SSE event (contract.ts StreamEvent).
 class CorpusFigure(BaseModel):
     path: str
     caption: str = ""
@@ -245,6 +246,19 @@ class CreateHistoricalRecordBody(BaseModel):
     repairs: list[str] = []
     tests: list[HistoricalTest] = []
     technician: Optional[str] = None
+
+
+class CreatePartBody(BaseModel):
+    part_number: str
+    name: str
+    description: Optional[str] = None
+    compatible_units: list[UnitModel] = Field(default_factory=list)
+    bin_location: Optional[str] = None
+    qty_on_hand: int = 0
+    supplier: Optional[str] = None
+    lead_time_days: Optional[int] = None
+    alternate_part_numbers: list[str] = Field(default_factory=list)
+    avg_cost: Optional[float] = None
 
 
 class AttachDocumentBody(BaseModel):

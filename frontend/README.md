@@ -14,9 +14,7 @@ npm run dev   # http://localhost:3000
 
 ## Structure
 
-- `app/` — routes (RolePicker, dispatcher queue/intake, tech queue/ticket/forms, admin/parts).
-- `components/` — `ChatPane`, `RepairContext`, `FormsTab`, `PartsAdmin`, `TribalCapture`, etc.
+- `app/` — routes centered on the `/work` master-detail workspace; legacy `/app`, `/dispatcher`, `/tech` paths redirect into it.
+- `components/` — `ChatPane`, `RepairContext`, `PartsAdmin`, `FleetAdmin`, etc.
 - `lib/contract.ts` — re-export of `../contract/contract.ts` (the canonical types).
 - `lib/api.ts` — fetch helpers; SSE streaming uses `@microsoft/fetch-event-source` directly inside `ChatPane`.
-
-See `MVP_v0_FRONTEND.md` for the full spec.
