@@ -12,7 +12,12 @@ from ..contract import (
     CreateHistoricalRecordBody,
     Organization,
 )
-from ..historical_repo import create_historical_record, list_historical_records
+from ..historical_repo import (
+    create_historical_record,
+    get_historical_record,
+    list_historical_records,
+    update_historical_record,
+)
 from ..org_context import get_current_org
 
 router = APIRouter()
@@ -86,6 +91,30 @@ async def post_asset_history(
     asset = await _require_asset(asset_id, org.id)
     rec = await create_historical_record(
         asset,
+        reported_date=body.reported_date,
+        completed_date=body.completed_date,
+        record_type=body.record_type,
+        repairs=body.repairs,
+        tests=body.tests,
+        technician=body.technician,
+    )
+    return JSONResponse(rec.model_dump())
+
+
+@router.patch("/{asset_id}/history/{record_id}")
+async def patch_asset_history(
+    asset_id: int,
+    record_id: int,
+    body: CreateHistoricalRecordBody,
+    org: Organization = Depends(get_current_org),
+) -> JSONResponse:
+    asset = await _require_asset(asset_id, org.id)
+    existing = await get_historical_record(org.id, record_id)
+    if existing is None or existing.asset_id != asset_id:
+        raise HTTPException(status_code=404, detail="record not found")
+    rec = await update_historical_record(
+        asset,
+        record_id,
         reported_date=body.reported_date,
         completed_date=body.completed_date,
         record_type=body.record_type,

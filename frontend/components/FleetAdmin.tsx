@@ -7,6 +7,7 @@ import {
   createHistoricalRecord,
   listAssets,
   listHistoricalRecords,
+  updateHistoricalRecord,
 } from "@/lib/api";
 import type { Asset, HistoricalRecord, HistoricalTest } from "@/lib/contract";
 
@@ -211,11 +212,12 @@ function HistoryTable({ asset }: { asset: Asset }) {
                 <Th>Type</Th>
                 <Th>Repairs &amp; tests</Th>
                 <Th>Technician</Th>
+                <Th></Th>
               </tr>
             </thead>
             <tbody>
               {data.map((r) => (
-                <HistoryRow key={r.id} record={r} />
+                <HistoryRow key={r.id} asset={asset} record={r} />
               ))}
             </tbody>
           </table>
@@ -225,7 +227,23 @@ function HistoryTable({ asset }: { asset: Asset }) {
   );
 }
 
-function HistoryRow({ record }: { record: HistoricalRecord }) {
+function HistoryRow({
+  asset,
+  record,
+}: {
+  asset: Asset;
+  record: HistoricalRecord;
+}) {
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return (
+      <EditRow
+        asset={asset}
+        record={record}
+        onDone={() => setEditing(false)}
+      />
+    );
+  }
   return (
     <tr style={{ borderBottom: "1px solid var(--border)", verticalAlign: "top" }}>
       <Td>{fmtDate(record.reported_date)}</Td>
@@ -256,6 +274,146 @@ function HistoryRow({ record }: { record: HistoricalRecord }) {
         {record.repairs.length === 0 && record.tests.length === 0 && "—"}
       </Td>
       <Td>{record.technician ?? "—"}</Td>
+      <Td>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => setEditing(true)}
+        >
+          Edit
+        </button>
+      </Td>
+    </tr>
+  );
+}
+
+function EditRow({
+  asset,
+  record,
+  onDone,
+}: {
+  asset: Asset;
+  record: HistoricalRecord;
+  onDone: () => void;
+}) {
+  const qc = useQueryClient();
+  const [reported, setReported] = useState(record.reported_date ?? "");
+  const [completed, setCompleted] = useState(record.completed_date ?? "");
+  const [recordType, setRecordType] = useState(record.record_type ?? "");
+  const [technician, setTechnician] = useState(record.technician ?? "");
+  const [repairsText, setRepairsText] = useState(record.repairs.join("\n"));
+  const [testsText, setTestsText] = useState(
+    record.tests
+      .map((t) => (t.date ? `${t.date}: ${t.name}` : t.name))
+      .join("\n"),
+  );
+
+  const mut = useMutation({
+    mutationFn: () => {
+      const repairs = repairsText
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const tests: HistoricalTest[] = testsText
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((line) => {
+          // Accept "YYYY-MM-DD: name" or just "name".
+          const m = line.match(/^(\d{4}-\d{2}-\d{2})\s*:\s*(.+)$/);
+          return m ? { date: m[1], name: m[2] } : { date: null, name: line };
+        });
+      return updateHistoricalRecord(asset.id, record.id, {
+        reported_date: reported.trim() || null,
+        completed_date: completed.trim() || null,
+        record_type: recordType.trim() || null,
+        technician: technician.trim() || null,
+        repairs,
+        tests,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["asset-history", asset.id] });
+      onDone();
+    },
+  });
+
+  return (
+    <tr style={{ borderBottom: "1px solid var(--border)", verticalAlign: "top" }}>
+      <Td>
+        <input
+          className="input"
+          style={{ minWidth: 110 }}
+          value={reported}
+          onChange={(e) => setReported(e.target.value)}
+          placeholder="YYYY-MM-DD"
+        />
+      </Td>
+      <Td>
+        <input
+          className="input"
+          style={{ minWidth: 110 }}
+          value={completed}
+          onChange={(e) => setCompleted(e.target.value)}
+          placeholder="YYYY-MM-DD"
+        />
+      </Td>
+      <Td>
+        <input
+          className="input"
+          value={recordType}
+          onChange={(e) => setRecordType(e.target.value)}
+        />
+      </Td>
+      <Td>
+        <textarea
+          className="input"
+          rows={3}
+          style={{ minWidth: 240 }}
+          value={repairsText}
+          onChange={(e) => setRepairsText(e.target.value)}
+          placeholder="Repairs — one per line"
+        />
+        <textarea
+          className="input"
+          rows={3}
+          style={{ minWidth: 240, marginTop: 6 }}
+          value={testsText}
+          onChange={(e) => setTestsText(e.target.value)}
+          placeholder="Tests — one per line (optional 'YYYY-MM-DD: name')"
+        />
+      </Td>
+      <Td>
+        <input
+          className="input"
+          value={technician}
+          onChange={(e) => setTechnician(e.target.value)}
+        />
+      </Td>
+      <Td>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={mut.isPending}
+            onClick={() => mut.mutate()}
+          >
+            {mut.isPending ? "Saving…" : "Save"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={onDone}
+          >
+            Cancel
+          </button>
+          {mut.error && (
+            <span className="micro" style={{ color: "#8a1f15" }}>
+              {(mut.error as Error).message}
+            </span>
+          )}
+        </div>
+      </Td>
     </tr>
   );
 }
@@ -505,7 +663,7 @@ function AddRecordForm({ asset }: { asset: Asset }) {
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+function Th({ children }: { children?: React.ReactNode }) {
   return (
     <th
       style={{

@@ -85,6 +85,97 @@ def _source_label(asset: Asset, rec: HistoricalRecord) -> str:
     )
 
 
+def _doc_id(asset: Asset, record_id: int) -> str:
+    slug = f"{asset.reporting_mark}_{asset.road_number}".lower().replace(" ", "_")
+    return f"history_{slug}_{record_id}"
+
+
+async def _sync_corpus_chunk(asset: Asset, rec: HistoricalRecord) -> None:
+    # The mirrored corpus chunk is keyed by a deterministic doc_id, so on edit we
+    # drop the stale chunk and re-embed — insert_corpus_chunk only ever inserts.
+    doc_id = _doc_id(asset, rec.id)
+    async with session_scope() as session:
+        await session.execute(
+            text("DELETE FROM corpus_chunks WHERE doc_id = :did AND org_id = :org"),
+            {"did": doc_id, "org": asset.org_id},
+        )
+    await insert_corpus_chunk(
+        doc_class="tribal_knowledge",
+        doc_id=doc_id,
+        doc_title=f"Maintenance History — {asset.reporting_mark} "
+        f"{asset.unit_model} {asset.road_number}",
+        source_label=_source_label(asset, rec),
+        text_body=_embed_text(asset, rec),
+        org_id=asset.org_id,
+        unit_model=asset.unit_model,
+        asset_id=asset.id,
+    )
+
+
+async def get_historical_record(
+    org_id: int, record_id: int
+) -> Optional[HistoricalRecord]:
+    async with session_scope() as session:
+        row = (
+            await session.execute(
+                text(
+                    """
+                    SELECT id, org_id, asset_id, reported_date, completed_date,
+                           record_type, repairs, tests, technician, created_at
+                    FROM historical_records
+                    WHERE org_id = :org AND id = :id
+                    """
+                ),
+                {"org": org_id, "id": record_id},
+            )
+        ).mappings().first()
+    return _row_to_record(row) if row else None
+
+
+async def update_historical_record(
+    asset: Asset,
+    record_id: int,
+    *,
+    reported_date: Optional[str] = None,
+    completed_date: Optional[str] = None,
+    record_type: Optional[str] = None,
+    repairs: Optional[list[str]] = None,
+    tests: Optional[list[HistoricalTest]] = None,
+    technician: Optional[str] = None,
+) -> HistoricalRecord:
+    stmt = text(
+        """
+        UPDATE historical_records
+        SET reported_date = :reported, completed_date = :completed,
+            record_type = :rtype, repairs = :repairs, tests = :tests,
+            technician = :tech
+        WHERE id = :id AND org_id = :org AND asset_id = :asset
+        RETURNING id, org_id, asset_id, reported_date, completed_date,
+                  record_type, repairs, tests, technician, created_at
+        """
+    ).bindparams(bindparam("repairs", type_=JSONB), bindparam("tests", type_=JSONB))
+    async with session_scope() as session:
+        row = (
+            await session.execute(
+                stmt,
+                {
+                    "id": record_id,
+                    "org": asset.org_id,
+                    "asset": asset.id,
+                    "reported": reported_date,
+                    "completed": completed_date,
+                    "rtype": record_type,
+                    "repairs": repairs or [],
+                    "tests": [t.model_dump() for t in (tests or [])],
+                    "tech": technician,
+                },
+            )
+        ).mappings().first()
+    rec = _row_to_record(row)
+    await _sync_corpus_chunk(asset, rec)
+    return rec
+
+
 async def create_historical_record(
     asset: Asset,
     *,
@@ -128,18 +219,6 @@ async def create_historical_record(
             )
         ).mappings().first()
     rec = _row_to_record(row)
-
     # Mirror into corpus so the copilot can cite this unit's maintenance history.
-    doc_slug = f"{asset.reporting_mark}_{asset.road_number}".lower().replace(" ", "_")
-    await insert_corpus_chunk(
-        doc_class="tribal_knowledge",
-        doc_id=f"history_{doc_slug}_{rec.id}",
-        doc_title=f"Maintenance History — {asset.reporting_mark} "
-        f"{asset.unit_model} {asset.road_number}",
-        source_label=_source_label(asset, rec),
-        text_body=_embed_text(asset, rec),
-        org_id=asset.org_id,
-        unit_model=asset.unit_model,
-        asset_id=asset.id,
-    )
+    await _sync_corpus_chunk(asset, rec)
     return rec

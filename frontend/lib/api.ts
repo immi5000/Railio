@@ -227,6 +227,20 @@ export async function createHistoricalRecord(
   });
 }
 
+export async function updateHistoricalRecord(
+  assetId: number,
+  recordId: number,
+  body: CreateHistoricalRecordBody,
+): Promise<HistoricalRecord> {
+  return jsonFetch<HistoricalRecord>(
+    `/api/assets/${assetId}/history/${recordId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    },
+  );
+}
+
 // === Parts ===
 export async function listParts(opts?: {
   unit_model?: string;

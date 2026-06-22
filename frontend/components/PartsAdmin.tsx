@@ -1,9 +1,65 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPart, listAssets, listParts, patchPart } from "@/lib/api";
 import type { Part, PartLocation, UnitModel } from "@/lib/contract";
+
+// Column order + default widths (px). Headers, the <colgroup>, and the resize
+// handles all key off this so they stay in sync.
+const COLUMNS: { key: string; label: string; width: number }[] = [
+  { key: "part_number", label: "Part #", width: 120 },
+  { key: "name", label: "Name", width: 200 },
+  { key: "description", label: "Description", width: 280 },
+  { key: "compatible", label: "Compatible", width: 140 },
+  { key: "bin", label: "Bin", width: 140 },
+  { key: "qty", label: "On hand", width: 90 },
+  { key: "avg_cost", label: "Avg cost", width: 100 },
+  { key: "value", label: "Value", width: 110 },
+  { key: "locations", label: "Locations", width: 130 },
+  { key: "dept", label: "Dept", width: 120 },
+  { key: "supplier", label: "Supplier", width: 160 },
+  { key: "lead", label: "Lead (d)", width: 80 },
+  { key: "alternates", label: "Alternates", width: 160 },
+];
+const MIN_COL_WIDTH = 60;
+const WIDTHS_STORAGE_KEY = "railio_parts_col_widths";
+
+// Resizable column widths, persisted to localStorage so they survive reloads.
+function useColumnWidths() {
+  const [widths, setWidths] = useState<number[]>(() =>
+    COLUMNS.map((c) => c.width),
+  );
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(WIDTHS_STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (Array.isArray(saved) && saved.length === COLUMNS.length) {
+          setWidths(saved.map((n) => Math.max(MIN_COL_WIDTH, Number(n))));
+        }
+      }
+    } catch {
+      // ignore malformed storage
+    }
+  }, []);
+
+  const setWidth = useCallback((index: number, width: number) => {
+    setWidths((prev) => {
+      const next = [...prev];
+      next[index] = Math.max(MIN_COL_WIDTH, Math.round(width));
+      try {
+        localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // ignore quota/availability errors
+      }
+      return next;
+    });
+  }, []);
+
+  return { widths, setWidth };
+}
 
 function fmtMoney(n: number | null): string {
   if (n == null) return "";
@@ -30,6 +86,7 @@ export function PartsAdmin() {
   const [q, setQ] = useState("");
   const [unit, setUnit] = useState<UnitModel | "">("");
   const [adding, setAdding] = useState(false);
+  const { widths, setWidth } = useColumnWidths();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["parts", q, unit],
@@ -134,13 +191,18 @@ export function PartsAdmin() {
           <div style={{ overflowX: "auto", border: "1px solid var(--border)" }}>
             <table
               style={{
-                width: "100%",
                 borderCollapse: "collapse",
-                minWidth: 1100,
+                tableLayout: "fixed",
+                width: widths.reduce((a, b) => a + b, 0),
                 fontSize: 13,
                 background: "#fff",
               }}
             >
+              <colgroup>
+                {widths.map((w, i) => (
+                  <col key={COLUMNS[i].key} style={{ width: w }} />
+                ))}
+              </colgroup>
               <thead>
                 <tr
                   style={{
@@ -152,19 +214,14 @@ export function PartsAdmin() {
                     color: "var(--muted)",
                   }}
                 >
-                  <Th>Part #</Th>
-                  <Th>Name</Th>
-                  <Th>Description</Th>
-                  <Th>Compatible</Th>
-                  <Th>Bin</Th>
-                  <Th>On hand</Th>
-                  <Th>Avg cost</Th>
-                  <Th>Value</Th>
-                  <Th>Locations</Th>
-                  <Th>Dept</Th>
-                  <Th>Supplier</Th>
-                  <Th>Lead (d)</Th>
-                  <Th>Alternates</Th>
+                  {COLUMNS.map((c, i) => (
+                    <ResizableTh
+                      key={c.key}
+                      label={c.label}
+                      width={widths[i]}
+                      onResize={(w) => setWidth(i, w)}
+                    />
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -351,16 +408,62 @@ function Field({
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+function ResizableTh({
+  label,
+  width,
+  onResize,
+}: {
+  label: string;
+  width: number;
+  onResize: (width: number) => void;
+}) {
+  const startX = useRef(0);
+  const startW = useRef(0);
+
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    startX.current = e.clientX;
+    startW.current = width;
+
+    function onMove(ev: PointerEvent) {
+      onResize(startW.current + (ev.clientX - startX.current));
+    }
+    function onUp() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
   return (
     <th
       style={{
+        position: "relative",
         textAlign: "left",
         padding: "10px 12px",
         borderBottom: "1px solid var(--border)",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
       }}
     >
-      {children}
+      {label}
+      <div
+        onPointerDown={onPointerDown}
+        title="Drag to resize"
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          width: 8,
+          height: "100%",
+          cursor: "col-resize",
+          userSelect: "none",
+          touchAction: "none",
+        }}
+      />
     </th>
   );
 }
@@ -477,7 +580,11 @@ function PartRow({
 function Td({ children }: { children: React.ReactNode }) {
   return (
     <td
-      style={{ padding: 0, borderRight: "1px solid var(--pale)" }}
+      style={{
+        padding: 0,
+        borderRight: "1px solid var(--pale)",
+        overflow: "hidden",
+      }}
     >
       {children}
     </td>
@@ -494,6 +601,8 @@ function ReadCell({ value, title }: { value: string; title?: string }) {
         fontSize: 13,
         color: "var(--muted)",
         whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
       }}
     >
       {value}
