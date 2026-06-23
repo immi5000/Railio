@@ -9,19 +9,10 @@
   --muted: #6b6b6b;
   --pale: #f2f2f2;
   --border: #d1d1d1;
-  --warm: #d9d9d6;
   --mta: #0039a6;
-  --mta-hover: #002b7f;
   --mta-soft: #e2eaf7;
   --link-hover: #1883fd;
   --ok: #8dc572;
-
-  /* Role accents: dispatch = the MTA blue; tech = a field green so the two
-     modes are unmistakable at a glance. */
-  --dispatch: #0039a6;
-  --dispatch-soft: #e2eaf7;
-  --tech: #1f7a4d;
-  --tech-soft: #e1f1e8;
 
   /* Spacing scale — use instead of ad-hoc pixel values on touched screens. */
   --s1: 4px;
@@ -88,86 +79,87 @@ button {
   font-family: inherit;
 }
 
-/* === Typography helpers (mirroring landing page) === */
-.display {
-  font-size: clamp(48px, 7.6vw, 96px);
-  font-weight: 800;
-  line-height: 0.92;
-  letter-spacing: -0.02em;
-  text-transform: uppercase;
-  margin: 0;
-}
+/* === Typography helpers === */
 .h1 {
-  font-size: clamp(40px, 5vw, 56px);
-  font-weight: 700;
-  line-height: 0.95;
-  letter-spacing: -0.005em;
-  text-transform: uppercase;
+  font-family: "Inter", sans-serif;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
   margin: 0;
 }
 .h2 {
-  font-size: clamp(28px, 5.5vw, 40px);
-  font-weight: 700;
-  line-height: 0.95;
-  text-transform: uppercase;
+  font-family: "Inter", sans-serif;
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 500;
+  line-height: 1.1;
   margin: 0;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.02em;
 }
 .h3 {
-  font-size: clamp(22px, 4.5vw, 28px);
-  font-weight: 700;
-  line-height: 0.95;
-  text-transform: uppercase;
+  font-family: "Inter", sans-serif;
+  font-size: clamp(20px, 2.4vw, 24px);
+  font-weight: 600;
+  line-height: 1.15;
   margin: 0;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.01em;
 }
 .h4 {
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1;
-  text-transform: uppercase;
+  font-family: "Inter", sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
   margin: 0;
 }
 .lede {
-  font-size: 18px;
+  font-family: "Inter", sans-serif;
+  font-size: 16px;
   font-weight: 400;
   line-height: 1.45;
   margin: 0;
   max-width: 60ch;
+  color: var(--dash-muted);
 }
 .micro {
-  font-size: 11px;
-  font-weight: 700;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
+  letter-spacing: 0.04em;
+  color: var(--dash-faint);
 }
 
-/* === Buttons === */
+/* === Buttons ===
+   Dash idiom (DESIGN.md §6): rounded, Inter 700 sentence case, hover dims via
+   brightness, disabled fades. Default = secondary (white/border); .btn-super =
+   the one yellow primary per view; .btn-primary = black solid; .btn-ghost =
+   text/link. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   height: 42px;
   min-width: 42px;
-  padding: 8px 20px;
-  border-radius: 0;
-  font-size: 13px;
+  padding: 8px 18px;
+  border-radius: 12px;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border: 1px solid currentColor;
+  letter-spacing: 0;
+  border: 1px solid var(--dash-border);
   cursor: pointer;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  transition: filter 0.12s, background 0.12s, color 0.12s, border-color 0.12s;
   text-decoration: none;
-  font-family: inherit;
-  background: transparent;
-  color: inherit;
+  background: #fff;
+  color: #000;
   white-space: nowrap;
 }
+.btn:hover:not(:disabled) {
+  border-color: #000;
+}
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 .btn .arr {
@@ -177,14 +169,13 @@ button {
   transform: translateX(4px);
 }
 .btn-super {
-  background: var(--mta);
-  color: #fff;
-  border-color: var(--mta);
+  background: var(--dash-yellow);
+  color: #000;
+  border-color: var(--dash-yellow);
 }
 .btn-super:hover:not(:disabled) {
-  background: var(--mta-hover);
-  border-color: var(--mta-hover);
-  color: #fff;
+  filter: brightness(0.94);
+  border-color: var(--dash-yellow);
 }
 .btn-primary {
   background: #000;
@@ -192,41 +183,37 @@ button {
   border-color: #000;
 }
 .btn-primary:hover:not(:disabled) {
-  background: #fff;
-  color: #000;
-  border-color: #000;
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
 }
 .btn-ghost {
   background: transparent;
-  color: #000;
-  border-color: #000;
+  color: var(--dash-link);
+  border-color: transparent;
 }
 .btn-ghost:hover:not(:disabled) {
-  background: #000;
-  color: #fff;
+  background: transparent;
+  color: #000;
+  border-color: transparent;
 }
 .btn-sm {
   height: 32px;
   padding: 4px 12px;
-  font-size: 11px;
+  font-size: 13px;
+  border-radius: 10px;
 }
 
-/* === Eyebrows / chrome === */
+/* === Section title (mono, DESIGN.md §3) === */
 .sect-eyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--mta);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--dash-faint);
   display: inline-flex;
   align-items: center;
   gap: 10px;
-}
-.sect-eyebrow::before {
-  content: "";
-  width: 32px;
-  height: 2px;
-  background: var(--mta);
 }
 
 /* === Brand mark (inherits landing page glyph) === */
@@ -274,14 +261,14 @@ button {
 .input,
 .textarea,
 .select {
-  font-family: inherit;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 0;
+  border: 1px solid var(--dash-border);
+  border-radius: 12px;
   padding: 10px 12px;
   width: 100%;
-  color: var(--ink);
+  color: #000;
   transition: border-color 0.12s, box-shadow 0.12s;
 }
 /* iOS Safari zooms on focus when input font-size < 16px. Bump to 16px on
@@ -297,8 +284,8 @@ button {
 .textarea:focus,
 .select:focus {
   outline: none;
-  border-color: var(--mta);
-  box-shadow: 0 0 0 1px var(--mta);
+  border-color: var(--dash-link);
+  box-shadow: 0 0 0 1px var(--dash-link);
 }
 .textarea {
   min-height: 96px;
@@ -307,23 +294,27 @@ button {
 }
 .label {
   display: block;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--dash-faint);
   margin-bottom: 6px;
 }
 
 /* === Card === */
 .card {
   background: #fff;
-  border: 1px solid var(--border);
+  border: 1px solid var(--dash-card-border);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   padding: 24px;
 }
 .card-tight {
   background: #fff;
-  border: 1px solid var(--border);
+  border: 1px solid var(--dash-card-border);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   padding: 16px;
 }
 @media (max-width: 640px) {
@@ -332,62 +323,63 @@ button {
   }
 }
 
-/* === Pills === */
+/* === Pills (mono, fully round — DESIGN.md §6) === */
 .pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--pale);
-  border: 1px solid var(--border);
-  padding: 4px 10px;
+  background: var(--dash-bg);
+  border: 1px solid var(--dash-border);
+  border-radius: 99px;
+  padding: 4px 12px;
+  font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-2);
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #3a3a3e;
   white-space: nowrap;
 }
 .pill-blue {
-  background: var(--mta);
-  border-color: var(--mta);
+  background: #000;
+  border-color: #000;
   color: #fff;
 }
 .pill-soft {
-  background: var(--mta-soft);
-  border-color: var(--mta-soft);
-  color: var(--mta);
+  background: #e2eaf7;
+  border-color: #e2eaf7;
+  color: var(--dash-link);
 }
 .pill-ok {
-  background: var(--ok);
-  border-color: var(--ok);
-  color: #fff;
+  background: #e7f3e4;
+  border-color: #cfe6c8;
+  color: #4a8a44;
 }
 .pill-warn {
-  background: #fff5d6;
-  border-color: #f0d176;
-  color: #8a6300;
+  background: var(--dash-yellow);
+  border-color: var(--dash-yellow);
+  color: #000;
 }
 .pill-bad {
-  background: #ffe6e3;
-  border-color: #f08d80;
-  color: #8a1f15;
+  background: #000;
+  border-color: #000;
+  color: #fff;
 }
 
-/* === Severity chips === */
+/* === Severity chips (DESIGN.md §2 semantic state) === */
 .sev-minor {
-  background: var(--pale);
-  border-color: var(--border);
-  color: var(--ink-2);
+  background: transparent;
+  border-color: #d9dadd;
+  color: var(--dash-muted);
 }
 .sev-major {
-  background: #fff5d6;
-  border-color: #f0d176;
-  color: #8a6300;
+  background: var(--dash-yellow);
+  border-color: var(--dash-yellow);
+  color: #000;
 }
 .sev-critical {
-  background: #ffe6e3;
-  border-color: #f08d80;
-  color: #8a1f15;
+  background: #000;
+  border-color: #000;
+  color: #fff;
 }
 
 /* === Rendered markdown inside assistant chat bubbles === */
@@ -575,41 +567,43 @@ button {
   animation: field-pulse 1.6s ease-out 1;
 }
 
-/* === Citation badges === */
+/* === Citation badges (rounded mono chips — DESIGN.md §6) === */
 .cite {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
+  font-weight: 400;
+  letter-spacing: 0;
+  padding: 4px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--dash-border);
   background: #fff;
   cursor: pointer;
   margin-right: 6px;
   margin-top: 6px;
-  transition: background 0.1s;
+  transition: background 0.1s, border-color 0.1s;
 }
 .cite:hover {
-  background: var(--pale);
+  background: var(--dash-bg);
+  border-color: #000;
 }
 .cite-manual {
-  border-color: var(--border);
-  color: var(--ink-2);
+  border-color: var(--dash-border);
+  color: #3a3a3e;
 }
 .cite-tribal {
-  border-color: var(--mta);
-  color: var(--mta);
-  background: var(--mta-soft);
+  border-color: #e2eaf7;
+  color: var(--dash-link);
+  background: #e2eaf7;
 }
 
 /* === Drawer === */
 .drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.32);
   z-index: 60;
 }
 .drawer {
@@ -619,25 +613,27 @@ button {
   bottom: 0;
   width: min(520px, 100%);
   background: #fff;
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--dash-border);
+  box-shadow: -2px 0 16px rgba(16, 24, 40, 0.12);
   z-index: 61;
   overflow: auto;
   padding: 32px;
 }
 
-/* === Tool call inline pill === */
+/* === Tool call inline pill (rounded mono — DESIGN.md §6) === */
 .tool-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--pale);
-  border: 1px solid var(--border);
-  padding: 4px 10px;
+  background: var(--dash-bg);
+  border: 1px solid var(--dash-border);
+  border-radius: 99px;
+  padding: 4px 12px;
+  font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-2);
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #3a3a3e;
   margin-right: 6px;
   margin-top: 6px;
   cursor: pointer;
@@ -652,40 +648,6 @@ button {
 @media (max-width: 720px) {
   .wrap {
     padding: 0 16px;
-  }
-}
-
-/* === Ticket queue rows === */
-.queue-row {
-  display: grid;
-  grid-template-columns: 80px 1fr 200px 120px 320px;
-  gap: 16px;
-  align-items: center;
-  border-bottom: 1px solid var(--pale);
-  padding: 16px 8px;
-  cursor: pointer;
-  transition: background 0.1s;
-}
-/* Grid children default to min-width:auto, which lets long unbroken text
-   force the row wider than the container. Force min-width:0 so children
-   can shrink and trigger their text-overflow ellipsis. */
-.queue-row > * {
-  min-width: 0;
-}
-.queue-row:hover {
-  background: var(--pale);
-}
-.queue-row .qid {
-  font-weight: 700;
-  font-feature-settings: "tnum";
-}
-@media (max-width: 760px) {
-  .queue-row {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
-  .queue-header {
-    display: none !important;
   }
 }
 
@@ -720,13 +682,8 @@ button {
   }
 }
 
-/* Stack two-column form field grids on small screens. Used by FieldRow grids
-   and the inspection / defect / repair item rows in FormsTab. */
+/* Stack the knowledge-library two-column chunk rows on small screens. */
 @media (max-width: 640px) {
-  .form-field-row {
-    grid-template-columns: 1fr !important;
-    gap: 4px !important;
-  }
   .form-item-row {
     grid-template-columns: 1fr !important;
   }
@@ -750,62 +707,6 @@ button {
   .chat-list {
     padding: 16px !important;
     gap: 12px !important;
-  }
-}
-
-/* === Role picker cards === */
-.role-card:hover {
-  background: var(--mta) !important;
-  color: #fff !important;
-}
-.role-card-divider {
-  border-right: 1px solid var(--ink);
-}
-@media (max-width: 640px) {
-  .role-grid {
-    grid-template-columns: 1fr !important;
-  }
-  .role-card-divider {
-    border-right: 0;
-    border-bottom: 1px solid var(--ink);
-  }
-}
-
-/* === TopNav mobile === */
-.topnav-burger {
-  display: none;
-  appearance: none;
-  background: transparent;
-  border: 1px solid var(--ink);
-  width: 40px;
-  height: 40px;
-  cursor: pointer;
-  padding: 0;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 4px;
-}
-.topnav-burger span {
-  display: block;
-  width: 18px;
-  height: 2px;
-  background: var(--ink);
-}
-.topnav-drawer {
-  background: #fff;
-  border-bottom: 1px solid var(--border);
-  display: none;
-}
-@media (max-width: 760px) {
-  .topnav-links {
-    display: none !important;
-  }
-  .topnav-burger {
-    display: inline-flex;
-  }
-  .topnav-drawer {
-    display: block;
   }
 }
 

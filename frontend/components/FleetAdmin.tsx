@@ -37,15 +37,15 @@ export function FleetAdmin() {
   ).sort();
 
   return (
-    <section style={{ padding: "32px 0 96px" }}>
-      <div className="wrap">
+    <div className="dash">
+      <div className="dash-inner" style={{ paddingBottom: 64, gap: 0 }}>
         <span className="sect-eyebrow">Admin · Fleet</span>
         <h1 className="h2" style={{ marginTop: 12 }}>
           Fleet &amp; historical records
         </h1>
         <p
           style={{
-            color: "var(--muted)",
+            color: "var(--dash-muted)",
             marginTop: 8,
             maxWidth: 640,
             fontSize: 14,
@@ -71,14 +71,22 @@ export function FleetAdmin() {
             unitModels={unitModels}
             onAdded={(a) => setSelected(a.id)}
           />
-          <div style={{ border: "1px solid var(--border)", background: "#fff" }}>
+          <div
+            style={{
+              border: "1px solid var(--dash-card-border)",
+              borderRadius: 14,
+              overflow: "hidden",
+              boxShadow: "0 1px 2px rgba(16, 24, 40, 0.04)",
+              background: "#fff",
+            }}
+          >
             {assetsLoading && (
-              <div className="micro" style={{ padding: 12, color: "var(--muted)" }}>
+              <div className="micro" style={{ padding: 12, color: "var(--dash-muted)" }}>
                 Loading fleet…
               </div>
             )}
             {assets && assets.length === 0 && (
-              <div className="micro" style={{ padding: 12, color: "var(--muted)" }}>
+              <div className="micro" style={{ padding: 12, color: "var(--dash-muted)" }}>
                 No units in this org.
               </div>
             )}
@@ -96,13 +104,13 @@ export function FleetAdmin() {
           {selectedAsset ? (
             <HistoryTable asset={selectedAsset} />
           ) : (
-            <div className="card" style={{ color: "var(--muted)" }}>
+            <div className="card" style={{ color: "var(--dash-muted)" }}>
               Select a unit.
             </div>
           )}
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -125,16 +133,16 @@ function UnitButton({
         textAlign: "left",
         padding: "12px 14px",
         border: "none",
-        borderBottom: "1px solid var(--border)",
-        background: active ? "var(--pale)" : "#fff",
+        borderBottom: "1px solid var(--dash-line)",
+        background: active ? "var(--dash-bg)" : "#fff",
         cursor: "pointer",
         font: "inherit",
       }}
     >
-      <div style={{ fontWeight: 700, fontSize: 14 }}>
+      <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 500, fontSize: 14 }}>
         {asset.reporting_mark} {asset.road_number}
       </div>
-      <div className="micro" style={{ color: "var(--muted)", marginTop: 2 }}>
+      <div className="micro" style={{ color: "var(--dash-muted)", marginTop: 2 }}>
         {asset.unit_model}
       </div>
     </button>
@@ -157,10 +165,10 @@ function HistoryTable({ asset }: { asset: Asset }) {
           marginBottom: 12,
         }}
       >
-        <h2 style={{ fontSize: 16, fontWeight: 700 }}>
+        <h2 style={{ fontFamily: '"Inter", sans-serif', fontSize: 20, fontWeight: 500, letterSpacing: "-0.01em" }}>
           {asset.reporting_mark} {asset.road_number} · {asset.unit_model}
         </h2>
-        <span className="micro" style={{ color: "var(--muted)" }}>
+        <span className="micro" style={{ color: "var(--dash-muted)" }}>
           {data?.length ?? 0} record{(data?.length ?? 0) === 1 ? "" : "s"}
         </span>
       </div>
@@ -168,25 +176,32 @@ function HistoryTable({ asset }: { asset: Asset }) {
       <AddRecordForm asset={asset} />
 
       {isLoading && (
-        <div className="card" style={{ color: "var(--muted)" }}>
+        <div className="card" style={{ color: "var(--dash-muted)" }}>
           <span className="micro">Loading history…</span>
         </div>
       )}
       {error && (
-        <div className="card" style={{ borderColor: "#f08d80" }}>
-          <span className="micro" style={{ color: "#8a1f15" }}>
+        <div className="card" style={{ borderColor: "#e9b8b2" }}>
+          <span className="micro" style={{ color: "#c0392b" }}>
             Failed
           </span>
           <p style={{ marginTop: 8 }}>{(error as Error).message}</p>
         </div>
       )}
       {data && data.length === 0 && (
-        <div className="card" style={{ color: "var(--muted)" }}>
+        <div className="card" style={{ color: "var(--dash-muted)" }}>
           No historical records for this unit yet.
         </div>
       )}
       {data && data.length > 0 && (
-        <div style={{ overflowX: "auto", border: "1px solid var(--border)" }}>
+        <div
+          style={{
+            overflowX: "auto",
+            border: "1px solid var(--dash-card-border)",
+            borderRadius: 14,
+            boxShadow: "0 1px 2px rgba(16, 24, 40, 0.04)",
+          }}
+        >
           <table
             style={{
               width: "100%",
@@ -199,12 +214,13 @@ function HistoryTable({ asset }: { asset: Asset }) {
             <thead>
               <tr
                 style={{
-                  background: "var(--pale)",
-                  fontSize: 11,
-                  fontWeight: 700,
+                  background: "var(--dash-bg)",
+                  fontFamily: '"IBM Plex Mono", monospace',
+                  fontSize: 10.5,
+                  fontWeight: 400,
                   textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  color: "var(--muted)",
+                  letterSpacing: "0.04em",
+                  color: "var(--dash-faint)",
                 }}
               >
                 <Th>Reported</Th>
@@ -245,7 +261,7 @@ function HistoryRow({
     );
   }
   return (
-    <tr style={{ borderBottom: "1px solid var(--border)", verticalAlign: "top" }}>
+    <tr style={{ borderBottom: "1px solid var(--dash-line)", verticalAlign: "top" }}>
       <Td>{fmtDate(record.reported_date)}</Td>
       <Td>{fmtDate(record.completed_date)}</Td>
       <Td>{record.record_type ?? "—"}</Td>
@@ -339,7 +355,7 @@ function EditRow({
   });
 
   return (
-    <tr style={{ borderBottom: "1px solid var(--border)", verticalAlign: "top" }}>
+    <tr style={{ borderBottom: "1px solid var(--dash-line)", verticalAlign: "top" }}>
       <Td>
         <input
           className="input"
@@ -408,7 +424,7 @@ function EditRow({
             Cancel
           </button>
           {mut.error && (
-            <span className="micro" style={{ color: "#8a1f15" }}>
+            <span className="micro" style={{ color: "#c0392b" }}>
               {(mut.error as Error).message}
             </span>
           )}
@@ -512,7 +528,7 @@ function AddUnitForm({
         onChange={(e) => setLastInspection(e.target.value)}
       />
       {mut.error && (
-        <span className="micro" style={{ color: "#8a1f15" }}>
+        <span className="micro" style={{ color: "#c0392b" }}>
           {(mut.error as Error).message}
         </span>
       )}
@@ -638,7 +654,7 @@ function AddRecordForm({ asset }: { asset: Asset }) {
         onChange={(e) => setTestsText(e.target.value)}
       />
       {mut.error && (
-        <span className="micro" style={{ color: "#8a1f15" }}>
+        <span className="micro" style={{ color: "#c0392b" }}>
           {(mut.error as Error).message}
         </span>
       )}
@@ -669,7 +685,7 @@ function Th({ children }: { children?: React.ReactNode }) {
       style={{
         textAlign: "left",
         padding: "10px 12px",
-        borderBottom: "1px solid var(--border)",
+        borderBottom: "1px solid var(--dash-line)",
       }}
     >
       {children}

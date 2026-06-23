@@ -7,27 +7,22 @@ import { getMe, completeOnboarding, ApiError } from "@/lib/api";
 const cardStyle: React.CSSProperties = {
   width: "100%",
   maxWidth: 420,
-  border: "1px solid var(--border)",
   padding: "40px 32px",
 };
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  border: "1px solid var(--border)",
-  fontFamily: "inherit",
-  fontSize: 14,
-  boxSizing: "border-box",
+const titleStyle: React.CSSProperties = {
+  fontFamily: '"Inter", sans-serif',
+  fontSize: 24,
+  fontWeight: 500,
+  letterSpacing: "-0.02em",
+  margin: "0 0 6px",
 };
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
+const subStyle: React.CSSProperties = {
+  fontFamily: '"IBM Plex Mono", monospace',
   fontSize: 12,
-  fontWeight: 700,
-  textTransform: "uppercase",
-  letterSpacing: "0.06em",
-  color: "var(--ink-2)",
-  margin: "0 0 6px",
+  color: "var(--dash-muted)",
+  margin: "0 0 24px",
 };
 
 export default function OnboardingPage() {
@@ -99,11 +94,11 @@ export default function OnboardingPage() {
         minHeight: "100vh",
         display: "grid",
         placeItems: "center",
-        background: "#fff",
+        background: "var(--dash-bg)",
         padding: "24px",
       }}
     >
-      <div style={cardStyle}>
+      <div className="dash-card" style={cardStyle}>
         <div
           className="brand"
           style={{
@@ -123,20 +118,16 @@ export default function OnboardingPage() {
 
         {step === 1 ? (
           <>
-            <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px" }}>
-              Welcome — let&apos;s set up your account
-            </h1>
-            <p className="body" style={{ color: "var(--muted)", margin: "0 0 24px" }}>
-              Step 1 of 2 · Your details
-            </p>
+            <h1 style={titleStyle}>Welcome — let&apos;s set up your account</h1>
+            <p style={subStyle}>Step 1 of 2 · Your details</p>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle} htmlFor="name">
+              <label className="label" htmlFor="name">
                 Full name
               </label>
               <input
                 id="name"
-                style={inputStyle}
+                className="input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Jordan Tech"
@@ -144,12 +135,12 @@ export default function OnboardingPage() {
               />
             </div>
             <div style={{ marginBottom: 24 }}>
-              <label style={labelStyle} htmlFor="phone">
-                Phone <span style={{ fontWeight: 400, textTransform: "none" }}>(optional)</span>
+              <label className="label" htmlFor="phone">
+                Phone (optional)
               </label>
               <input
                 id="phone"
-                style={inputStyle}
+                className="input"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="(555) 123-4567"
@@ -159,7 +150,7 @@ export default function OnboardingPage() {
 
             <button
               className="btn btn-super"
-              style={{ width: "100%", padding: "12px 18px" }}
+              style={{ width: "100%" }}
               onClick={continueToCompany}
             >
               Continue →
@@ -167,41 +158,37 @@ export default function OnboardingPage() {
           </>
         ) : (
           <>
-            <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px" }}>
-              Your company
-            </h1>
-            <p className="body" style={{ color: "var(--muted)", margin: "0 0 24px" }}>
-              Step 2 of 2 · Workspace
-            </p>
+            <h1 style={titleStyle}>Your company</h1>
+            <p style={subStyle}>Step 2 of 2 · Workspace</p>
 
             {lockedCompany ? (
               <div style={{ marginBottom: 24 }}>
-                <label style={labelStyle}>Company</label>
+                <label className="label">Company</label>
                 <input
-                  style={{ ...inputStyle, background: "var(--pale)", color: "var(--muted)" }}
+                  className="input"
+                  style={{ background: "var(--dash-bg)", color: "var(--dash-muted)" }}
                   value={lockedCompany}
                   readOnly
                 />
-                <p className="body" style={{ color: "var(--muted)", fontSize: 12, marginTop: 8 }}>
+                <p style={{ fontFamily: '"IBM Plex Mono", monospace', color: "var(--dash-muted)", fontSize: 12, marginTop: 8 }}>
                   You&apos;ll join <b>{lockedCompany}</b> automatically based on your
                   work email.
                 </p>
               </div>
             ) : (
               <div style={{ marginBottom: 24 }}>
-                <label style={labelStyle} htmlFor="code">
-                  Join code{" "}
-                  <span style={{ fontWeight: 400, textTransform: "none" }}>(optional)</span>
+                <label className="label" htmlFor="code">
+                  Join code (optional)
                 </label>
                 <input
                   id="code"
-                  style={inputStyle}
+                  className="input"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="e.g. ACME-JOIN"
                   autoFocus
                 />
-                <p className="body" style={{ color: "var(--muted)", fontSize: 12, marginTop: 8 }}>
+                <p style={{ fontFamily: '"IBM Plex Mono", monospace', color: "var(--dash-muted)", fontSize: 12, marginTop: 8 }}>
                   Have a company code? Enter it to join your team. Leave blank to
                   create your own workspace.
                 </p>
@@ -210,8 +197,7 @@ export default function OnboardingPage() {
 
             <div style={{ display: "flex", gap: 12 }}>
               <button
-                className="btn btn-ghost"
-                style={{ padding: "12px 18px" }}
+                className="btn"
                 onClick={() => {
                   setError(null);
                   setStep(1);
@@ -222,7 +208,7 @@ export default function OnboardingPage() {
               </button>
               <button
                 className="btn btn-super"
-                style={{ flex: 1, padding: "12px 18px" }}
+                style={{ flex: 1 }}
                 onClick={submit}
                 disabled={busy}
               >
@@ -233,7 +219,7 @@ export default function OnboardingPage() {
         )}
 
         {error && (
-          <p style={{ color: "#B00020", fontSize: 13, marginTop: 18 }}>{error}</p>
+          <p style={{ color: "#c0392b", fontSize: 13, marginTop: 18 }}>{error}</p>
         )}
       </div>
     </main>

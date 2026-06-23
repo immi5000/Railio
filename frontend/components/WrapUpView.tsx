@@ -82,10 +82,11 @@ export function WrapUpView({ ticketId }: { ticketId: string }) {
         height: "calc(100vh - 56px)",
         display: "flex",
         flexDirection: "column",
+        background: "var(--dash-bg)",
       }}
     >
       <div className="wrap" style={{ marginBottom: 12 }}>
-        <Link href="/work" className="micro" style={{ color: "var(--muted)" }}>
+        <Link href="/work" className="micro" style={{ color: "var(--dash-muted)" }}>
           ← Back to queue
         </Link>
         <div
@@ -102,7 +103,7 @@ export function WrapUpView({ ticketId }: { ticketId: string }) {
           <span className="pill pill-ok">Repair complete</span>
         </div>
         {ticket && (
-          <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>
+          <p style={{ color: "var(--dash-muted)", fontSize: 13, marginTop: 4 }}>
             {ticket.asset.reporting_mark} {ticket.asset.road_number} ·{" "}
             {ticket.asset.unit_model} · filed {stamp}
           </p>
@@ -186,7 +187,7 @@ export function WrapUpView({ ticketId }: { ticketId: string }) {
               <div>
                 <label className="label">Parts used</label>
                 {usedParts.length === 0 ? (
-                  <p style={{ color: "var(--muted)", fontSize: 13 }}>
+                  <p style={{ color: "var(--dash-muted)", fontSize: 13 }}>
                     None recorded on this ticket.
                   </p>
                 ) : (
@@ -200,7 +201,7 @@ export function WrapUpView({ ticketId }: { ticketId: string }) {
                         <span>
                           {u.part ? u.part.name : `Part #${u.part_id}`}
                           {u.part ? (
-                            <span style={{ color: "var(--muted)" }}> · {u.part.part_number}</span>
+                            <span style={{ color: "var(--dash-muted)" }}> · {u.part.part_number}</span>
                           ) : null}
                         </span>
                         <span className="pill">×{u.qty}</span>
@@ -216,7 +217,7 @@ export function WrapUpView({ ticketId }: { ticketId: string }) {
                   gap: 8,
                   alignItems: "center",
                   paddingTop: 8,
-                  borderTop: "1px solid var(--pale)",
+                  borderTop: "1px solid var(--dash-line)",
                 }}
               >
                 <button
@@ -235,7 +236,7 @@ export function WrapUpView({ ticketId }: { ticketId: string }) {
                   Back to repair
                 </button>
                 {fileMut.error && (
-                  <span style={{ color: "#8a1f15", fontSize: 12 }}>
+                  <span style={{ color: "#c0392b", fontSize: 12 }}>
                     {(fileMut.error as Error).message}
                   </span>
                 )}

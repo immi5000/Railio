@@ -54,15 +54,15 @@ function SignInInner() {
         minHeight: "100vh",
         display: "grid",
         placeItems: "center",
-        background: "#fff",
+        background: "var(--dash-bg)",
         padding: "24px",
       }}
     >
       <div
+        className="dash-card"
         style={{
           width: "100%",
-          maxWidth: 380,
-          border: "1px solid var(--border)",
+          maxWidth: 400,
           padding: "40px 32px",
           textAlign: "center",
         }}
@@ -84,12 +84,24 @@ function SignInInner() {
           </span>
           Railio
         </a>
-        <h1 style={{ fontSize: 20, fontWeight: 700, margin: "16px 0 4px" }}>
+        <h1
+          style={{
+            fontFamily: '"Inter", sans-serif',
+            fontSize: 24,
+            fontWeight: 500,
+            letterSpacing: "-0.02em",
+            margin: "16px 0 6px",
+          }}
+        >
           {isSignup ? "Create your account" : "Log in"}
         </h1>
         <p
-          className="body"
-          style={{ color: "var(--muted)", margin: "0 0 28px" }}
+          style={{
+            fontFamily: '"Source Serif 4", serif',
+            fontSize: 18,
+            color: "var(--dash-muted)",
+            margin: "0 0 28px",
+          }}
         >
           The AI co-pilot for rail maintenance.
         </p>
@@ -97,7 +109,7 @@ function SignInInner() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <button
             className="btn btn-super"
-            style={{ width: "100%", padding: "12px 18px" }}
+            style={{ width: "100%" }}
             disabled={busy !== null}
             onClick={() => signIn("google")}
           >
@@ -108,8 +120,8 @@ function SignInInner() {
                 : "Continue with Google"}
           </button>
           <button
-            className="btn btn-ghost"
-            style={{ width: "100%", padding: "12px 18px" }}
+            className="btn"
+            style={{ width: "100%" }}
             disabled={busy !== null}
             onClick={() => signIn("azure")}
           >
@@ -122,12 +134,16 @@ function SignInInner() {
         </div>
 
         {error && (
-          <p style={{ color: "#B00020", fontSize: 13, marginTop: 18 }}>{error}</p>
+          <p style={{ color: "#c0392b", fontSize: 13, marginTop: 18 }}>{error}</p>
         )}
 
         <p
-          className="body"
-          style={{ color: "var(--muted)", fontSize: 12, marginTop: 28 }}
+          style={{
+            fontFamily: '"IBM Plex Mono", monospace',
+            color: "var(--dash-faint)",
+            fontSize: 12,
+            marginTop: 28,
+          }}
         >
           Company employees are routed to their organization automatically.
         </p>

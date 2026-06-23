@@ -109,12 +109,12 @@ export function DispatcherIntake() {
   }
 
   return (
-    <section style={{ padding: "32px 0 96px" }}>
-      <div className="wrap">
-        <div style={{ marginBottom: "var(--s5)" }}>
+    <div className="dash">
+      <div className="dash-inner" style={{ paddingBottom: 64 }}>
+        <div>
           <span className="sect-eyebrow">Dispatch · New ticket</span>
           <h1 className="h1" style={{ marginTop: "var(--s3)" }}>
-            Open A Ticket
+            Open a ticket
           </h1>
           <p className="lede" style={{ marginTop: "var(--s2)" }}>
             Get the unit, the symptoms, and the fault dump in. The chat on the
@@ -256,14 +256,14 @@ export function DispatcherIntake() {
                     (m) => m.model_code === newUnitModel && m.chunk_count > 0,
                   ) && (
                     <div
-                      style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}
+                      style={{ fontSize: 11, color: "var(--dash-muted)", marginTop: 6 }}
                     >
                       ⚠ This model has no ingested manual yet — Railio will only
                       have shared 49 CFR to cite for it.
                     </div>
                   )}
                 {addAssetMut.error && (
-                  <div style={{ color: "#8a1f15", fontSize: 12, marginTop: 6 }}>
+                  <div style={{ color: "#c0392b", fontSize: 12, marginTop: 6 }}>
                     {(addAssetMut.error as Error).message}
                   </div>
                 )}
@@ -354,7 +354,7 @@ export function DispatcherIntake() {
                     </button>
                   )}
                   {parseError && (
-                    <span style={{ color: "#8a1f15", fontSize: 12 }}>
+                    <span style={{ color: "#c0392b", fontSize: 12 }}>
                       {parseError}
                     </span>
                   )}
@@ -387,7 +387,7 @@ export function DispatcherIntake() {
                   display: "flex",
                   gap: 8,
                   paddingTop: 8,
-                  borderTop: "1px solid var(--pale)",
+                  borderTop: "1px solid var(--dash-line)",
                 }}
               >
                 {!createdTicket ? (
@@ -415,7 +415,7 @@ export function DispatcherIntake() {
                 )}
               </div>
               {createMut.error && (
-                <div style={{ color: "#8a1f15", fontSize: 13 }}>
+                <div style={{ color: "#c0392b", fontSize: 13 }}>
                   {(createMut.error as Error).message}
                 </div>
               )}
@@ -448,9 +448,10 @@ export function DispatcherIntake() {
                     flex: 1,
                     display: "grid",
                     placeItems: "center",
-                    color: "var(--muted)",
-                    background: "var(--pale)",
+                    color: "var(--dash-muted)",
+                    background: "var(--dash-bg)",
                     borderStyle: "dashed",
+                    boxShadow: "none",
                   }}
                 >
                   <div style={{ textAlign: "center", maxWidth: 320 }}>
@@ -466,6 +467,6 @@ export function DispatcherIntake() {
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

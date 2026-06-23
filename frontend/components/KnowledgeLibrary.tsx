@@ -86,15 +86,15 @@ export function KnowledgeLibrary() {
   );
 
   return (
-    <section style={{ padding: "32px 0 96px" }}>
-      <div className="wrap">
+    <div className="dash">
+      <div className="dash-inner" style={{ paddingBottom: 64, gap: 0 }}>
         <span className="sect-eyebrow">Knowledge library</span>
         <h1 className="h2" style={{ marginTop: 12 }}>
-          What Railio Cites
+          What Railio cites
         </h1>
         <p
           style={{
-            color: "var(--muted)",
+            color: "var(--dash-muted)",
             marginTop: 8,
             maxWidth: 720,
             fontSize: 14,
@@ -127,8 +127,7 @@ export function KnowledgeLibrary() {
             style={{
               display: "inline-flex",
               flexWrap: "wrap",
-              border: "1px solid var(--ink)",
-              background: "#fff",
+              gap: 6,
             }}
           >
             {tabs.map((t) => {
@@ -148,13 +147,13 @@ export function KnowledgeLibrary() {
         </div>
 
         {isLoading && (
-          <div className="card" style={{ color: "var(--muted)" }}>
+          <div className="card" style={{ color: "var(--dash-muted)" }}>
             <span className="micro">Loading library…</span>
           </div>
         )}
         {error && (
-          <div className="card" style={{ borderColor: "#f08d80" }}>
-            <span className="micro" style={{ color: "#8a1f15" }}>
+          <div className="card" style={{ borderColor: "#e9b8b2" }}>
+            <span className="micro" style={{ color: "#c0392b" }}>
               Backend unreachable
             </span>
             <p style={{ marginTop: 8, fontSize: 14 }}>
@@ -165,7 +164,7 @@ export function KnowledgeLibrary() {
           </div>
         )}
         {data && data.length === 0 && (
-          <div className="card" style={{ color: "var(--muted)" }}>
+          <div className="card" style={{ color: "var(--dash-muted)" }}>
             No chunks match.
           </div>
         )}
@@ -186,7 +185,7 @@ export function KnowledgeLibrary() {
       {openChunk != null && (
         <CitationDrawer chunkId={openChunk} onClose={() => setOpenChunk(null)} />
       )}
-    </section>
+    </div>
   );
 }
 
@@ -213,16 +212,16 @@ function FilterButton({
       style={{
         appearance: "none",
         background: active ? "#000" : "#fff",
-        color: active ? "#fff" : "#000",
-        border: 0,
-        borderRight: "1px solid var(--ink)",
-        padding: "10px 16px",
-        fontSize: 12,
-        fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: "0.06em",
+        color: active ? "#fff" : "#3a3a3e",
+        border: `1px solid ${active ? "#000" : "var(--dash-border)"}`,
+        borderRadius: 99,
+        padding: "7px 14px",
+        fontFamily: '"IBM Plex Mono", monospace',
+        fontSize: 11,
+        fontWeight: 400,
+        letterSpacing: 0,
         cursor: "pointer",
-        fontFamily: "inherit",
+        transition: "border-color 0.1s, background 0.1s",
       }}
     >
       {label}
@@ -243,7 +242,10 @@ function DocBlock({
   return (
     <div
       style={{
-        border: `1px solid ${tribal ? "var(--mta)" : "var(--border)"}`,
+        border: `1px solid ${tribal ? "#cfddf3" : "var(--dash-card-border)"}`,
+        borderRadius: 14,
+        overflow: "hidden",
+        boxShadow: "0 1px 2px rgba(16, 24, 40, 0.04)",
         background: "#fff",
       }}
     >
@@ -253,8 +255,8 @@ function DocBlock({
           justifyContent: "space-between",
           alignItems: "baseline",
           padding: "16px 20px",
-          background: tribal ? "var(--mta-soft)" : "var(--pale)",
-          borderBottom: `1px solid ${tribal ? "var(--mta)" : "var(--border)"}`,
+          background: tribal ? "#e2eaf7" : "var(--dash-bg)",
+          borderBottom: `1px solid ${tribal ? "#cfddf3" : "var(--dash-line)"}`,
           gap: 16,
           flexWrap: "wrap",
         }}
@@ -266,7 +268,7 @@ function DocBlock({
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.06em",
-              color: tribal ? "var(--mta)" : "var(--muted)",
+              color: tribal ? "var(--dash-link)" : "var(--dash-muted)",
               marginBottom: 4,
             }}
           >
@@ -282,7 +284,7 @@ function DocBlock({
           <div
             style={{
               fontSize: 12,
-              color: "var(--muted)",
+              color: "var(--dash-muted)",
               fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
               marginTop: 4,
             }}
@@ -290,7 +292,7 @@ function DocBlock({
             {group.doc_id}
           </div>
         </div>
-        <span className="micro" style={{ color: "var(--muted)" }}>
+        <span className="micro" style={{ color: "var(--dash-muted)" }}>
           {group.chunks.length} chunk
           {group.chunks.length === 1 ? "" : "s"}
           {figs ? ` · ${figs} figure${figs === 1 ? "" : "s"}` : ""}
@@ -310,7 +312,7 @@ function DocBlock({
                 appearance: "none",
                 background: "#fff",
                 border: 0,
-                borderBottom: "1px solid var(--pale)",
+                borderBottom: "1px solid var(--dash-line)",
                 padding: "14px 20px",
                 width: "100%",
                 textAlign: "left",
@@ -324,7 +326,7 @@ function DocBlock({
               }}
               onMouseEnter={(e) =>
                 ((e.currentTarget as HTMLButtonElement).style.background =
-                  "var(--pale)")
+                  "var(--dash-bg)")
               }
               onMouseLeave={(e) =>
                 ((e.currentTarget as HTMLButtonElement).style.background = "#fff")
@@ -337,7 +339,7 @@ function DocBlock({
                     fontWeight: 700,
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
-                    color: "var(--ink-2)",
+                    color: "#3a3a3e",
                   }}
                 >
                   {c.source_label}
@@ -345,7 +347,7 @@ function DocBlock({
                 <div
                   style={{
                     fontSize: 11,
-                    color: "var(--muted)",
+                    color: "var(--dash-muted)",
                     marginTop: 4,
                     fontFamily:
                       "ui-monospace, SFMono-Regular, Menlo, monospace",
@@ -357,7 +359,7 @@ function DocBlock({
                   <div
                     style={{
                       fontSize: 11,
-                      color: "var(--ink-2)",
+                      color: "#3a3a3e",
                       marginTop: 4,
                       fontWeight: 700,
                     }}
@@ -369,7 +371,7 @@ function DocBlock({
                   <div
                     style={{
                       fontSize: 11,
-                      color: "var(--mta)",
+                      color: "var(--dash-link)",
                       marginTop: 4,
                       fontWeight: 700,
                     }}
@@ -377,7 +379,7 @@ function DocBlock({
                     By {author.name}
                     <span
                       style={{
-                        color: "var(--muted)",
+                        color: "var(--dash-muted)",
                         fontWeight: 400,
                         marginLeft: 4,
                       }}
@@ -391,7 +393,7 @@ function DocBlock({
                 <div
                   style={{
                     fontSize: 13,
-                    color: "var(--ink-2)",
+                    color: "#3a3a3e",
                     lineHeight: 1.55,
                     overflow: "hidden",
                     display: "-webkit-box",
@@ -419,7 +421,7 @@ function DocBlock({
                         style={{
                           height: 56,
                           width: "auto",
-                          border: "1px solid var(--border)",
+                          border: "1px solid var(--dash-card-border)",
                           background: "#fff",
                           objectFit: "contain",
                         }}
@@ -430,7 +432,7 @@ function DocBlock({
               </div>
               <span
                 style={{
-                  color: "var(--mta)",
+                  color: "var(--dash-link)",
                   fontSize: 14,
                   alignSelf: "center",
                   textAlign: "right",

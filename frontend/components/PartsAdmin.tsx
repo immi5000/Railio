@@ -104,15 +104,15 @@ export function PartsAdmin() {
   ).sort();
 
   return (
-    <section style={{ padding: "32px 0 96px" }}>
-      <div className="wrap">
+    <div className="dash">
+      <div className="dash-inner" style={{ paddingBottom: 64, gap: 0 }}>
         <span className="sect-eyebrow">Admin · Parts</span>
         <h1 className="h2" style={{ marginTop: 12 }}>
           Parts inventory
         </h1>
         <p
           style={{
-            color: "var(--muted)",
+            color: "var(--dash-muted)",
             marginTop: 8,
             maxWidth: 640,
             fontSize: 14,
@@ -161,7 +161,7 @@ export function PartsAdmin() {
           </button>
           <span
             className="micro"
-            style={{ color: "var(--muted)", marginLeft: "auto" }}
+            style={{ color: "var(--dash-muted)", marginLeft: "auto" }}
           >
             {data?.length ?? 0} part{(data?.length ?? 0) === 1 ? "" : "s"}
           </span>
@@ -170,25 +170,32 @@ export function PartsAdmin() {
         {adding && <AddPartForm onDone={() => setAdding(false)} />}
 
         {isLoading && (
-          <div className="card" style={{ color: "var(--muted)" }}>
+          <div className="card" style={{ color: "var(--dash-muted)" }}>
             <span className="micro">Loading parts…</span>
           </div>
         )}
         {error && (
-          <div className="card" style={{ borderColor: "#f08d80" }}>
-            <span className="micro" style={{ color: "#8a1f15" }}>
+          <div className="card" style={{ borderColor: "#e9b8b2" }}>
+            <span className="micro" style={{ color: "#c0392b" }}>
               Failed
             </span>
             <p style={{ marginTop: 8 }}>{(error as Error).message}</p>
           </div>
         )}
         {data && data.length === 0 && (
-          <div className="card" style={{ color: "var(--muted)" }}>
+          <div className="card" style={{ color: "var(--dash-muted)" }}>
             No parts match.
           </div>
         )}
         {data && data.length > 0 && (
-          <div style={{ overflowX: "auto", border: "1px solid var(--border)" }}>
+          <div
+            style={{
+              overflowX: "auto",
+              border: "1px solid var(--dash-card-border)",
+              borderRadius: 14,
+              boxShadow: "0 1px 2px rgba(16, 24, 40, 0.04)",
+            }}
+          >
             <table
               style={{
                 borderCollapse: "collapse",
@@ -206,12 +213,13 @@ export function PartsAdmin() {
               <thead>
                 <tr
                   style={{
-                    background: "var(--pale)",
-                    fontSize: 11,
-                    fontWeight: 700,
+                    background: "var(--dash-bg)",
+                    fontFamily: '"IBM Plex Mono", monospace',
+                    fontSize: 10.5,
+                    fontWeight: 400,
                     textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    color: "var(--muted)",
+                    letterSpacing: "0.04em",
+                    color: "var(--dash-faint)",
                   }}
                 >
                   {COLUMNS.map((c, i) => (
@@ -243,7 +251,7 @@ export function PartsAdmin() {
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -382,7 +390,7 @@ function AddPartForm({ onDone }: { onDone: () => void }) {
           {mut.isPending ? "Adding…" : "Add part"}
         </button>
         {mut.error && (
-          <span className="micro" style={{ color: "#8a1f15" }}>
+          <span className="micro" style={{ color: "#c0392b" }}>
             {(mut.error as Error).message}
           </span>
         )}
@@ -400,7 +408,7 @@ function Field({
 }) {
   return (
     <label style={{ display: "grid", gap: 4 }}>
-      <span className="micro" style={{ color: "var(--muted)" }}>
+      <span className="micro" style={{ color: "var(--dash-muted)" }}>
         {label}
       </span>
       {children}
@@ -443,7 +451,7 @@ function ResizableTh({
         position: "relative",
         textAlign: "left",
         padding: "10px 12px",
-        borderBottom: "1px solid var(--border)",
+        borderBottom: "1px solid var(--dash-line)",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
@@ -487,7 +495,7 @@ function PartRow({
   }
 
   return (
-    <tr style={{ borderBottom: "1px solid var(--pale)" }}>
+    <tr style={{ borderBottom: "1px solid var(--dash-line)" }}>
       <Td>
         <Cell value={part.part_number} onCommit={(v) => commit({ part_number: v })} />
       </Td>
@@ -582,7 +590,7 @@ function Td({ children }: { children: React.ReactNode }) {
     <td
       style={{
         padding: 0,
-        borderRight: "1px solid var(--pale)",
+        borderRight: "1px solid var(--dash-line)",
         overflow: "hidden",
       }}
     >
@@ -599,7 +607,7 @@ function ReadCell({ value, title }: { value: string; title?: string }) {
         padding: "10px 12px",
         width: "100%",
         fontSize: 13,
-        color: "var(--muted)",
+        color: "var(--dash-muted)",
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
