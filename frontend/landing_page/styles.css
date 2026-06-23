@@ -203,13 +203,6 @@ footer{position:relative}
 .sec .item p{margin:0;color:var(--muted);font-size:14px;line-height:1.6}
 @media (max-width:760px){ .sec{grid-template-columns:1fr} }
 
-.yardband-in{background:#0a0a0a;color:#fff;border-radius:var(--radius);padding:56px}
-.yardband-in .h3{color:#fff;margin:0 0 14px}
-.yardband-in p{font-size:15px;color:rgba(255,255,255,.82);margin:0;max-width:52ch;line-height:1.6}
-.yardband-in p.emph{margin-top:12px;font-weight:600;color:#fff}
-.yardband-cta{margin-top:28px}
-@media (max-width:720px){ .yardband-in{padding:36px 28px} }
-
 /* ── Footer — Figma node 57-667 treatment, current content ── */
 .foot{background:var(--foot-yellow);color:var(--foot-olive);padding:48px 0 28px}
 .foot a{color:var(--foot-olive)}
