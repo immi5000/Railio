@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { useState } from "react";
 import { PostHogProvider } from "@/components/PostHogProvider";
+import { RoleProvider } from "@/components/RoleProvider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(
@@ -22,7 +23,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
   return (
     <PostHogProvider>
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      <QueryClientProvider client={client}>
+        <RoleProvider>{children}</RoleProvider>
+      </QueryClientProvider>
     </PostHogProvider>
   );
 }

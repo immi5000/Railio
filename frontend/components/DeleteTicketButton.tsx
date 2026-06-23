@@ -5,20 +5,18 @@ import { useState } from "react";
 import { deleteTicket } from "@/lib/api";
 
 /**
- * Two-step destructive button: click once to arm ("Delete"), click "Yes,
- * delete" to fire `DELETE /api/tickets/:id`. Invalidates relevant caches and
- * notifies the parent via `onDeleted` so it can re-route if needed.
+ * Two-step destructive button: click once to arm, click "Yes, delete" to fire
+ * `DELETE /api/tickets/:id`. Invalidates relevant caches and notifies the
+ * parent via `onDeleted` so it can re-route if needed.
  */
 export function DeleteTicketButton({
   ticketId,
-  size = "sm",
-  variant = "ghost",
-  label = "Delete",
+  block = false,
+  label = "Delete ticket",
   onDeleted,
 }: {
   ticketId: string;
-  size?: "sm" | "md";
-  variant?: "ghost" | "primary";
+  block?: boolean;
   label?: string;
   onDeleted?: () => void;
 }) {
@@ -35,13 +33,13 @@ export function DeleteTicketButton({
     },
   });
 
-  const baseClass = `btn btn-${variant}${size === "sm" ? " btn-sm" : ""}`;
+  const blockClass = block ? " dash-danger-btn--block" : "";
 
   if (!confirming) {
     return (
       <button
         type="button"
-        className={baseClass}
+        className={`dash-danger-btn${blockClass}`}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -49,19 +47,17 @@ export function DeleteTicketButton({
         }}
         title="Permanently delete this ticket"
       >
-        🗑 {label}
+        {label}
       </button>
     );
   }
 
   return (
-    <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-      <span className="micro" style={{ color: "#8a1f15" }}>
-        Delete forever?
-      </span>
+    <div className="dash-delete-confirm">
+      <span className="dash-delete-confirm-text">Delete this ticket forever?</span>
       <button
         type="button"
-        className={`btn btn-super${size === "sm" ? " btn-sm" : ""}`}
+        className={`dash-danger-btn dash-danger-btn--confirm${blockClass}`}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -73,7 +69,7 @@ export function DeleteTicketButton({
       </button>
       <button
         type="button"
-        className={`btn btn-ghost${size === "sm" ? " btn-sm" : ""}`}
+        className="dash-danger-btn dash-danger-btn--cancel"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -84,10 +80,10 @@ export function DeleteTicketButton({
         Cancel
       </button>
       {mut.error && (
-        <span style={{ color: "#8a1f15", fontSize: 11 }}>
+        <span style={{ color: "#8a1f15", fontSize: 12, width: "100%" }}>
           {(mut.error as Error).message}
         </span>
       )}
-    </span>
+    </div>
   );
 }

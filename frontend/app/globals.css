@@ -37,6 +37,7 @@
   --dash-link: #2683eb;
   --dash-card-border: #ecedef;
   --dash-yellow: #fff246;
+  --dash-chevron-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23000' fill='none' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 * {
@@ -54,6 +55,13 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   line-height: 1.4;
+}
+
+/* Work page fills the viewport; chat scrolls inside the copilot card only. */
+body:has(.work) {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
 }
 
 a {
@@ -494,19 +502,25 @@ button {
 
 /* === Chat composer / messages === */
 .chat-message-user {
-  background: var(--mta-soft);
-  border: 1px solid #c2d3ee;
+  background: var(--dash-link);
+  border: 1px solid var(--dash-link);
+  border-radius: 14px;
   padding: 12px 14px;
-  color: var(--ink);
+  color: #fff;
+}
+.chat-message-user .chat-message-role {
+  color: rgba(255, 255, 255, 0.75);
 }
 .chat-message-assistant {
   background: #fff;
-  border: 1px solid var(--border);
+  border: 1px solid var(--dash-border);
+  border-radius: 14px;
   padding: 12px 14px;
 }
 .chat-message-system {
   background: var(--pale);
   border: 1px dashed var(--border);
+  border-radius: 14px;
   padding: 10px 12px;
   font-size: 13px;
   color: var(--muted);
@@ -574,11 +588,20 @@ button {
   gap: 6px;
   font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
+<<<<<<< Updated upstream
   font-weight: 400;
   letter-spacing: 0;
   padding: 4px 12px;
   border-radius: 99px;
   border: 1px solid var(--dash-border);
+=======
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+>>>>>>> Stashed changes
   background: #fff;
   cursor: pointer;
   margin-right: 6px;
@@ -625,11 +648,18 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+<<<<<<< Updated upstream
   background: var(--dash-bg);
   border: 1px solid var(--dash-border);
   border-radius: 99px;
   padding: 4px 12px;
   font-family: "IBM Plex Mono", monospace;
+=======
+  background: var(--pale);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px 10px;
+>>>>>>> Stashed changes
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0;
@@ -716,22 +746,31 @@ button {
   /* Pull grey behind the sticky nav so scroll-top is one continuous surface. */
   margin-top: calc(-1 * var(--fig-nav-zone));
   padding-top: var(--fig-nav-zone);
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: var(--dash-bg);
   padding-left: 32px;
   padding-right: 32px;
-  padding-bottom: 32px;
+  padding-bottom: 24px;
 }
 @media (max-width: 760px) {
   .work {
     padding-left: 16px;
     padding-right: 16px;
-    padding-bottom: 20px;
+    padding-bottom: 16px;
+    height: 100dvh;
+    max-height: 100dvh;
   }
 }
 .work-inner {
   max-width: 1440px;
   margin: 0 auto;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -742,6 +781,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex-shrink: 0;
 }
 .work-toggle {
   align-self: flex-start;
@@ -779,20 +819,40 @@ button {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
 }
 @media (max-width: 980px) {
   .work-body {
     grid-template-columns: 1fr;
+    overflow-y: auto;
   }
 }
 .work-copilot {
   display: flex;
   flex-direction: column;
-  min-height: 620px;
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
 }
+.work-copilot-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+.work-copilot-body > * {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.work-copilot .scroll-chat {
+  min-height: 0;
+  overflow-y: auto;
+}
 .work-copilot-head {
+  flex-shrink: 0;
   padding: 20px 28px 0;
 }
 .work-copilot-title {
@@ -807,8 +867,10 @@ button {
 .work-context {
   display: flex;
   flex-direction: column;
-  gap: 21px;
+  gap: 10px;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* Header: Figma yellow CTA pill + white status pill with a colored dot. */
@@ -856,40 +918,52 @@ button {
   flex: none;
 }
 
-/* Right-column context cards (Figma): white rounded cards, IBM Plex Mono
-   titles, mono data, blue/black chips. Scoped to .work-context so no other
-   page's .panel is affected. */
+/* Right-column context cards — match .dash-card: white surface, grey outline,
+   no shadow. Panel headers use the same IBM Plex Mono title as .wc-title. */
 .work-context .panel {
-  border: 1px solid var(--dash-card-border);
-  border-radius: 12px;
+  border: 1px solid var(--dash-border);
+  border-radius: 14px;
   background: #fff;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  box-shadow: none;
   margin-bottom: 0;
   overflow: hidden;
 }
 .work-context .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
   background: #fff;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
   padding: 20px 28px;
 }
 .work-context .panel-header[data-open="true"] {
   padding-bottom: 14px;
 }
-.work-context .panel-title {
+.work-context .panel-header .panel-title {
   font-family: "IBM Plex Mono", monospace;
   font-size: 14px;
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
   color: #000;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
-.work-context .panel-count {
+.work-context .panel-header .panel-count {
   font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
+  font-weight: 400;
   color: var(--dash-faint);
+  font-feature-settings: "tnum";
 }
-.work-context .panel-chevron {
-  font-size: 9px;
-  color: #000;
+.work-context .panel-header[data-open="false"] .panel-chevron {
+  transform: rotate(-90deg);
 }
 .work-context .panel-body {
   padding: 0 28px 20px;
@@ -898,9 +972,9 @@ button {
 /* Generic work context card (non-collapsible, e.g. Unit & intake) */
 .wc-card {
   background: #fff;
-  border: 1px solid var(--dash-card-border);
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  border: 1px solid var(--dash-border);
+  border-radius: 14px;
+  box-shadow: none;
   padding: 20px 28px;
 }
 .wc-head {
@@ -1221,11 +1295,11 @@ button {
   font-size: 13px;
 }
 
-/* Off-canvas ticket drawer */
+/* Off-canvas ticket drawer — dash surfaces: grey panel, white outlined cards. */
 .work-drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.32);
+  background: rgba(0, 0, 0, 0.24);
   z-index: 60;
 }
 .work-drawer {
@@ -1234,9 +1308,9 @@ button {
   left: 0;
   bottom: 0;
   width: min(360px, 90vw);
-  background: #fff;
+  background: var(--dash-bg);
   border-right: 1px solid var(--dash-border);
-  box-shadow: 2px 0 16px rgba(16, 24, 40, 0.12);
+  box-shadow: none;
   z-index: 61;
   transform: translateX(-100%);
   transition: transform 0.18s ease;
@@ -1251,86 +1325,153 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 20px 28px 16px;
   border-bottom: 1px solid var(--dash-line);
+  flex-shrink: 0;
 }
 .work-drawer-title {
   font-family: "IBM Plex Mono", monospace;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
   color: #000;
+  margin: 0;
 }
 .work-drawer-close {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
   color: var(--dash-muted);
   padding: 4px;
 }
+.work-drawer-close:hover {
+  color: #000;
+}
 .work-drawer-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--dash-line);
+  padding: 0 28px 12px;
+  flex-shrink: 0;
+}
+.work-drawer-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  color: #000;
+  background: var(--dash-yellow);
+  border: 1px solid var(--dash-yellow);
+  border-radius: 20px;
+  padding: 8px 14px;
+  white-space: nowrap;
+  transition: filter 0.12s;
+}
+.work-drawer-new:hover {
+  filter: brightness(0.94);
 }
 .work-drawer-list {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 16px;
+  padding: 0 28px 24px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-
-/* Segmented role toggle (dash-styled, lives in the drawer) */
-.seg-toggle {
-  display: inline-flex;
-  border: 1px solid var(--dash-border);
-  border-radius: 40px;
-  overflow: hidden;
-}
-.seg-toggle-item {
-  padding: 6px 14px;
+.work-drawer-empty,
+.work-drawer-loading {
   font-family: "IBM Plex Mono", monospace;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  border: none;
-  cursor: pointer;
+  font-size: 13px;
+  color: var(--dash-muted);
+  text-align: center;
+  padding: 24px 0;
+}
+.work-drawer-error {
   background: #fff;
+  border: 1px solid #f08d80;
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.work-drawer-error-title {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: #8a1f15;
+}
+.work-drawer-error-body {
+  margin: 8px 0 0;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
   color: var(--dash-muted);
 }
+
+/* Segmented role toggle (drawer) */
+.seg-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--dash-border);
+  border-radius: 14px;
+  background: #fff;
+}
+.seg-toggle-item {
+  padding: 6px 12px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--dash-muted);
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.seg-toggle-item:hover:not([data-active="true"]) {
+  color: #000;
+}
 .seg-toggle-item[data-active="true"] {
-  background: #000;
-  color: #fff;
+  background: var(--dash-bg);
+  border-color: var(--dash-border);
+  color: #000;
 }
 
 /* Ticket row card (drawer queue) */
 .work-ticket {
   text-align: left;
   border: 1px solid var(--dash-border);
-  border-radius: 12px;
+  border-radius: 14px;
   background: #fff;
-  padding: 12px 14px;
+  padding: 14px 16px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 8px;
   width: 100%;
   font: inherit;
-  transition: border-color 0.1s, box-shadow 0.1s;
+  transition: border-color 0.1s, background 0.1s;
 }
 .work-ticket:hover {
   border-color: #000;
+  background: #fff;
 }
 .work-ticket[data-active="true"] {
   border-color: #000;
-  box-shadow: 0 0 0 1px #000;
+  background: #fff;
+}
+.work-ticket-title {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 /* === Collapsible context panels === */
@@ -1551,6 +1692,128 @@ button {
 .fig-signout:hover {
   color: #000;
 }
+
+/* Profile menu — role switch + sign out */
+.fig-profile-menu {
+  position: relative;
+}
+.fig-profile-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  color: inherit;
+}
+.fig-profile-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+.fig-profile-chevron {
+  transition: transform 0.12s ease;
+}
+.fig-profile-chevron.is-open {
+  transform: rotate(180deg);
+}
+.fig-profile-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 240px;
+  background: #fff;
+  border: 1px solid var(--dash-border);
+  border-radius: 14px;
+  padding: 12px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fig-profile-dropdown-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dash-faint);
+  padding: 0 4px 2px;
+}
+.fig-profile-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--dash-border);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.1s;
+}
+.fig-profile-option:hover {
+  border-color: #000;
+}
+.fig-profile-option[data-active="true"] {
+  border-color: #000;
+}
+.fig-profile-option-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #000;
+}
+.fig-profile-option[data-active="true"] .fig-profile-option-main {
+  font-weight: 700;
+}
+.fig-profile-option-dot {
+  width: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+.fig-profile-option-hint {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--dash-muted);
+  padding-left: 13px;
+}
+.fig-profile-divider {
+  height: 1px;
+  background: var(--dash-line);
+  margin: 2px 0;
+}
+.fig-profile-signout {
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--dash-muted);
+  padding: 8px 12px;
+}
+.fig-profile-signout:hover {
+  color: #000;
+  background: var(--dash-bg);
+}
+.fig-nav-drawer-profile {
+  border-top: 1px solid var(--dash-line);
+  margin-top: 16px;
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .fig-nav-burger {
   display: none;
   appearance: none;
@@ -1594,8 +1857,8 @@ button {
   .fig-nav-links.fig-nav-links--desktop {
     display: none;
   }
-  .fig-nav-user .fig-user-name,
-  .fig-nav-user .fig-signout {
+  .fig-nav-user .fig-profile-text,
+  .fig-nav-user .fig-profile-chevron {
     display: none;
   }
   .fig-nav-burger {
@@ -1685,6 +1948,64 @@ button {
 }
 .dash-link:hover {
   color: var(--mta);
+}
+
+/* Destructive action — outlined dash button, not legacy .btn */
+.dash-danger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #8a1f15;
+  background: #fff;
+  border: 1px solid var(--dash-border);
+  border-radius: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s, color 0.1s;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.dash-danger-btn:hover:not(:disabled) {
+  border-color: #f08d80;
+  background: #fff5f4;
+}
+.dash-danger-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.dash-danger-btn--block {
+  width: 100%;
+}
+.dash-danger-btn--confirm {
+  font-weight: 700;
+  background: #ffe6e3;
+  border-color: #f08d80;
+}
+.dash-danger-btn--cancel {
+  color: var(--dash-muted);
+  background: #fff;
+}
+.dash-danger-btn--cancel:hover:not(:disabled) {
+  border-color: #000;
+  background: var(--dash-bg);
+  color: #000;
+}
+.dash-delete-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.dash-delete-confirm-text {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: #8a1f15;
+  width: 100%;
 }
 
 /* Summary stat row */
@@ -1960,15 +2281,28 @@ button {
   color: #000;
 }
 
+/* Shared stroke chevron (locomotive filter, context panels, etc.) */
+.dash-chevron {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  height: 6px;
+  background: var(--dash-chevron-icon) no-repeat center / contain;
+  transition: transform 0.12s ease;
+  transform-origin: center;
+}
+
 /* Filter pill (unit dropdown) */
 .dash-filter {
   appearance: none;
   font-family: "IBM Plex Mono", monospace;
   font-size: 12px;
   color: #000;
-  background: var(--dash-bg)
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23000' fill='none' stroke-width='1.4'/%3E%3C/svg%3E")
-    no-repeat right 12px center;
+  background-color: var(--dash-bg);
+  background-image: var(--dash-chevron-icon);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 10px 6px;
   border: 1px solid var(--dash-border);
   border-radius: 40px;
   padding: 6px 30px 6px 14px;

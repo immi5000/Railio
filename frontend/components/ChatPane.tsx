@@ -327,7 +327,9 @@ export function ChatPane({
         flexDirection: "column",
         flex: 1,
         minWidth: 0,
+        minHeight: 0,
         height: "100%",
+        overflow: "hidden",
         background: "#fff",
         border: bare ? "none" : "1px solid var(--border)",
       }}
@@ -337,11 +339,11 @@ export function ChatPane({
         className="scroll-chat chat-list"
         style={{
           flex: 1,
+          minHeight: 0,
           padding: bare ? "8px 28px 16px" : 24,
           display: "flex",
           flexDirection: "column",
           gap: 16,
-          minHeight: 240,
         }}
       >
         {messages.length === 0 && !live && (
@@ -380,7 +382,7 @@ export function ChatPane({
             margin: bare ? "0 28px 12px" : 0,
             padding: "8px 16px",
             fontSize: 13,
-            borderRadius: bare ? 10 : 0,
+            borderRadius: bare ? 12 : 0,
             borderTop: bare ? "none" : "1px solid #f08d80",
           }}
         >
@@ -390,7 +392,7 @@ export function ChatPane({
         </div>
       )}
 
-      <div className="rc-composer">
+      <div className="rc-composer" style={{ flexShrink: 0 }}>
         {pending.length > 0 && (
           <div className="rc-pending">
             {pending.map((p) => (
@@ -569,12 +571,13 @@ function MessageBubble({
         style={{ maxWidth: "min(80%, 640px)" }}
       >
         <div
+          className="chat-message-role"
           style={{
             fontSize: 11,
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.06em",
-            color: "var(--muted)",
+            color: isUser ? undefined : "var(--muted)",
             marginBottom: 6,
           }}
         >
@@ -669,10 +672,12 @@ function FigureThumb({
       title={label}
       style={{
         padding: 0,
-        border: "1px solid var(--border)",
+        border: "1px solid var(--dash-border)",
+        borderRadius: 12,
         background: "#fff",
         cursor: "pointer",
         lineHeight: 0,
+        overflow: "hidden",
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -699,7 +704,7 @@ function PendingThumb({
         position: "relative",
         width: 56,
         height: 56,
-        borderRadius: 10,
+        borderRadius: 12,
         overflow: "hidden",
         border: "1px solid var(--dash-border)",
         background: "#fff",
@@ -748,7 +753,9 @@ function AttachmentThumb({ attachment }: { attachment: Attachment }) {
         rel="noreferrer"
         style={{
           display: "inline-block",
-          border: "1px solid var(--border)",
+          border: "1px solid var(--dash-border)",
+          borderRadius: 12,
+          overflow: "hidden",
           background: "#fff",
         }}
       >
@@ -792,6 +799,7 @@ function ToolPill({ tc }: { tc: ToolCall }) {
             marginTop: 4,
             maxWidth: 480,
             overflow: "auto",
+            borderRadius: 12,
           }}
         >
           {JSON.stringify({ input: tc.input, output: tc.output }, null, 2)}
@@ -926,6 +934,7 @@ function RequestPhotoBlock({
         padding: 12,
         background: "var(--mta-soft)",
         border: "1px solid var(--mta)",
+        borderRadius: 14,
       }}
     >
       <div

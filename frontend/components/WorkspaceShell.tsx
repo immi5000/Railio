@@ -5,7 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getTicket, listTickets, patchTicket } from "@/lib/api";
-import { formatDate, statusLabel, statusPillClass } from "@/lib/format";
+import { formatDate, statusLabel } from "@/lib/format";
+import { useRole } from "@/components/RoleProvider";
+import type { Role } from "@/lib/role";
+import type { Ticket, TicketStatus } from "@/lib/contract";
 
 // Figma status pill: white pill with a status-colored dot.
 function statusDotColor(status: TicketStatus): string {
@@ -20,8 +23,6 @@ function statusDotColor(status: TicketStatus): string {
       return "#8dc572";
   }
 }
-import { getRoleCookie, setRoleCookie, type Role } from "@/lib/role";
-import type { Ticket, TicketStatus } from "@/lib/contract";
 import { ChatPane } from "./ChatPane";
 import { RepairContext } from "./RepairContext";
 import { IntakeContext } from "./IntakeContext";
@@ -30,8 +31,9 @@ import { IntakeContext } from "./IntakeContext";
  * Work-order page (Figma redesign): a dashboard-styled detail view — page
  * header + Copilot chat card + stacked context cards — with the ticket queue
  * moved into an off-canvas drawer toggled by "← Open sidebar". Role CTAs
- * (start / wrap-up / hand off) live in the header; the role toggle lives in
- * the drawer. Chat + context logic is reused unchanged.
+ * moved into an off-canvas drawer toggled by "← Open sidebar". Role CTAs
+ * (start / wrap-up / hand off) live in the header; tech/dispatcher mode is
+ * switched from the profile menu in the top nav.
  */
 export function WorkspaceShell() {
   const router = useRouter();
@@ -39,10 +41,7 @@ export function WorkspaceShell() {
   const params = useSearchParams();
   const selectedId = params.get("ticket") || null;
 
-  const [role, setRole] = useState<Role>("tech");
-  useEffect(() => {
-    setRole(getRoleCookie() || "tech");
-  }, []);
+  const { role } = useRole();
 
   // Drawer is open by default when no ticket is selected, closed once one is.
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -73,12 +72,6 @@ export function WorkspaceShell() {
   function select(shortId: string | null) {
     router.push(shortId == null ? "/work" : `/work?ticket=${shortId}`);
     setSidebarOpen(false);
-  }
-
-  function switchRole(next: Role) {
-    setRoleCookie(next);
-    setRole(next);
-    select(null);
   }
 
   function invalidateTicket() {
@@ -117,7 +110,7 @@ export function WorkspaceShell() {
               <div className="work-copilot-head">
                 <h2 className="work-copilot-title">Copilot</h2>
               </div>
-              <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+              <div className="work-copilot-body">
                 <ChatPane
                   ticketId={selectedId}
                   role={role}
@@ -153,7 +146,6 @@ export function WorkspaceShell() {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         role={role}
-        onSwitchRole={switchRole}
         tickets={tickets}
         isLoading={isLoading}
         error={!!error}
@@ -237,7 +229,6 @@ function TicketDrawer({
   open,
   onClose,
   role,
-  onSwitchRole,
   tickets,
   isLoading,
   error,
@@ -247,7 +238,6 @@ function TicketDrawer({
   open: boolean;
   onClose: () => void;
   role: Role;
-  onSwitchRole: (r: Role) => void;
   tickets: Ticket[];
   isLoading: boolean;
   error: boolean;
@@ -266,29 +256,28 @@ function TicketDrawer({
           </button>
         </div>
 
-        <div className="work-drawer-toolbar">
-          <RoleToggle role={role} onChange={onSwitchRole} />
-          {isDispatch && (
-            <Link href="/dispatcher/new" className="btn btn-super btn-sm">
-              + New
+        {isDispatch && (
+          <div className="work-drawer-toolbar">
+            <Link href="/dispatcher/new" className="work-drawer-new">
+              + New ticket
             </Link>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="work-drawer-list">
           {isLoading && (
-            <div style={{ color: "var(--dash-muted)", fontSize: 13 }}>Loading tickets…</div>
+            <div className="work-drawer-loading">Loading tickets…</div>
           )}
           {error && (
-            <div className="card-tight" style={{ borderColor: "#f08d80" }}>
-              <div className="micro" style={{ color: "#8a1f15" }}>Backend unreachable</div>
-              <p style={{ marginTop: "var(--s2)", color: "var(--muted)", fontSize: 13 }}>
+            <div className="work-drawer-error">
+              <div className="work-drawer-error-title">Backend unreachable</div>
+              <p className="work-drawer-error-body">
                 Make sure the backend is on port 3001.
               </p>
             </div>
           )}
           {!isLoading && !error && tickets.length === 0 && (
-            <div style={{ textAlign: "center", color: "var(--dash-muted)", fontSize: 13, padding: "var(--s4)" }}>
+            <div className="work-drawer-empty">
               {isDispatch
                 ? "Open a ticket so the tech has context."
                 : "Tickets handed off by dispatch show up here."}
@@ -328,18 +317,14 @@ function TicketCard({
           gap: "var(--s2)",
         }}
       >
-        <span
-          style={{
-            fontWeight: 700,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            minWidth: 0,
-          }}
-        >
+        <span className="work-ticket-title">
           {ticket.title || `${ticket.asset.reporting_mark} ${ticket.asset.road_number}`}
         </span>
-        <span className={statusPillClass(ticket.status as TicketStatus)}>
+        <span className="work-status">
+          <span
+            className="work-status-dot"
+            style={{ background: statusDotColor(ticket.status as TicketStatus) }}
+          />
           {statusLabel(ticket.status as TicketStatus)}
         </span>
       </div>
@@ -360,30 +345,5 @@ function TicketCard({
         Opened {formatDate(ticket.opened_at)}
       </div>
     </button>
-  );
-}
-
-function RoleToggle({
-  role,
-  onChange,
-}: {
-  role: Role;
-  onChange: (r: Role) => void;
-}) {
-  const items: Role[] = ["tech", "dispatcher"];
-  return (
-    <div className="seg-toggle">
-      {items.map((value) => (
-        <button
-          key={value}
-          type="button"
-          className="seg-toggle-item"
-          data-active={role === value}
-          onClick={() => onChange(value)}
-        >
-          {value}
-        </button>
-      ))}
-    </div>
   );
 }

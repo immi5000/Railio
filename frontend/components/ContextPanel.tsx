@@ -32,7 +32,7 @@ export function ContextPanel({
           {count != null && count !== "" && (
             <span className="panel-count">{count}</span>
           )}
-          <span className="panel-chevron">▼</span>
+          <span className="panel-chevron dash-chevron" aria-hidden />
         </span>
       </button>
       {open && <div className="panel-body">{children}</div>}

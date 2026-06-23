@@ -77,7 +77,7 @@ Needs **Python 3.11+**, **Node 20+**, and a **Postgres** DB with **pgvector** (S
 ```bash
 # backend (terminal 1)
 cd backend
-python -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate   # macOS: use python3 (no bare `python` by default)
 pip install -e .
 cp .env.example .env      # OPENAI_API_KEY, DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 python -m scripts.migrate && python -m scripts.seed            # clean baseline (no demo data)

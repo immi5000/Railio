@@ -16,7 +16,7 @@ FastAPI service on `:3001`. The frontend in `frontend/` talks to it over CORS.
 
 ```bash
 cd backend
-python -m venv .venv
+python3 -m venv .venv   # macOS: use python3 if `python` is not found
 source .venv/bin/activate
 pip install -e .
 cp .env.example .env

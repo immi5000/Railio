@@ -110,7 +110,7 @@ export function IntakeContext({
       </ContextPanel>
 
       <div className="wc-card">
-        <DeleteTicketButton ticketId={ticketId} onDeleted={onHandedOff} />
+        <DeleteTicketButton ticketId={ticketId} onDeleted={onHandedOff} block />
       </div>
     </>
   );

@@ -8,6 +8,7 @@ export function setRoleCookie(role: Role) {
   if (typeof document === "undefined") return;
   // 30 days; not Secure on localhost.
   document.cookie = `${COOKIE}=${role}; path=/; max-age=${60 * 60 * 24 * 30}`;
+  window.dispatchEvent(new CustomEvent("railio-role-change", { detail: role }));
 }
 
 export function getRoleCookie(): Role | null {
