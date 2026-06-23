@@ -2,6 +2,7 @@ import { createClient } from "./supabase/client";
 import type {
   CreateTicketBody,
   CreateAssetBody,
+  PatchAssetBody,
   AttachDocumentBody,
   HistoricalRecord,
   CreateHistoricalRecordBody,
@@ -203,6 +204,16 @@ export async function listAssets(): Promise<Asset[]> {
 export async function createAsset(body: CreateAssetBody): Promise<Asset> {
   return jsonFetch<Asset>(`/api/assets`, {
     method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function patchAsset(
+  assetId: number,
+  body: PatchAssetBody,
+): Promise<Asset> {
+  return jsonFetch<Asset>(`/api/assets/${assetId}`, {
+    method: "PATCH",
     body: JSON.stringify(body),
   });
 }

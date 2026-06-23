@@ -40,6 +40,14 @@ export type CreateAssetBody = {
   last_inspection_at?: string;
 };
 
+export type PatchAssetBody = {
+  reporting_mark: string;
+  road_number: string;
+  unit_model: string;
+  in_service_date?: string | null;
+  last_inspection_at?: string | null;
+};
+
 export type WrapUpDraft = {
   summary: string | null;
   notes: string | null;

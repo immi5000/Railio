@@ -5,12 +5,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
-from ..assets_repo import attach_document, create_asset, list_assets
+from ..assets_repo import attach_document, create_asset, list_assets, update_asset
 from ..contract import (
     AttachDocumentBody,
     CreateAssetBody,
     CreateHistoricalRecordBody,
     Organization,
+    PatchAssetBody,
 )
 from ..historical_repo import (
     create_historical_record,
@@ -49,6 +50,27 @@ async def post_asset(
         in_service_date=body.in_service_date,
         last_inspection_at=body.last_inspection_at,
     )
+    return JSONResponse(asset.model_dump())
+
+
+@router.patch("/{asset_id}")
+async def patch_asset(
+    asset_id: int,
+    body: PatchAssetBody,
+    org: Organization = Depends(get_current_org),
+) -> JSONResponse:
+    await _require_asset(asset_id, org.id)
+    asset = await update_asset(
+        asset_id=asset_id,
+        org_id=org.id,
+        reporting_mark=body.reporting_mark,
+        road_number=body.road_number,
+        unit_model=body.unit_model,
+        in_service_date=body.in_service_date,
+        last_inspection_at=body.last_inspection_at,
+    )
+    if asset is None:
+        raise HTTPException(status_code=404, detail="asset not found")
     return JSONResponse(asset.model_dump())
 
 

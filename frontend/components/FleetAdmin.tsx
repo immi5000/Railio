@@ -7,6 +7,7 @@ import {
   createHistoricalRecord,
   listAssets,
   listHistoricalRecords,
+  patchAsset,
   updateHistoricalRecord,
 } from "@/lib/api";
 import type { Asset, HistoricalRecord, HistoricalTest } from "@/lib/contract";
@@ -94,6 +95,7 @@ export function FleetAdmin() {
               <UnitButton
                 key={a.id}
                 asset={a}
+                unitModels={unitModels}
                 active={a.id === selected}
                 onClick={() => setSelected(a.id)}
               />
@@ -116,36 +118,176 @@ export function FleetAdmin() {
 
 function UnitButton({
   asset,
+  unitModels,
   active,
   onClick,
 }: {
   asset: Asset;
+  unitModels: string[];
   active: boolean;
   onClick: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return (
+      <UnitEditForm
+        asset={asset}
+        unitModels={unitModels}
+        onDone={() => setEditing(false)}
+      />
+    );
+  }
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       style={{
-        display: "block",
-        width: "100%",
-        textAlign: "left",
-        padding: "12px 14px",
-        border: "none",
+        position: "relative",
         borderBottom: "1px solid var(--dash-line)",
         background: active ? "var(--dash-bg)" : "#fff",
-        cursor: "pointer",
-        font: "inherit",
       }}
     >
-      <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 500, fontSize: 14 }}>
-        {asset.reporting_mark} {asset.road_number}
+      <button
+        type="button"
+        onClick={onClick}
+        style={{
+          display: "block",
+          width: "100%",
+          textAlign: "left",
+          padding: "12px 14px",
+          paddingRight: 52,
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          font: "inherit",
+        }}
+      >
+        <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 500, fontSize: 14 }}>
+          {asset.reporting_mark} {asset.road_number}
+        </div>
+        <div className="micro" style={{ color: "var(--dash-muted)", marginTop: 2 }}>
+          {asset.unit_model}
+        </div>
+      </button>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        onClick={() => setEditing(true)}
+        style={{ position: "absolute", top: 8, right: 8 }}
+      >
+        Edit
+      </button>
+    </div>
+  );
+}
+
+function UnitEditForm({
+  asset,
+  unitModels,
+  onDone,
+}: {
+  asset: Asset;
+  unitModels: string[];
+  onDone: () => void;
+}) {
+  const qc = useQueryClient();
+  const [reportingMark, setReportingMark] = useState(asset.reporting_mark);
+  const [roadNumber, setRoadNumber] = useState(asset.road_number);
+  const [unitModel, setUnitModel] = useState(asset.unit_model);
+  const [inService, setInService] = useState(asset.in_service_date ?? "");
+  const [lastInspection, setLastInspection] = useState(
+    asset.last_inspection_at ?? "",
+  );
+
+  const mut = useMutation({
+    mutationFn: () =>
+      patchAsset(asset.id, {
+        reporting_mark: reportingMark.trim(),
+        road_number: roadNumber.trim(),
+        unit_model: unitModel.trim(),
+        in_service_date: inService.trim() || null,
+        last_inspection_at: lastInspection.trim() || null,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["assets"] });
+      onDone();
+    },
+  });
+
+  const canSubmit =
+    !!reportingMark.trim() && !!roadNumber.trim() && !!unitModel.trim();
+
+  return (
+    <div
+      className="card"
+      style={{
+        display: "grid",
+        gap: 8,
+        borderRadius: 0,
+        borderLeft: "none",
+        borderRight: "none",
+        borderTop: "none",
+      }}
+    >
+      <input
+        className="input"
+        placeholder="Reporting mark"
+        value={reportingMark}
+        onChange={(e) => setReportingMark(e.target.value)}
+      />
+      <input
+        className="input"
+        placeholder="Road number"
+        value={roadNumber}
+        onChange={(e) => setRoadNumber(e.target.value)}
+      />
+      <input
+        className="input"
+        placeholder="Unit model"
+        list="fleet-unit-models"
+        value={unitModel}
+        onChange={(e) => setUnitModel(e.target.value)}
+      />
+      <datalist id="fleet-unit-models">
+        {unitModels.map((m) => (
+          <option key={m} value={m} />
+        ))}
+      </datalist>
+      <input
+        className="input"
+        placeholder="In-service date (YYYY-MM-DD)"
+        value={inService}
+        onChange={(e) => setInService(e.target.value)}
+      />
+      <input
+        className="input"
+        placeholder="Last inspection (YYYY-MM-DD)"
+        value={lastInspection}
+        onChange={(e) => setLastInspection(e.target.value)}
+      />
+      {mut.error && (
+        <span className="micro" style={{ color: "#c0392b" }}>
+          {(mut.error as Error).message}
+        </span>
+      )}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={!canSubmit || mut.isPending}
+          onClick={() => mut.mutate()}
+        >
+          {mut.isPending ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={onDone}
+        >
+          Cancel
+        </button>
       </div>
-      <div className="micro" style={{ color: "var(--dash-muted)", marginTop: 2 }}>
-        {asset.unit_model}
-      </div>
-    </button>
+    </div>
   );
 }
 

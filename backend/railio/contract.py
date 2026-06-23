@@ -235,6 +235,14 @@ class CreateAssetBody(BaseModel):
     last_inspection_at: Optional[str] = None
 
 
+class PatchAssetBody(BaseModel):
+    reporting_mark: str
+    road_number: str
+    unit_model: str
+    in_service_date: Optional[str] = None
+    last_inspection_at: Optional[str] = None
+
+
 class WrapUpDraft(BaseModel):
     summary: Optional[str] = None
     notes: Optional[str] = None

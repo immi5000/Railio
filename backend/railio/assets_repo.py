@@ -103,6 +103,45 @@ async def create_asset(
     return Asset(**row)
 
 
+async def update_asset(
+    *,
+    asset_id: int,
+    org_id: int,
+    reporting_mark: str,
+    road_number: str,
+    unit_model: str,
+    in_service_date: Optional[str] = None,
+    last_inspection_at: Optional[str] = None,
+) -> Optional[Asset]:
+    # Org-scoped: a cross-org asset_id matches no row and returns None (404 at
+    # the router), so a tenant can never edit another org's unit.
+    async with session_scope() as session:
+        row = (
+            await session.execute(
+                text(
+                    """
+                    UPDATE assets
+                    SET reporting_mark = :rm, road_number = :rn, unit_model = :um,
+                        in_service_date = :in_svc, last_inspection_at = :last
+                    WHERE id = :id AND org_id = :org
+                    RETURNING id, org_id, reporting_mark, road_number, unit_model,
+                              in_service_date, last_inspection_at
+                    """
+                ),
+                {
+                    "id": asset_id,
+                    "org": org_id,
+                    "rm": reporting_mark,
+                    "rn": road_number,
+                    "um": unit_model,
+                    "in_svc": in_service_date,
+                    "last": last_inspection_at,
+                },
+            )
+        ).mappings().first()
+    return Asset(**row) if row else None
+
+
 async def attach_document(
     asset: Asset,
     *,
