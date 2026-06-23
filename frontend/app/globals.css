@@ -31,6 +31,10 @@
   --s5: 24px;
   --s6: 32px;
   --s7: 48px;
+
+  /* Sticky nav zone height (padding + pill + fade). Dashboard grey extends
+     behind this so the page is one continuous #f4f5f7 at scroll-top. */
+  --fig-nav-zone: 94px;
 }
 
 * {
@@ -984,4 +988,691 @@ button {
   letter-spacing: 0.06em;
   z-index: 100;
   border-left: 3px solid var(--mta);
+}
+
+/* ============================================================
+   Top nav (Figma frame, node 91:863)
+   White bar, Inter type, dot-prefixed active link, avatar chip.
+   ============================================================ */
+.fig-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 14px 24px 24px;
+  pointer-events: none;
+}
+/* Frosted backdrop layer sits BEHIND the pill so it can fade out at the bottom
+   (tint + blur together) without clipping the pill. The mask removes the hard
+   blur edge that otherwise reads as a shadow under the nav. The dashboard grey
+   is pulled up behind this region, so the top stays grey (never white). */
+.fig-nav::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(244, 245, 247, 0.4) 0%,
+    rgba(244, 245, 247, 0.4) 60%,
+    rgba(244, 245, 247, 0.28) 82%,
+    rgba(244, 245, 247, 0) 100%
+  );
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 60%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+.fig-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 24px;
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  /* Frosted pill (Figma node 91:863: white fill + white stroke).
+     The blur softens anything scrolling behind it. */
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 1);
+  border-radius: 18px;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.03);
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+}
+@media (max-width: 760px) {
+  .fig-nav {
+    padding: 10px 12px;
+  }
+  .fig-nav-inner {
+    padding: 0 16px;
+  }
+}
+.fig-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #000;
+  flex: none;
+}
+.fig-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+.fig-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #6b6f76;
+  white-space: nowrap;
+  transition: color 0.12s;
+}
+.fig-nav-link:hover {
+  color: #000;
+}
+.fig-nav-link[data-active="true"] {
+  color: #000;
+  font-weight: 700;
+}
+.fig-nav-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #000;
+  flex: none;
+}
+.fig-nav-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: none;
+}
+.fig-user-name {
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: #000;
+  text-align: right;
+  white-space: nowrap;
+}
+.fig-user-org {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 400;
+  font-size: 11px;
+  color: #7a7a7e;
+}
+.fig-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #000;
+  color: #fff546;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  flex: none;
+}
+.fig-signout {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: #6b6f76;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+  transition: color 0.12s;
+}
+.fig-signout:hover {
+  color: #000;
+}
+.fig-nav-burger {
+  display: none;
+  appearance: none;
+  background: transparent;
+  border: 1px solid #d9dadd;
+  border-radius: 6px;
+  width: 38px;
+  height: 38px;
+  cursor: pointer;
+  padding: 0;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.fig-nav-burger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: #000;
+}
+.fig-nav-drawer {
+  display: none;
+  max-width: 1440px;
+  margin: 8px auto 0;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 18px;
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  padding: 16px 24px 20px;
+}
+.fig-nav-drawer .fig-nav-links {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+}
+@media (max-width: 860px) {
+  .fig-nav-links.fig-nav-links--desktop {
+    display: none;
+  }
+  .fig-nav-user .fig-user-name,
+  .fig-nav-user .fig-signout {
+    display: none;
+  }
+  .fig-nav-burger {
+    display: inline-flex;
+  }
+  .fig-nav-drawer.is-open {
+    display: block;
+  }
+}
+
+/* ============================================================
+   Dashboard (Figma "Redesign dash" frame, node 91:862)
+   A softer, rounded surface that sits on a light-gray page and
+   mixes Inter (UI) + IBM Plex Mono (data) + Source Serif (lede).
+   ============================================================ */
+.dash {
+  --dash-line: #eef0f2;
+  --dash-border: #e4e5e8;
+  --dash-bg: #f4f5f7;
+  --dash-muted: #7a7a7e;
+  --dash-faint: #9a9aa0;
+  --dash-link: #2683eb;
+  /* Pull grey behind the sticky nav so scroll-top is one continuous surface. */
+  margin-top: calc(-1 * var(--fig-nav-zone));
+  padding-top: var(--fig-nav-zone);
+  min-height: 100vh;
+  background: var(--dash-bg);
+  padding-left: 32px;
+  padding-right: 32px;
+  padding-bottom: 32px;
+}
+@media (max-width: 760px) {
+  .dash {
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-bottom: 20px;
+  }
+}
+.dash-inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.dash-mono {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Greeting */
+.dash-greeting-title {
+  font-family: "Inter", "Archivo", sans-serif;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: #000;
+  margin: 0;
+}
+.dash-greeting-sub {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(18px, 2.4vw, 30px);
+  line-height: 1.2;
+  color: #6c6c6c;
+  margin: 10px 0 0;
+}
+
+/* Card surface */
+.dash-card {
+  background: #fff;
+  border: 1px solid var(--dash-border);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+.dash-section-title {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 16px;
+  color: #000;
+  margin: 0;
+}
+.dash-section-sub {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--dash-muted);
+  margin: 8px 0 0;
+}
+.dash-link {
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--dash-link);
+  white-space: nowrap;
+}
+.dash-link:hover {
+  color: var(--mta);
+}
+
+/* Summary stat row */
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+@media (max-width: 980px) {
+  .dash-stats {
+    grid-template-columns: 1fr;
+  }
+}
+.dash-stat {
+  position: relative;
+  min-height: 150px;
+  padding: 20px 24px;
+  display: flex;
+  overflow: hidden;
+}
+.dash-stat-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  color: #000;
+}
+.dash-stat-value {
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: clamp(40px, 5vw, 52px);
+  line-height: 1;
+  color: #000;
+}
+/* Label-over-value column shared by the first two cards. */
+.dash-stat-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  min-width: 0;
+}
+
+/* Card 1 — Open work orders: text column + large yellow block on the right. */
+.dash-stat--wo {
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 18px;
+}
+.dash-stat-block {
+  align-self: stretch;
+  width: 150px;
+  max-width: 42%;
+  flex: none;
+  border-radius: 10px;
+  background: #fff246;
+}
+
+/* Card 2 — Fleet availability: text column + snowflake/trend side column. */
+.dash-stat--avail {
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 12px;
+}
+.dash-stat-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex: none;
+}
+.dash-stat-flake {
+  color: #d4d5d8;
+  line-height: 0;
+}
+.dash-trend {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px;
+  color: var(--dash-link);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Card 3 — Critical alert: top row (badge + link) over title + subline. */
+.dash-stat--alert {
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+}
+.dash-stat-toprow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+.dash-alert-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #fff;
+  background: #000;
+  border-radius: 20px;
+  padding: 5px 14px;
+}
+.dash-alert-badge[data-clear="true"] {
+  background: var(--ok);
+}
+.dash-alert-title {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.15;
+  color: #000;
+  margin: 0;
+}
+
+/* Generic data table (work orders + fleets) */
+.dash-table {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+/* Bleed table rows to the card edges (counteracts card horizontal padding). */
+.dash-card > .dash-table {
+  margin-inline: -28px;
+  width: calc(100% + 56px);
+}
+.dash-card > .dash-table .dash-row {
+  padding-inline: 28px;
+}
+.dash-row {
+  display: grid;
+  gap: 16px;
+  align-items: center;
+  padding: 13px 0;
+  border-top: 1px solid var(--dash-line);
+}
+.dash-row > * {
+  min-width: 0;
+}
+.dash-row--head {
+  border-top: none;
+  padding: 6px 0 10px;
+}
+.dash-row--head .dash-th {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--dash-faint);
+  text-transform: uppercase;
+}
+.dash-row--click {
+  cursor: pointer;
+  border-radius: 0;
+  transition: background 0.1s;
+  width: 100%;
+  box-sizing: border-box;
+  color: inherit;
+  text-decoration: none;
+}
+.dash-row--click:hover {
+  background: var(--dash-bg);
+}
+.dash-wo {
+  grid-template-columns: 1.6fr 2fr 0.9fr 1.1fr 1fr;
+}
+.dash-fleet {
+  grid-template-columns: 1.4fr 0.8fr 1fr 1fr 0.5fr;
+}
+@media (max-width: 760px) {
+  .dash-wo,
+  .dash-fleet {
+    grid-template-columns: 1fr 1fr;
+  }
+  .dash-hide-sm {
+    display: none;
+  }
+}
+
+/* Data text helpers */
+.dash-id {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 700;
+  font-size: 14px;
+  color: #000;
+}
+.dash-unit {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 700;
+  font-size: 13px;
+  color: #000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash-cell {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  color: #000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-sub {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--dash-muted);
+}
+.dash-data {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  color: #3a3a3e;
+}
+
+/* Status dot + label */
+.dash-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+}
+.dash-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #3a3a3e;
+}
+
+/* Severity chips (figma: black critical / amber major / outlined minor) */
+.dash-sev {
+  display: inline-flex;
+  align-items: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.dash-sev-critical {
+  background: #000;
+  color: #fff;
+}
+.dash-sev-major {
+  background: #fff246;
+  color: #000;
+}
+.dash-sev-minor {
+  background: transparent;
+  color: var(--dash-muted);
+  border: 1px solid #d9dadd;
+}
+
+/* Small count badge (open work orders per unit) */
+.dash-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  border: 1px solid var(--dash-border);
+  background: var(--dash-bg);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  color: var(--dash-muted);
+}
+.dash-count[data-on="true"] {
+  border-color: #000;
+  color: #000;
+}
+
+/* Filter pill (unit dropdown) */
+.dash-filter {
+  appearance: none;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: #000;
+  background: var(--dash-bg)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23000' fill='none' stroke-width='1.4'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  border: 1px solid var(--dash-border);
+  border-radius: 40px;
+  padding: 6px 30px 6px 14px;
+  cursor: pointer;
+}
+
+/* Bottom split: fleets + team */
+.dash-bottom {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+.dash-bottom > .dash-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.dash-bottom > .dash-card > .dash-foot {
+  margin-top: auto;
+}
+@media (max-width: 980px) {
+  .dash-bottom {
+    grid-template-columns: 1fr;
+  }
+}
+.dash-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--dash-line);
+  padding-top: 16px;
+  margin-top: 4px;
+}
+
+/* Team rows */
+.dash-person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dash-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  flex: none;
+  background: #e9eaed;
+  color: #000;
+}
+.dash-avatar[data-variant="me"] {
+  background: #000;
+  color: #fff546;
+}
+.dash-avatar[data-variant="accent"] {
+  background: #fff246;
+  color: #000;
+}
+.dash-person-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dash-person-name {
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+  color: #000;
+}
+.dash-person-role {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--dash-muted);
+}
+.dash-person-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+}
+.dash-person-status .dash-sub {
+  font-size: 12px;
+}
+.dash-supplier-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9a9aa0;
 }

@@ -7,6 +7,24 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { getMe } from "@/lib/api";
 
+type NavItem = { href: string; label: string; title?: string; external?: boolean };
+
+// Same navigation options as before — only the styling now mirrors the Figma nav.
+const NAV_ITEMS: NavItem[] = [
+  { href: "/landing/index.html", label: "← Landing", title: "Back to landing page", external: true },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/work", label: "Tickets" },
+  { href: "/knowledge", label: "Knowledge", title: "Browse what the copilot cites" },
+  { href: "/admin/fleet", label: "Fleet", title: "Fleet roster & historical records" },
+  { href: "/admin/parts", label: "Parts" },
+];
+
+function initials(name: string | null | undefined): string {
+  if (!name) return "RO";
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "RO";
+}
+
 export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
@@ -40,164 +58,89 @@ export function TopNav() {
     }
   }
 
-  const links = (
-    <>
+  function isActive(item: NavItem): boolean {
+    if (item.external) return false;
+    return pathname === item.href || (pathname?.startsWith(`${item.href}/`) ?? false);
+  }
+
+  const navLinks = NAV_ITEMS.map((item) => {
+    const active = isActive(item);
+    const inner = (
+      <>
+        {active && <span className="fig-nav-dot" />}
+        {item.label}
+      </>
+    );
+    return item.external ? (
       <a
-        href="/landing/index.html"
-        style={navLinkStyle(false)}
-        title="Back to landing page"
+        key={item.href}
+        href={item.href}
+        className="fig-nav-link"
+        data-active={active}
+        title={item.title}
       >
-        ← Landing
+        {inner}
       </a>
+    ) : (
       <Link
-        href="/work"
-        style={navLinkStyle(pathname?.startsWith("/work") ?? false)}
+        key={item.href}
+        href={item.href}
+        className="fig-nav-link"
+        data-active={active}
+        title={item.title}
       >
-        Tickets
+        {inner}
       </Link>
-      <Link
-        href="/knowledge"
-        style={navLinkStyle(pathname?.startsWith("/knowledge") ?? false)}
-        title="Browse what the copilot cites"
-      >
-        Knowledge
-      </Link>
-      <Link
-        href="/admin/fleet"
-        style={navLinkStyle(pathname?.startsWith("/admin/fleet") ?? false)}
-        title="Fleet roster & historical records"
-      >
-        Fleet
-      </Link>
-      <Link
-        href="/admin/parts"
-        style={navLinkStyle(pathname?.startsWith("/admin/parts") ?? false)}
-      >
-        Parts
-      </Link>
-      {(me?.name || me?.org) && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            lineHeight: 1.2,
-            paddingLeft: 8,
-            borderLeft: "1px solid var(--pale)",
-          }}
-          title={me?.email ?? undefined}
-        >
-          {me?.name && (
-            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>
-              {me.name}
-            </span>
-          )}
-          {me?.org && (
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                color: "var(--mta)",
-              }}
-            >
-              {me.org.name}
-            </span>
-          )}
-        </div>
-      )}
-      <button
-        type="button"
-        onClick={signOut}
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "var(--muted)",
-          background: "none",
-          border: "1px solid var(--border)",
-          borderRadius: 6,
-          padding: "6px 12px",
-          cursor: "pointer",
-        }}
-      >
-        Sign out
-      </button>
-    </>
-  );
+    );
+  });
 
   return (
-    <header
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 50,
-        background: "#fff",
-        borderBottom: "1px solid var(--pale)",
-      }}
-    >
-      <div
-        className="wrap"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          height: 56,
-        }}
-      >
-        <Link href="/work" className="brand">
+    <header className="fig-nav">
+      <div className="fig-nav-inner">
+        <Link href="/dashboard" className="fig-brand">
           <span className="mk">
             <i />
           </span>
           Railio
         </Link>
-        <nav
-          className="topnav-links"
-          style={{ display: "flex", gap: 24, alignItems: "center" }}
-        >
-          {links}
-        </nav>
-        <button
-          type="button"
-          aria-label={open ? "Close menu" : "Open menu"}
-          aria-expanded={open}
-          className="topnav-burger"
-          onClick={() => setOpen((v) => !v)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-      </div>
-      {open && (
-        <div className="topnav-drawer">
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-              padding: "16px 16px 20px",
-            }}
-            onClick={() => setOpen(false)}
+
+        <nav className="fig-nav-links fig-nav-links--desktop">{navLinks}</nav>
+
+        <div className="fig-nav-user">
+          {(me?.name || me?.org) && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.2 }}>
+              {me?.name && <span className="fig-user-name">{me.name}</span>}
+              {me?.org && <span className="fig-user-org">{me.org.name}</span>}
+            </div>
+          )}
+          <span className="fig-avatar" title={me?.email ?? undefined}>
+            {initials(me?.name)}
+          </span>
+          <button type="button" onClick={signOut} className="fig-signout">
+            Sign out
+          </button>
+          <button
+            type="button"
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
+            className="fig-nav-burger"
+            onClick={() => setOpen((v) => !v)}
           >
-            {links}
-          </div>
+            <span />
+            <span />
+            <span />
+          </button>
         </div>
-      )}
+      </div>
+
+      <div className={`fig-nav-drawer${open ? " is-open" : ""}`}>
+        <nav className="fig-nav-links" onClick={() => setOpen(false)}>
+          {navLinks}
+          <button type="button" onClick={signOut} className="fig-signout">
+            Sign out
+          </button>
+        </nav>
+      </div>
     </header>
   );
-}
-
-function navLinkStyle(active: boolean): React.CSSProperties {
-  return {
-    fontSize: 12,
-    fontWeight: 700,
-    textTransform: "uppercase",
-    letterSpacing: "0.06em",
-    color: active ? "var(--mta)" : "var(--ink)",
-    borderBottom: active ? "2px solid var(--mta)" : "2px solid transparent",
-    paddingBottom: 4,
-  };
 }
