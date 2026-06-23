@@ -94,9 +94,3 @@ npm run dev               # :3000
 Open `http://localhost:3000`. Verify the audit trail with `python -m scripts.verify_chain`; run an end-to-end smoke test against a running backend with `python -m scripts.e2e`.
 
 ---
-
-## Out of scope for v0
-
-- **No mobile-native client** — the data layer is multi-tenant; the React Native app belongs to v1.
-- **No FRA document generation** — Railio is the copilot conversation + corpus + parts + photos. Form auto-fill and PDF export were deliberately cut; `ticket_parts` covers parts tracking without a non-federal document.
-- **Tenants don't upload data in v0** — the admin loads each org's data via `load_org`.

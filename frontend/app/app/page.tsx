@@ -15,7 +15,7 @@ export default function AppRedirect() {
       if (!getRoleCookie()) setRoleCookie("tech");
       try {
         const me = await getMe();
-        router.replace(me.profile_completed ? "/work" : "/onboarding");
+        router.replace(me.profile_completed ? "/dashboard" : "/onboarding");
       } catch (e) {
         if (e instanceof ApiError && e.status === 409) router.replace("/onboarding");
         else router.replace("/signin");

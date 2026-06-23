@@ -48,7 +48,7 @@ export default function OnboardingPage() {
       try {
         const me = await getMe();
         if (me.profile_completed) {
-          router.replace("/work");
+          router.replace("/dashboard");
           return;
         }
         if (me.name) setName(me.name);
@@ -80,7 +80,7 @@ export default function OnboardingPage() {
         phone: phone.trim() || undefined,
         join_code: lockedCompany ? undefined : code.trim() || undefined,
       });
-      router.replace("/work");
+      router.replace("/dashboard");
     } catch (e) {
       if (e instanceof ApiError && e.status === 400) {
         setError("That join code isn't valid. Check it, or leave it blank.");

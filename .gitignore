@@ -20,6 +20,14 @@ node_modules/
 *.tsbuildinfo
 .vercel
 
+# Only frontend/ is a JS project. A package-lock.json anywhere else is a stray
+# (e.g. an accidental `npm install` in the repo root or the Python backend); it
+# makes Turbopack infer the wrong workspace root and pull the whole monorepo
+# into its cache, which freezes the dev server. Ignore lockfiles everywhere
+# except frontend/ so they can never be committed again.
+package-lock.json
+!frontend/package-lock.json
+
 # isolated admin ingestion tool — secrets + heavy outputs (the code is tracked,
 # but it must never enter the backend/frontend deploy contexts)
 railio-ingest/.env

@@ -1016,8 +1016,6 @@ button {
     rgba(244, 245, 247, 0.28) 82%,
     rgba(244, 245, 247, 0) 100%
   );
-  backdrop-filter: blur(20px) saturate(130%);
-  -webkit-backdrop-filter: blur(20px) saturate(130%);
   mask-image: linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%);
   -webkit-mask-image: linear-gradient(
     to bottom,
@@ -1045,8 +1043,6 @@ button {
   border: 1px solid rgba(255, 255, 255, 1);
   border-radius: 18px;
   box-shadow: 0 2px 8px rgba(16, 24, 40, 0.03);
-  backdrop-filter: blur(24px) saturate(135%);
-  -webkit-backdrop-filter: blur(24px) saturate(135%);
 }
 @media (max-width: 760px) {
   .fig-nav {
@@ -1178,11 +1174,9 @@ button {
   pointer-events: auto;
   position: relative;
   z-index: 1;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.97);
   border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 18px;
-  backdrop-filter: blur(24px) saturate(135%);
-  -webkit-backdrop-filter: blur(24px) saturate(135%);
   padding: 16px 24px 20px;
 }
 .fig-nav-drawer .fig-nav-links {

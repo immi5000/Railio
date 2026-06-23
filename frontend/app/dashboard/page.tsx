@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { listTickets, getMe } from "@/lib/api";
-import type { TicketStatus, Severity } from "@/lib/contract";
+import { listTickets, listAssets, getMe } from "@/lib/api";
+import type { TicketStatus, Asset, Ticket } from "@/lib/contract";
 
 // Status dot color, mirroring the Figma legend:
 // awaiting tech = amber, in progress = blue, awaiting review = gray, closed = green.
@@ -60,81 +60,44 @@ const SUPPLIERS = [
   { name: "SKF", kind: "Bearings" },
 ];
 
-// Mock data lifted directly from the Figma frame (node 91:862) so the Work
-// orders + Fleets tables show the intended UI regardless of the live backend.
-type MockWorkOrder = {
-  id: string;
-  mark: string;
-  model: string;
-  openCount: number;
-  symptom: string;
-  fault: string;
-  severity: Severity;
-  status: TicketStatus;
-  opened: string;
-};
+// No backend availability metric exists yet; the fleet-availability card shows a
+// fixed placeholder until a real health metric is wired up.
+const AVAILABILITY_PLACEHOLDER = "98.2%";
+const AVAILABILITY_TREND = "↓ 1.8%";
 
-const MOCK_WORK_ORDERS: MockWorkOrder[] = [
-  {
-    id: "#12",
-    mark: "BNSF 7670",
-    model: "ES44DC",
-    openCount: 2,
-    symptom: "random test",
-    fault: "fault TEST",
-    severity: "critical",
-    status: "AWAITING_TECH",
-    opened: "Jun 16, 5:39 PM",
-  },
-  {
-    id: "#9",
-    mark: "BNSF 7670",
-    model: "ES44DC",
-    openCount: 2,
-    symptom: "Headlight LED module flicker",
-    fault: "no fault code",
-    severity: "minor",
-    status: "CLOSED",
-    opened: "Jun 10, 2:14 PM",
-  },
-  {
-    id: "#11",
-    mark: "BNSF 7695",
-    model: "ES44DC",
-    openCount: 1,
-    symptom: "Notch 8 derate",
-    fault: "fault 7311",
-    severity: "major",
-    status: "IN_PROGRESS",
-    opened: "Jun 14, 9:02 AM",
-  },
-  {
-    id: "#10",
-    mark: "BNSF 7720",
-    model: "ES44DC",
-    openCount: 1,
-    symptom: "Cab HVAC blower intermit...",
-    fault: "no fault code",
-    severity: "minor",
-    status: "AWAITING_REVIEW",
-    opened: "Jun 12, 4:48 PM",
-  },
-];
+// Fleet status-dot palette, cycled by row so the table reads like the Figma frame.
+const FLEET_DOTS = ["#000000", "#2683eb", "#9a9aa0"];
 
-type MockFleet = {
-  unit: string;
-  dot: string;
-  model: string;
-  inService: string;
-  lastInsp: string;
-  open: number;
-};
+function unitLabel(asset: Asset): string {
+  return `${asset.reporting_mark} ${asset.road_number}`.trim();
+}
 
-const MOCK_FLEETS: MockFleet[] = [
-  { unit: "BNSF 7670", dot: "#000000", model: "ES44DC", inService: "Aug 15, 2006", lastInsp: "Apr 15, 2026", open: 2 },
-  { unit: "BNSF 7695", dot: "#2683eb", model: "ES44DC", inService: "Nov 2, 2006", lastInsp: "Apr 22, 2026", open: 1 },
-  { unit: "BNSF 7720", dot: "#9a9aa0", model: "ES44DC", inService: "Mar 9, 2007", lastInsp: "Apr 10, 2026", open: 1 },
-];
+function faultLine(t: Ticket): string {
+  const parsed = t.fault_dump_parsed?.[0]?.code?.trim();
+  if (parsed) return parsed;
+  const codes = t.initial_error_codes?.trim();
+  return codes || "no fault code";
+}
+
+const DATE_FMT = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
+const DATETIME_FMT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "—" : DATE_FMT.format(d);
+}
+
+function fmtDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "—" : DATETIME_FMT.format(d);
+}
 
 export default function DashboardPage() {
   const [unitFilter, setUnitFilter] = useState<string>("all");
@@ -145,31 +108,34 @@ export default function DashboardPage() {
     queryFn: () => listTickets(),
     refetchInterval: 15000,
   });
+  const { data: assets = [] } = useQuery({
+    queryKey: ["assets", "dashboard"],
+    queryFn: listAssets,
+    refetchInterval: 30000,
+  });
   const open = useMemo(() => tickets.filter((t) => t.status !== "CLOSED"), [tickets]);
 
-  // Work orders + Fleets render from Figma mock data (see MOCK_* above).
+  // Open-ticket count per asset, for the work-order and fleet row badges.
+  const openByAsset = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const t of open) m.set(t.asset.id, (m.get(t.asset.id) ?? 0) + 1);
+    return m;
+  }, [open]);
+
   const units = useMemo(
-    () => Array.from(new Set(MOCK_WORK_ORDERS.map((w) => w.mark))).sort(),
-    [],
+    () => Array.from(new Set(tickets.map((t) => unitLabel(t.asset)))).sort(),
+    [tickets],
   );
   const visibleWorkOrders = useMemo(
     () =>
       unitFilter === "all"
-        ? MOCK_WORK_ORDERS
-        : MOCK_WORK_ORDERS.filter((w) => w.mark === unitFilter),
-    [unitFilter],
+        ? tickets
+        : tickets.filter((t) => unitLabel(t.asset) === unitFilter),
+    [tickets, unitFilter],
   );
 
-  // Fleet-availability + critical-alert cards read from the Figma mock so they
-  // match the design (and stay consistent with the mocked work orders/fleets).
-  const mockAvailability = "98.2%";
-  const mockTrend = "↓ 1.8%";
-  const mockOpenWorkOrders = MOCK_WORK_ORDERS.filter((w) => w.status !== "CLOSED");
-  const mockAlert =
-    mockOpenWorkOrders.find((w) => w.severity === "critical") ?? null;
-  const mockCriticalCount = mockOpenWorkOrders.filter(
-    (w) => w.severity === "critical",
-  ).length;
+  const alert = open.find((t) => t.severity === "critical") ?? null;
+  const criticalCount = open.filter((t) => t.severity === "critical").length;
 
   const firstName = me?.name?.split(/\s+/)[0] || "there";
 
@@ -210,37 +176,37 @@ export default function DashboardPage() {
           <div className="dash-card dash-stat dash-stat--avail">
             <div className="dash-stat-col">
               <span className="dash-stat-label">Fleet availability</span>
-              <span className="dash-stat-value">{mockAvailability}</span>
+              <span className="dash-stat-value">{AVAILABILITY_PLACEHOLDER}</span>
             </div>
             <div className="dash-stat-side">
               <span className="dash-stat-flake" aria-hidden="true">
                 <SnowflakeIcon />
               </span>
-              <span className="dash-trend">{mockTrend}</span>
+              <span className="dash-trend">{AVAILABILITY_TREND}</span>
             </div>
           </div>
 
           {/* Critical alert */}
           <div className="dash-card dash-stat dash-stat--alert">
             <div className="dash-stat-toprow">
-              <span className="dash-alert-badge" data-clear={!mockAlert}>
-                {mockAlert ? "CRITICAL" : "ALL CLEAR"}
+              <span className="dash-alert-badge" data-clear={!alert}>
+                {alert ? "CRITICAL" : "ALL CLEAR"}
               </span>
-              {mockAlert && (
-                <Link href="/work" className="dash-link">
+              {alert && (
+                <Link href={`/work?ticket=${alert.id}`} className="dash-link">
                   View →
                 </Link>
               )}
             </div>
             <div>
               <p className="dash-alert-title">
-                {mockAlert
-                  ? `${mockCriticalCount} unit${mockCriticalCount > 1 ? "s" : ""} need${mockCriticalCount > 1 ? "" : "s"} immediate attention`
+                {alert
+                  ? `${criticalCount} unit${criticalCount > 1 ? "s" : ""} need${criticalCount > 1 ? "" : "s"} immediate attention`
                   : "No units need attention"}
               </p>
               <p className="dash-sub" style={{ marginTop: 8 }}>
-                {mockAlert
-                  ? `${mockAlert.mark} · ${mockAlert.model} · ${mockAlert.fault}`
+                {alert
+                  ? `${unitLabel(alert.asset)} · ${alert.asset.unit_model} · ${faultLine(alert)}`
                   : "All locomotives are operating normally."}
               </p>
             </div>
@@ -260,7 +226,9 @@ export default function DashboardPage() {
           >
             <div>
               <h2 className="dash-section-title">Work orders</h2>
-              <p className="dash-section-sub">4 total · 3 open</p>
+              <p className="dash-section-sub">
+                {tickets.length} total · {open.length} open
+              </p>
             </div>
             <select
               className="dash-filter"
@@ -294,48 +262,56 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {visibleWorkOrders.map((w) => (
-              <Link key={w.id} href="/work" className="dash-row dash-wo dash-row--click">
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span className="dash-id">{w.id}</span>
-                  <span className="dash-unit">
-                    {w.mark} · {w.model}
-                  </span>
-                  {w.openCount > 0 && (
-                    <span className="dash-count" data-on={w.openCount > 1}>
-                      {w.openCount}
+            {visibleWorkOrders.map((t) => {
+              const openCount = openByAsset.get(t.asset.id) ?? 0;
+              const symptom = t.title || t.initial_symptoms || "—";
+              return (
+                <Link
+                  key={t.id}
+                  href={`/work?ticket=${t.id}`}
+                  className="dash-row dash-wo dash-row--click"
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span className="dash-id">#{t.short_id || t.id}</span>
+                    <span className="dash-unit">
+                      {unitLabel(t.asset)} · {t.asset.unit_model}
                     </span>
-                  )}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <p className="dash-cell" style={{ margin: 0 }}>
-                    {w.symptom}
-                  </p>
-                  <p className="dash-sub" style={{ margin: "3px 0 0" }}>
-                    {w.fault}
-                  </p>
-                </div>
-                <div>
-                  <span className={`dash-sev dash-sev-${w.severity}`}>
-                    {w.severity.toUpperCase()}
-                  </span>
-                </div>
-                <div className="dash-hide-sm">
-                  <span className="dash-status">
-                    <span
-                      className="dash-dot"
-                      style={{ background: STATUS_DOT[w.status] }}
-                    />
-                    {STATUS_LABEL[w.status]}
-                  </span>
-                </div>
-                <div className="dash-hide-sm">
-                  <span className="dash-sub" style={{ display: "block", textAlign: "right" }}>
-                    {w.opened}
-                  </span>
-                </div>
-              </Link>
-            ))}
+                    {openCount > 0 && (
+                      <span className="dash-count" data-on={openCount > 1}>
+                        {openCount}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p className="dash-cell" style={{ margin: 0 }}>
+                      {symptom}
+                    </p>
+                    <p className="dash-sub" style={{ margin: "3px 0 0" }}>
+                      {faultLine(t)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className={`dash-sev dash-sev-${t.severity}`}>
+                      {t.severity.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="dash-hide-sm">
+                    <span className="dash-status">
+                      <span
+                        className="dash-dot"
+                        style={{ background: STATUS_DOT[t.status] }}
+                      />
+                      {STATUS_LABEL[t.status]}
+                    </span>
+                  </div>
+                  <div className="dash-hide-sm">
+                    <span className="dash-sub" style={{ display: "block", textAlign: "right" }}>
+                      {fmtDateTime(t.opened_at)}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </section>
 
@@ -345,7 +321,7 @@ export default function DashboardPage() {
           <div className="dash-card" style={{ padding: "22px 28px" }}>
             <h2 className="dash-section-title">Fleets</h2>
             <p className="dash-section-sub" style={{ marginBottom: 8 }}>
-              3 locomotives · ES44DC fleet · GEVO 12-cyl
+              {assets.length} locomotive{assets.length === 1 ? "" : "s"}
             </p>
 
             <div className="dash-table">
@@ -359,31 +335,43 @@ export default function DashboardPage() {
                 </span>
               </div>
 
-              {MOCK_FLEETS.map((f) => (
-                <Link
-                  key={f.unit}
-                  href="/admin/fleet"
-                  className="dash-row dash-fleet dash-row--click"
-                >
-                  <span className="dash-status" style={{ color: "#000" }}>
-                    <span className="dash-dot" style={{ background: f.dot }} />
-                    <span className="dash-unit">{f.unit}</span>
-                  </span>
-                  <span className="dash-data">{f.model}</span>
-                  <span className="dash-data dash-hide-sm">{f.inService}</span>
-                  <span className="dash-data dash-hide-sm">{f.lastInsp}</span>
-                  <span style={{ textAlign: "right" }}>
-                    <span className="dash-count" data-on={f.open > 1}>
-                      {f.open}
+              {assets.length === 0 && (
+                <div className="dash-row dash-fleet">
+                  <span className="dash-sub">No locomotives.</span>
+                </div>
+              )}
+
+              {assets.map((a, i) => {
+                const openCount = openByAsset.get(a.id) ?? 0;
+                return (
+                  <Link
+                    key={a.id}
+                    href="/admin/fleet"
+                    className="dash-row dash-fleet dash-row--click"
+                  >
+                    <span className="dash-status" style={{ color: "#000" }}>
+                      <span
+                        className="dash-dot"
+                        style={{ background: FLEET_DOTS[i % FLEET_DOTS.length] }}
+                      />
+                      <span className="dash-unit">{unitLabel(a)}</span>
                     </span>
-                  </span>
-                </Link>
-              ))}
+                    <span className="dash-data">{a.unit_model}</span>
+                    <span className="dash-data dash-hide-sm">{fmtDate(a.in_service_date)}</span>
+                    <span className="dash-data dash-hide-sm">{fmtDate(a.last_inspection_at)}</span>
+                    <span style={{ textAlign: "right" }}>
+                      <span className="dash-count" data-on={openCount > 1}>
+                        {openCount}
+                      </span>
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
 
             <div className="dash-foot">
               <span className="dash-sub">
-                Fleet availability 98.2% · next PM due Apr 28, 2026
+                Fleet availability {AVAILABILITY_PLACEHOLDER}
               </span>
               <Link href="/admin/fleet" className="dash-link">
                 All fleets →

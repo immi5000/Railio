@@ -1,0 +1,125 @@
+- generic [active] [ref=e1]:
+  - banner:
+    - generic [ref=e2]:
+      - link "Railio" [ref=e3] [cursor=pointer]:
+        - /url: /dashboard
+        - text: Railio
+      - navigation [ref=e4]:
+        - link "← Landing" [ref=e5] [cursor=pointer]:
+          - /url: /landing/index.html
+        - link "Dashboard" [ref=e6] [cursor=pointer]:
+          - /url: /dashboard
+          - text: Dashboard
+        - link "Tickets" [ref=e8] [cursor=pointer]:
+          - /url: /work
+        - link "Knowledge" [ref=e9] [cursor=pointer]:
+          - /url: /knowledge
+        - link "Fleet" [ref=e10] [cursor=pointer]:
+          - /url: /admin/fleet
+        - link "Parts" [ref=e11] [cursor=pointer]:
+          - /url: /admin/parts
+      - generic [ref=e12]:
+        - generic [ref=e13]: RO
+        - button "Sign out" [ref=e14] [cursor=pointer]
+  - main [ref=e15]:
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - heading "Good evening, there" [level=1] [ref=e19]
+        - paragraph [ref=e20]: Your fleet status and open work orders are ready to review.
+      - generic [ref=e21]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: Open work orders
+          - generic [ref=e25]: "00"
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - generic [ref=e29]: Fleet availability
+            - generic [ref=e30]: 98.2%
+          - generic [ref=e31]:
+            - img [ref=e33]
+            - generic [ref=e36]: ↓ 1.8%
+        - generic [ref=e37]:
+          - generic [ref=e39]: ALL CLEAR
+          - generic [ref=e40]:
+            - paragraph [ref=e41]: No units need attention
+            - paragraph [ref=e42]: All locomotives are operating normally.
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - generic [ref=e45]:
+            - heading "Work orders" [level=2] [ref=e46]
+            - paragraph [ref=e47]: 0 total · 0 open
+          - combobox "Filter by locomotive" [ref=e48] [cursor=pointer]:
+            - option "Locomotive" [selected]
+        - generic [ref=e49]:
+          - generic [ref=e50]:
+            - generic [ref=e51]: Work order
+            - generic [ref=e52]: Symptoms / fault
+            - generic [ref=e53]: Severity
+            - generic [ref=e54]: Status
+            - generic [ref=e55]: Opened
+          - generic [ref=e57]: No work orders.
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - heading "Fleets" [level=2] [ref=e60]
+          - paragraph [ref=e61]: 0 locomotives
+          - generic [ref=e62]:
+            - generic [ref=e63]:
+              - generic [ref=e64]: Unit
+              - generic [ref=e65]: Model
+              - generic [ref=e66]: In service
+              - generic [ref=e67]: Last insp.
+              - generic [ref=e68]: Open
+            - generic [ref=e70]: No locomotives.
+          - generic [ref=e71]:
+            - generic [ref=e72]: Fleet availability 98.2%
+            - link "All fleets →" [ref=e73] [cursor=pointer]:
+              - /url: /admin/fleet
+        - generic [ref=e74]:
+          - heading "Team & contacts" [level=2] [ref=e75]
+          - paragraph [ref=e76]: 5 people · 3 suppliers
+          - generic [ref=e77]:
+            - generic [ref=e78]:
+              - generic [ref=e79]:
+                - generic [ref=e80]: "Y"
+                - generic [ref=e81]:
+                  - generic [ref=e82]: You
+                  - generic [ref=e83]: Dispatcher
+              - generic [ref=e85]: in
+            - generic [ref=e87]:
+              - generic [ref=e88]:
+                - generic [ref=e89]: B
+                - generic [ref=e90]:
+                  - generic [ref=e91]: Bob
+                  - generic [ref=e92]: Technician · 1st shift
+              - generic [ref=e94]: in
+            - generic [ref=e96]:
+              - generic [ref=e97]:
+                - generic [ref=e98]: J
+                - generic [ref=e99]:
+                  - generic [ref=e100]: John
+                  - generic [ref=e101]: Technician · 2nd shift
+              - generic [ref=e103]: out
+            - generic [ref=e105]:
+              - generic [ref=e106]:
+                - generic [ref=e107]: A
+                - generic [ref=e108]:
+                  - generic [ref=e109]: Akshay
+                  - generic [ref=e110]: Technician · 3rd shift
+              - generic [ref=e112]: out
+            - generic [ref=e114]:
+              - generic [ref=e115]:
+                - generic [ref=e116]: D
+                - generic [ref=e117]:
+                  - generic [ref=e118]: Devan
+                  - generic [ref=e119]: Technician · swing
+              - generic [ref=e121]: in
+          - generic [ref=e123]:
+            - generic [ref=e124]: SUPPLIER CONTACTS
+            - generic [ref=e125]:
+              - generic [ref=e126]: GE Transportation
+              - generic [ref=e127]: Parts supplier
+            - generic [ref=e128]:
+              - generic [ref=e129]: Wabtec
+              - generic [ref=e130]: Brake systems
+            - generic [ref=e131]:
+              - generic [ref=e132]: SKF
+              - generic [ref=e133]: Bearings
