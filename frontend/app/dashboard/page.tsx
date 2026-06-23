@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { listTickets, listAssets, getMe } from "@/lib/api";
+import { listTickets, listAssets, getMe, listOrgMembers } from "@/lib/api";
 import type { TicketStatus, Asset, Ticket } from "@/lib/contract";
 
 // Status dot color, mirroring the Figma legend:
@@ -44,26 +44,6 @@ function SnowflakeIcon() {
     </svg>
   );
 }
-
-// The technician roster has no backend yet, so it is derived from the known
-// shift crew. The signed-in dispatcher is prepended from /api/me.
-const CREW = [
-  { name: "Bob", role: "Technician · 1st shift", in: true },
-  { name: "John", role: "Technician · 2nd shift", in: false },
-  { name: "Akshay", role: "Technician · 3rd shift", in: false },
-  { name: "Devan", role: "Technician · swing", in: true },
-];
-
-const SUPPLIERS = [
-  { name: "GE Transportation", kind: "Parts supplier" },
-  { name: "Wabtec", kind: "Brake systems" },
-  { name: "SKF", kind: "Bearings" },
-];
-
-// No backend availability metric exists yet; the fleet-availability card shows a
-// fixed placeholder until a real health metric is wired up.
-const AVAILABILITY_PLACEHOLDER = "98.2%";
-const AVAILABILITY_TREND = "↓ 1.8%";
 
 // Fleet status-dot palette, cycled by row so the table reads like the Figma frame.
 const FLEET_DOTS = ["#000000", "#2683eb", "#9a9aa0"];
@@ -113,6 +93,11 @@ export default function DashboardPage() {
     queryFn: listAssets,
     refetchInterval: 30000,
   });
+  const { data: members = [] } = useQuery({
+    queryKey: ["org-members"],
+    queryFn: listOrgMembers,
+    retry: false,
+  });
   const open = useMemo(() => tickets.filter((t) => t.status !== "CLOSED"), [tickets]);
 
   // Open-ticket count per asset, for the work-order and fleet row badges.
@@ -137,14 +122,38 @@ export default function DashboardPage() {
   const alert = open.find((t) => t.severity === "critical") ?? null;
   const criticalCount = open.filter((t) => t.severity === "critical").length;
 
+  // Fleet availability = (total units − units with an OPEN critical ticket) / total.
+  // Iterate assets (not the id-set) so `down` can never exceed `total`.
+  const criticalAssetIds = useMemo(() => {
+    const s = new Set<number>();
+    for (const t of open) if (t.severity === "critical") s.add(t.asset.id);
+    return s;
+  }, [open]);
+  const downCount = useMemo(
+    () => assets.filter((a) => criticalAssetIds.has(a.id)).length,
+    [assets, criticalAssetIds],
+  );
+  const availLabel = assets.length
+    ? `${(((assets.length - downCount) / assets.length) * 100).toFixed(1)}%`
+    : "—";
+
   const firstName = me?.name?.split(/\s+/)[0] || "there";
 
-  const people = [
-    me?.name
-      ? { name: me.name, role: "Dispatcher", in: true, me: true }
-      : { name: "You", role: "Dispatcher", in: true, me: true },
-    ...CREW.map((c) => ({ ...c, me: false })),
-  ];
+  // Team roster = real onboarded org members, the signed-in user first. There is
+  // no role/shift field on app_users, so the secondary line is the email. The
+  // signed-in user is "in" (green); everyone else is "out".
+  const people = useMemo(
+    () =>
+      [...members]
+        .sort((a, b) => Number(b.is_self) - Number(a.is_self))
+        .map((m) => ({
+          name: m.name || m.email,
+          role: m.email,
+          in: m.is_self,
+          me: m.is_self,
+        })),
+    [members],
+  );
 
   return (
     <div className="dash">
@@ -176,13 +185,12 @@ export default function DashboardPage() {
           <div className="dash-card dash-stat dash-stat--avail">
             <div className="dash-stat-col">
               <span className="dash-stat-label">Fleet availability</span>
-              <span className="dash-stat-value">{AVAILABILITY_PLACEHOLDER}</span>
+              <span className="dash-stat-value">{availLabel}</span>
             </div>
             <div className="dash-stat-side">
               <span className="dash-stat-flake" aria-hidden="true">
                 <SnowflakeIcon />
               </span>
-              <span className="dash-trend">{AVAILABILITY_TREND}</span>
             </div>
           </div>
 
@@ -371,7 +379,7 @@ export default function DashboardPage() {
 
             <div className="dash-foot">
               <span className="dash-sub">
-                Fleet availability {AVAILABILITY_PLACEHOLDER}
+                Fleet availability {availLabel}
               </span>
               <Link href="/admin/fleet" className="dash-link">
                 All fleets →
@@ -383,7 +391,7 @@ export default function DashboardPage() {
           <div className="dash-card" style={{ padding: "20px 28px" }}>
             <h2 className="dash-section-title">Team &amp; contacts</h2>
             <p className="dash-section-sub" style={{ marginBottom: 18 }}>
-              {people.length} people · {SUPPLIERS.length} suppliers
+              {people.length} {people.length === 1 ? "person" : "people"}
             </p>
 
             <div
@@ -395,7 +403,7 @@ export default function DashboardPage() {
               }}
             >
               {people.map((p, i) => {
-                const variant = p.me ? "me" : i === 1 ? "accent" : "default";
+                const variant = p.me ? "me" : "default";
                 return (
                   <div className="dash-person" key={`${p.name}-${i}`}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -424,27 +432,7 @@ export default function DashboardPage() {
               style={{ flexDirection: "column", alignItems: "stretch", gap: 12 }}
             >
               <span className="dash-supplier-label">SUPPLIER CONTACTS</span>
-              {SUPPLIERS.map((s) => (
-                <div
-                  key={s.name}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-end",
-                    justifyContent: "space-between",
-                    gap: 12,
-                  }}
-                >
-                  <span
-                    className="dash-mono"
-                    style={{ fontWeight: 700, fontSize: 13, color: "#000" }}
-                  >
-                    {s.name}
-                  </span>
-                  <span className="dash-sub" style={{ textAlign: "right" }}>
-                    {s.kind}
-                  </span>
-                </div>
-              ))}
+              <span className="dash-sub">None yet</span>
             </div>
           </div>
         </section>

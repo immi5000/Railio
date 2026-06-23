@@ -5,11 +5,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
-from ..contract import OnboardingBody
-from ..org_context import get_current_user
+from ..contract import OnboardingBody, Organization
+from ..org_context import get_current_org, get_current_user
 from ..organizations_repo import (
     finalize_onboarding,
     get_org_by_id,
+    list_org_members,
     org_name_for_domain,
 )
 from ..posthog_client import get_posthog
@@ -35,6 +36,25 @@ async def get_me(user: dict = Depends(get_current_user)) -> JSONResponse:
             "org": org.model_dump() if org else None,
             "locked_company": locked,
         }
+    )
+
+
+@router.get("/org/members")
+async def get_org_members(
+    org: Organization = Depends(get_current_org),
+    user: dict = Depends(get_current_user),
+) -> JSONResponse:
+    members = await list_org_members(org.id)
+    return JSONResponse(
+        [
+            {
+                "id": m["id"],
+                "name": m["name"],
+                "email": m["email"],
+                "is_self": m["id"] == user["id"],
+            }
+            for m in members
+        ]
     )
 
 

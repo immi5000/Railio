@@ -40,6 +40,13 @@ class MeResponse(BaseModel):
     locked_company: Optional[str] = None
 
 
+class OrgMember(BaseModel):
+    id: int
+    name: Optional[str] = None
+    email: str
+    is_self: bool
+
+
 class Asset(BaseModel):
     id: int
     org_id: int

@@ -113,6 +113,13 @@ export type MeResponse = {
   locked_company: string | null;
 };
 
+export type OrgMember = {
+  id: number;
+  name: string | null;
+  email: string;
+  is_self: boolean;
+};
+
 export type Asset = {
   id: number;
   org_id: number;

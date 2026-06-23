@@ -27,6 +27,25 @@ async def list_organizations() -> list[Organization]:
     return [Organization(**r) for r in rows]
 
 
+async def list_org_members(org_id: int) -> list[dict]:
+    """Onboarded users belonging to an org, for the dashboard team roster."""
+    async with session_scope() as session:
+        rows = (
+            await session.execute(
+                text(
+                    """
+                    SELECT id, name, email
+                    FROM app_users
+                    WHERE org_id = :org AND profile_completed = true
+                    ORDER BY name NULLS LAST, email
+                    """
+                ),
+                {"org": org_id},
+            )
+        ).mappings().all()
+    return [dict(r) for r in rows]
+
+
 async def get_org_by_id(org_id: int) -> Optional[Organization]:
     async with session_scope() as session:
         row = (

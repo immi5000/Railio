@@ -25,6 +25,7 @@ import type {
   Organization,
   OnboardingBody,
   MeResponse,
+  OrgMember,
 } from "./contract";
 
 export const API_BASE =
@@ -315,6 +316,11 @@ export async function listKnowledgeModels(): Promise<KnowledgeModel[]> {
 // === Users / onboarding ===
 export async function getMe(): Promise<MeResponse> {
   return jsonFetch<MeResponse>(`/api/me`);
+}
+
+/** Onboarded users in the caller's org — drives the dashboard team roster. */
+export async function listOrgMembers(): Promise<OrgMember[]> {
+  return jsonFetch<OrgMember[]>(`/api/org/members`);
 }
 
 export async function completeOnboarding(
