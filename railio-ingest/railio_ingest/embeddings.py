@@ -7,6 +7,7 @@ from __future__ import annotations
 from openai import OpenAI
 
 from .config import get_settings
+from .retry import with_retries
 
 _BATCH = 96
 
@@ -23,7 +24,12 @@ def embed_documents(texts: list[str]) -> list[list[float]]:
     out: list[list[float]] = []
     for i in range(0, len(texts), _BATCH):
         batch = texts[i : i + _BATCH]
-        r = client.embeddings.create(model=model, input=batch, dimensions=1024)
+        r = with_retries(
+            lambda b=batch: client.embeddings.create(
+                model=model, input=b, dimensions=1024
+            ),
+            what="embeddings",
+        )
         out.extend(list(d.embedding) for d in r.data)
     return out
 

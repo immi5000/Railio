@@ -85,17 +85,26 @@ async def _write_to_db(
     await db.run_migration()
     print("✓ schema ensured (models, documents, corpus_chunks additions, trgm index)")
 
-    if not await db.model_exists(args.model):
-        if not args.yes:
-            ans = input(
-                f'Model "{args.model}" does not exist. Create it? [y/N] '
-            ).strip().lower()
-            if ans != "y":
-                sys.exit("Aborted — model not created.")
-        print(f'• creating model "{args.model}"')
-    model_id = await db.resolve_model(args.model, args.oem, now)
+    models = args.models
+    primary = models[0]
+    model_id = None
+    for m in models:
+        if not await db.model_exists(m):
+            if not args.yes:
+                ans = input(
+                    f'Model "{m}" does not exist. Create it? [y/N] '
+                ).strip().lower()
+                if ans != "y":
+                    sys.exit("Aborted — model not created.")
+            print(f'• creating model "{m}"')
+        # Ensure every tagged model has a row so both appear in the add-asset
+        # dropdown; the document/chunk model_id FK uses the primary (first) model.
+        mid = await db.resolve_model(m, args.oem, now)
+        if m == primary:
+            model_id = mid
 
-    unit_model = args.model
+    unit_model = primary
+    unit_models = models
     # Upload the source PDF so the website can deep-link to the original doc at a
     # page. Stored under a stable per-doc key; upsert makes re-runs idempotent.
     pdf_key = f"manuals/{args.doc_id}/source.pdf"
@@ -107,6 +116,7 @@ async def _write_to_db(
         doc_title=args.doc_title,
         doc_class="manual",
         unit_model=unit_model,
+        unit_models=unit_models,
         page_count=len(chunks),
         now=now,
         pdf_path=pdf_key,
@@ -133,6 +143,7 @@ async def _write_to_db(
                 "pdf_page": c.pdf_page,
                 "text": c.text,
                 "unit_model": unit_model,
+                "unit_models": unit_models,
                 "embedding": embeddings.to_vector_literal(vec),
                 "document_id": document_id,
                 "model_id": model_id,
@@ -143,14 +154,23 @@ async def _write_to_db(
     total_figs = sum(len(c.figures) for c in chunks)
     print(
         f"✓ wrote {n} chunk(s) + {total_figs} figure(s) to prod as "
-        f"model='{args.model}' (org_id=NULL, shared)."
+        f"models={models} (org_id=NULL, shared)."
     )
 
 
 def main() -> None:
     p = argparse.ArgumentParser(prog="railio_ingest.extract")
     p.add_argument("--pdf", required=True)
-    p.add_argument("--model", required=True, help='model_code, e.g. "EMD SD60"')
+    p.add_argument(
+        "--model",
+        required=True,
+        action="append",
+        dest="models",
+        metavar="MODEL",
+        help='model_code, e.g. "EMD SD60". Repeat to tag one manual to several '
+        'models, e.g. --model "EMD GP38-2" --model "EMD SD38-2". The first is '
+        "the primary (used for the legacy scalar unit_model + documents FK).",
+    )
     p.add_argument("--doc-id", required=True)
     p.add_argument("--doc-title", required=True)
     p.add_argument("--oem", default=None, help="OEM name (stored on a new model row)")
@@ -176,7 +196,7 @@ def main() -> None:
     else:
         writer = _bucket_figure_writer()
 
-    print(f"Extracting {pdf.name} → model '{args.model}' (doc_id={args.doc_id})")
+    print(f"Extracting {pdf.name} → models {args.models} (doc_id={args.doc_id})")
     chunks = extract(
         str(pdf),
         doc_id=args.doc_id,
@@ -198,10 +218,16 @@ def main() -> None:
         print(f"✓ DRY RUN — artifacts in {out_dir} (chunks.json + figures/). No DB/storage writes.")
         return
 
-    try:
-        asyncio.run(_write_to_db(args, chunks))
-    finally:
-        asyncio.run(db.close_engine())
+    # Dispose the engine in the SAME event loop that created the asyncpg
+    # connections — a second asyncio.run() would close them from a fresh loop and
+    # raise "Event loop is closed" on Python 3.14 during teardown.
+    async def _run() -> None:
+        try:
+            await _write_to_db(args, chunks)
+        finally:
+            await db.close_engine()
+
+    asyncio.run(_run())
 
 
 if __name__ == "__main__":

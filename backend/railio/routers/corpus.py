@@ -130,16 +130,26 @@ async def list_models(
         ).first() is not None
 
         if has_models:
+            # A multi-model manual's chunks carry the primary model_id but tag
+            # every model in unit_models[], so count both ways when that column
+            # exists — else the shared manual would only show under its primary.
+            if await _has_column(session, "corpus_chunks", "unit_models"):
+                join_on = (
+                    "c.model_id = m.id "
+                    "OR (c.unit_models IS NOT NULL AND m.model_code = ANY(c.unit_models))"
+                )
+            else:
+                join_on = "c.model_id = m.id"
             rows = (
                 await session.execute(
                     text(
-                        """
+                        f"""
                         SELECT m.model_code, m.oem,
                                COUNT(c.id) FILTER (
                                  WHERE c.org_id = :org OR c.org_id IS NULL
                                ) AS chunk_count
                         FROM models m
-                        LEFT JOIN corpus_chunks c ON c.model_id = m.id
+                        LEFT JOIN corpus_chunks c ON {join_on}
                         GROUP BY m.model_code, m.oem
                         ORDER BY m.model_code
                         """
@@ -226,16 +236,31 @@ async def list_documents(
         )
         if not pdf:
             pdf_select = ", NULL AS pdf_path, NULL AS page_count"
+        # A manual tagged to several models should appear once per model in the
+        # library. CROSS JOIN LATERAL unnest(unit_models[]) (falling back to the
+        # scalar when no array) yields an "effective model" we group on, so e.g.
+        # the shared 645E manual lists under both GP38-2 and SD38-2.
+        if await _has_column(session, "corpus_chunks", "unit_models"):
+            model_join = (
+                " CROSS JOIN LATERAL unnest("
+                "COALESCE(NULLIF(c.unit_models, '{}'), ARRAY[c.unit_model])"
+                ") AS um(unit_model)"
+            )
+            model_col = "um.unit_model"
+        else:
+            model_join = ""
+            model_col = "c.unit_model"
         rows = (
             await session.execute(
                 text(
                     f"""
-                    SELECT c.doc_class, c.doc_id, c.doc_title, c.unit_model,
+                    SELECT c.doc_class, c.doc_id, c.doc_title,
+                           {model_col} AS unit_model,
                            COUNT(*) AS chunk_count{pdf_select}
-                    FROM corpus_chunks c {pdf_join}
+                    FROM corpus_chunks c {pdf_join}{model_join}
                     WHERE (c.org_id = :org OR c.org_id IS NULL)
-                    GROUP BY c.doc_class, c.doc_id, c.doc_title, c.unit_model
-                    ORDER BY c.doc_class, c.unit_model NULLS FIRST, c.doc_title
+                    GROUP BY c.doc_class, c.doc_id, c.doc_title, {model_col}
+                    ORDER BY c.doc_class, {model_col} NULLS FIRST, c.doc_title
                     """
                 ),
                 {"org": org.id},

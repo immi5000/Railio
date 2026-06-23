@@ -66,6 +66,27 @@ python -m railio_ingest.extract \
   --oem "Electro-Motive Division"
 ```
 
+### One manual, several models
+
+If a manual covers more than one model (e.g. a 645E engine manual used by both
+the GP38-2 and SD38-2), pass `--model` **once per model** — the manual is
+ingested **once** and retrievable from tickets on any of them:
+
+```bash
+python -m railio_ingest.extract \
+  --pdf ./645E_Blower.pdf \
+  --model "EMD GP38-2" --model "EMD SD38-2" \
+  --doc-id emd_645e_engine_blower \
+  --doc-title "EMD 645E Engine & Blower Manual" \
+  --oem "Electro-Motive Division"
+```
+
+The first `--model` is the **primary** (it backs the legacy scalar `unit_model`
+and the `documents`/`corpus_chunks` `model_id`); the full set is stored in
+`corpus_chunks.unit_models[]`. Retrieval matches a ticket's model against that
+array, so the manual surfaces under every model you list. A single `--model`
+behaves exactly as before.
+
 Re-running the same `--doc-id` **replaces** that document's chunks (scoped
 delete + reinsert); other docs/models/orgs are untouched. The real write also
 uploads the source PDF to `manuals/<doc_id>/source.pdf` and records it on

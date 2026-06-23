@@ -21,6 +21,7 @@ from typing import Any, Optional
 from openai import OpenAI
 
 from .config import get_settings
+from .retry import with_retries
 
 
 def _client() -> OpenAI:
@@ -69,20 +70,23 @@ def analyze_page_figures(
             f"[x0,y0,x1,y1]); use them as hints, refine/merge/reject as needed: "
             f"{json.dumps(candidate_boxes)}"
         )
-    r = _client().chat.completions.create(
-        model=get_settings().vision_model,
-        temperature=0,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": _FIGURE_SYS},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Extract figures from this page." + hint},
-                    _img_part(page_png),
-                ],
-            },
-        ],
+    r = with_retries(
+        lambda: _client().chat.completions.create(
+            model=get_settings().vision_model,
+            temperature=0,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _FIGURE_SYS},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Extract figures from this page." + hint},
+                        _img_part(page_png),
+                    ],
+                },
+            ],
+        ),
+        what="figure analysis",
     )
     content = r.choices[0].message.content or "{}"
     try:
@@ -137,20 +141,23 @@ _OCR_SYS = (
 
 
 def transcribe_page(page_png: bytes) -> str:
-    r = _client().chat.completions.create(
-        model=get_settings().vision_model,
-        temperature=0,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": _OCR_SYS},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Transcribe this page."},
-                    _img_part(page_png),
-                ],
-            },
-        ],
+    r = with_retries(
+        lambda: _client().chat.completions.create(
+            model=get_settings().vision_model,
+            temperature=0,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _OCR_SYS},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Transcribe this page."},
+                        _img_part(page_png),
+                    ],
+                },
+            ],
+        ),
+        what="page OCR",
     )
     content = r.choices[0].message.content or "{}"
     try:

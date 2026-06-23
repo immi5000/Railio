@@ -109,6 +109,15 @@ ALTER TABLE corpus_chunks ADD COLUMN IF NOT EXISTS figures JSONB;
 -- deep-link target for a chunk.
 ALTER TABLE corpus_chunks ADD COLUMN IF NOT EXISTS pdf_page INTEGER;
 
+-- Multi-model tagging: a manual shared by several models (e.g. the 645E engine
+-- manual on both GP38-2 and SD38-2). NULL/empty ⇒ fall back to the scalar
+-- unit_model (CFR NULL = shared-all; single-model = exact). Additive, no migration.
+ALTER TABLE corpus_chunks ADD COLUMN IF NOT EXISTS unit_models TEXT[];
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS unit_models TEXT[];
+
+CREATE INDEX IF NOT EXISTS idx_corpus_chunks_unit_models
+    ON corpus_chunks USING gin (unit_models);
+
 CREATE INDEX IF NOT EXISTS idx_corpus_chunks_text_trgm
     ON corpus_chunks USING gin (text gin_trgm_ops);
 
@@ -178,6 +187,7 @@ async def upsert_document(
     page_count: int,
     now: str,
     pdf_path: Optional[str] = None,
+    unit_models: Optional[list[str]] = None,
 ) -> int:
     """Upsert the documents row for (model_id, doc_id); return its id."""
     async with session_scope() as s:
@@ -187,14 +197,15 @@ async def upsert_document(
                     """
                     INSERT INTO documents
                         (org_id, model_id, doc_id, doc_title, doc_class,
-                         unit_model, page_count, pdf_path, created_at)
+                         unit_model, unit_models, page_count, pdf_path, created_at)
                     VALUES
                         (NULL, :model_id, :doc_id, :doc_title, :doc_class,
-                         :unit_model, :page_count, :pdf_path, :now)
+                         :unit_model, :unit_models, :page_count, :pdf_path, :now)
                     ON CONFLICT (model_id, doc_id) DO UPDATE SET
                         doc_title = EXCLUDED.doc_title,
                         doc_class = EXCLUDED.doc_class,
                         unit_model = EXCLUDED.unit_model,
+                        unit_models = EXCLUDED.unit_models,
                         page_count = EXCLUDED.page_count,
                         pdf_path = EXCLUDED.pdf_path
                     RETURNING id
@@ -206,6 +217,7 @@ async def upsert_document(
                     "doc_title": doc_title,
                     "doc_class": doc_class,
                     "unit_model": unit_model,
+                    "unit_models": unit_models,
                     "page_count": page_count,
                     "pdf_path": pdf_path,
                     "now": now,
@@ -306,11 +318,11 @@ async def insert_chunks(rows: list[dict[str, Any]]) -> int:
                     """
                     INSERT INTO corpus_chunks
                         (doc_class, doc_id, doc_title, source_label, page, pdf_page,
-                         text, org_id, unit_model, asset_id, embedding,
+                         text, org_id, unit_model, unit_models, asset_id, embedding,
                          document_id, model_id, figures)
                     VALUES
                         (:doc_class, :doc_id, :doc_title, :source_label, :page, :pdf_page,
-                         :text, NULL, :unit_model, NULL, CAST(:embedding AS vector),
+                         :text, NULL, :unit_model, :unit_models, NULL, CAST(:embedding AS vector),
                          :document_id, :model_id, CAST(:figures AS jsonb))
                     """
                 ),

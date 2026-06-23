@@ -14,6 +14,7 @@ from typing import Any, Optional
 from sqlalchemy import text
 
 _has_figures: Optional[bool] = None
+_has_unit_models: Optional[bool] = None
 
 
 async def figures_supported(session: Any) -> bool:
@@ -29,6 +30,25 @@ async def figures_supported(session: Any) -> bool:
         ).first()
         _has_figures = row is not None
     return _has_figures
+
+
+async def unit_models_supported(session: Any) -> bool:
+    """The optional corpus_chunks.unit_models TEXT[] column (multi-model tagging).
+    Added by the offline ingest tool; absent on a DB that never ingested a
+    multi-model manual. Detect once so retrieval degrades to the scalar
+    unit_model filter instead of erroring."""
+    global _has_unit_models
+    if _has_unit_models is None:
+        row = (
+            await session.execute(
+                text(
+                    "SELECT 1 FROM information_schema.columns "
+                    "WHERE table_name = 'corpus_chunks' AND column_name = 'unit_models'"
+                )
+            )
+        ).first()
+        _has_unit_models = row is not None
+    return _has_unit_models
 
 
 def parse_figures(value: Any) -> list[dict[str, Any]]:

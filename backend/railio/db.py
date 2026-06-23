@@ -8,6 +8,7 @@ from typing import AsyncIterator, Optional
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    ARRAY,
     JSON,
     Boolean,
     Column,
@@ -205,6 +206,10 @@ class CorpusChunk(Base):
     org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"))
     # null unit_model = shared across all models; null asset_id = not unit-specific
     unit_model = Column(Text)
+    # Optional multi-model tag (railio-ingest only): a manual shared by several
+    # models. NULL/empty ⇒ fall back to scalar unit_model. The DDL is owned by
+    # the ingest migration; declared here to keep the ORM honest.
+    unit_models = Column(ARRAY(Text))
     asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"))
 
 

@@ -6,7 +6,11 @@ from typing import Any, Literal, Optional
 
 from sqlalchemy import text
 
-from ..corpus_figures import figures_supported, parse_figures
+from ..corpus_figures import (
+    figures_supported,
+    parse_figures,
+    unit_models_supported,
+)
 from ..db import session_scope
 from ..embeddings import embed
 
@@ -44,9 +48,6 @@ async def search_corpus(
     if org_id is not None:
         where.append("(org_id = :org_id OR org_id IS NULL)")
         params["org_id"] = org_id
-    if unit_model is not None:
-        where.append("(unit_model = :unit_model OR unit_model IS NULL)")
-        params["unit_model"] = unit_model
     if asset_id is not None:
         where.append("(asset_id = :asset_id OR asset_id IS NULL)")
         params["asset_id"] = asset_id
@@ -57,6 +58,21 @@ async def search_corpus(
         async with session_scope() as session:
             has_figs = await figures_supported(session)
             fig_col = ", figures" if has_figs else ""
+            if unit_model is not None:
+                params["unit_model"] = unit_model
+                if await unit_models_supported(session):
+                    # A chunk matches when the ticket's model is in its
+                    # unit_models[] set; rows without an array fall back to the
+                    # scalar (single-model exact, or NULL = shared-all, e.g. CFR).
+                    where.append(
+                        "("
+                        ":unit_model = ANY(unit_models)"
+                        " OR ((unit_models IS NULL OR cardinality(unit_models) = 0)"
+                        " AND (unit_model = :unit_model OR unit_model IS NULL))"
+                        ")"
+                    )
+                else:
+                    where.append("(unit_model = :unit_model OR unit_model IS NULL)")
             sql = text(
                 f"""
                 SELECT id, doc_class, doc_id, doc_title, source_label, page, text,
