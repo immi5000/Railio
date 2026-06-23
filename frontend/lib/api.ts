@@ -8,6 +8,8 @@ import type {
   DeleteTicketResponse,
   ResetTicketResponse,
   ListCorpusChunksResponse,
+  ListCorpusDocumentsResponse,
+  CorpusDocument,
   WrapUpDraft,
   FinalizeWrapUpBody,
   Asset,
@@ -278,11 +280,13 @@ export async function getCorpusChunk(id: number): Promise<CorpusChunk> {
 /** Browse the full knowledge library (manuals + tribal notes). */
 export async function listCorpusChunks(opts?: {
   doc_class?: DocClass;
+  doc_id?: string;
   q?: string;
   limit?: number;
 }): Promise<CorpusChunk[]> {
   const params = new URLSearchParams();
   if (opts?.doc_class) params.set("doc_class", opts.doc_class);
+  if (opts?.doc_id) params.set("doc_id", opts.doc_id);
   if (opts?.q) params.set("q", opts.q);
   if (opts?.limit) params.set("limit", String(opts.limit));
   const qs = params.toString();
@@ -290,6 +294,14 @@ export async function listCorpusChunks(opts?: {
     `/api/corpus/chunks${qs ? `?${qs}` : ""}`,
   );
   return res.chunks;
+}
+
+/** The Knowledge library as source documents (one per CFR part / manual / note set). */
+export async function listCorpusDocuments(): Promise<CorpusDocument[]> {
+  const res = await jsonFetch<ListCorpusDocumentsResponse>(
+    `/api/corpus/documents`,
+  );
+  return res.documents;
 }
 
 /** Locomotive models that have ingested knowledge — drives the add-asset model picker. */

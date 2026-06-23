@@ -91,6 +91,10 @@ CREATE TABLE IF NOT EXISTS documents (
     created_at  TEXT
 );
 
+-- Storage key of the uploaded source PDF (manuals/<doc_id>/source.pdf) so the
+-- website can deep-link to the original document at a page.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS pdf_path TEXT;
+
 -- A manual is shared-by-model (org_id NULL); identity is (model_id, doc_id).
 -- Use a NULL-safe unique index so re-runs upsert cleanly even with org_id NULL.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_documents_model_doc
@@ -101,6 +105,9 @@ ALTER TABLE corpus_chunks ADD COLUMN IF NOT EXISTS document_id INTEGER
 ALTER TABLE corpus_chunks ADD COLUMN IF NOT EXISTS model_id INTEGER
     REFERENCES models(id) ON DELETE CASCADE;
 ALTER TABLE corpus_chunks ADD COLUMN IF NOT EXISTS figures JSONB;
+-- True 1-based PDF page index (distinct from the printed `page`); the #page=N
+-- deep-link target for a chunk.
+ALTER TABLE corpus_chunks ADD COLUMN IF NOT EXISTS pdf_page INTEGER;
 
 CREATE INDEX IF NOT EXISTS idx_corpus_chunks_text_trgm
     ON corpus_chunks USING gin (text gin_trgm_ops);
@@ -170,6 +177,7 @@ async def upsert_document(
     unit_model: str,
     page_count: int,
     now: str,
+    pdf_path: Optional[str] = None,
 ) -> int:
     """Upsert the documents row for (model_id, doc_id); return its id."""
     async with session_scope() as s:
@@ -179,15 +187,16 @@ async def upsert_document(
                     """
                     INSERT INTO documents
                         (org_id, model_id, doc_id, doc_title, doc_class,
-                         unit_model, page_count, created_at)
+                         unit_model, page_count, pdf_path, created_at)
                     VALUES
                         (NULL, :model_id, :doc_id, :doc_title, :doc_class,
-                         :unit_model, :page_count, :now)
+                         :unit_model, :page_count, :pdf_path, :now)
                     ON CONFLICT (model_id, doc_id) DO UPDATE SET
                         doc_title = EXCLUDED.doc_title,
                         doc_class = EXCLUDED.doc_class,
                         unit_model = EXCLUDED.unit_model,
-                        page_count = EXCLUDED.page_count
+                        page_count = EXCLUDED.page_count,
+                        pdf_path = EXCLUDED.pdf_path
                     RETURNING id
                     """
                 ),
@@ -198,11 +207,79 @@ async def upsert_document(
                     "doc_class": doc_class,
                     "unit_model": unit_model,
                     "page_count": page_count,
+                    "pdf_path": pdf_path,
                     "now": now,
                 },
             )
         ).scalar_one()
         return int(new_id)
+
+
+async def get_document_by_doc_id(doc_id: str) -> Optional[dict[str, Any]]:
+    """Fetch the documents row for a doc_id (id + title), or None if not ingested."""
+    async with session_scope() as s:
+        row = (
+            await s.execute(
+                text("SELECT id, doc_title, pdf_path FROM documents WHERE doc_id = :d"),
+                {"d": doc_id},
+            )
+        ).mappings().first()
+        return dict(row) if row else None
+
+
+async def set_document_pdf_path(document_id: int, pdf_path: str) -> None:
+    async with session_scope() as s:
+        await s.execute(
+            text("UPDATE documents SET pdf_path = :p WHERE id = :id"),
+            {"p": pdf_path, "id": document_id},
+        )
+
+
+async def get_document_chunk_ids(document_id: int) -> list[int]:
+    """Chunk ids for a document in insertion order (= the order ingest rendered
+    pages), so a backfill can map them positionally to rendered book-pages."""
+    async with session_scope() as s:
+        rows = (
+            await s.execute(
+                text(
+                    "SELECT id FROM corpus_chunks WHERE document_id = :d ORDER BY id"
+                ),
+                {"d": document_id},
+            )
+        ).scalars().all()
+        return [int(x) for x in rows]
+
+
+async def set_chunk_pdf_pages(pairs: list[tuple[int, int]]) -> int:
+    """Set pdf_page per chunk id. Returns rows updated."""
+    updated = 0
+    async with session_scope() as s:
+        for chunk_id, pdf_page in pairs:
+            res = await s.execute(
+                text("UPDATE corpus_chunks SET pdf_page = :n WHERE id = :id"),
+                {"n": pdf_page, "id": chunk_id},
+            )
+            updated += res.rowcount or 0
+    return updated
+
+
+async def backfill_chunk_pdf_pages(
+    document_id: int, mapping: dict[str, int]
+) -> int:
+    """Set pdf_page on existing chunks (id-preserving) by matching source_label.
+    Returns the number of chunk rows updated."""
+    updated = 0
+    async with session_scope() as s:
+        for label, pdf_page in mapping.items():
+            res = await s.execute(
+                text(
+                    "UPDATE corpus_chunks SET pdf_page = :n "
+                    "WHERE document_id = :doc AND source_label = :label"
+                ),
+                {"n": pdf_page, "doc": document_id, "label": label},
+            )
+            updated += res.rowcount or 0
+    return updated
 
 
 async def delete_document_chunks(document_id: int) -> int:
@@ -228,12 +305,12 @@ async def insert_chunks(rows: list[dict[str, Any]]) -> int:
                 text(
                     """
                     INSERT INTO corpus_chunks
-                        (doc_class, doc_id, doc_title, source_label, page, text,
-                         org_id, unit_model, asset_id, embedding,
+                        (doc_class, doc_id, doc_title, source_label, page, pdf_page,
+                         text, org_id, unit_model, asset_id, embedding,
                          document_id, model_id, figures)
                     VALUES
-                        (:doc_class, :doc_id, :doc_title, :source_label, :page, :text,
-                         NULL, :unit_model, NULL, CAST(:embedding AS vector),
+                        (:doc_class, :doc_id, :doc_title, :source_label, :page, :pdf_page,
+                         :text, NULL, :unit_model, NULL, CAST(:embedding AS vector),
                          :document_id, :model_id, CAST(:figures AS jsonb))
                     """
                 ),

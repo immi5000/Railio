@@ -2,16 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { listCorpusChunks, fileUrl } from "@/lib/api";
-import type { CorpusChunk } from "@/lib/contract";
+import { listCorpusDocuments, listCorpusChunks, fileUrl } from "@/lib/api";
+import type { CorpusDocument, CorpusChunk } from "@/lib/contract";
 import { CitationDrawer } from "./CitationDrawer";
 import { techNameForChunk } from "@/lib/techNames";
-
-type DocGroup = {
-  doc_id: string;
-  doc_title: string;
-  chunks: CorpusChunk[];
-};
 
 // One tab per knowledge slice. Manuals split by locomotive model; shared
 // reference manuals with no model (49 CFR) get their own tab; tribal is its own.
@@ -19,53 +13,47 @@ type Tab = {
   key: string;
   label: string;
   kind: "all" | "cfr" | "model" | "tribal";
-  chunks: CorpusChunk[];
+  docs: CorpusDocument[];
 };
 
-function isTribal(c: CorpusChunk) {
-  return c.doc_class === "tribal_knowledge";
+function isTribal(d: CorpusDocument) {
+  return d.doc_class === "tribal_knowledge";
 }
 
-function buildTabs(chunks: CorpusChunk[]): Tab[] {
-  const cfr: CorpusChunk[] = [];
-  const tribal: CorpusChunk[] = [];
-  const byModel = new Map<string, CorpusChunk[]>();
+function buildTabs(docs: CorpusDocument[]): Tab[] {
+  const cfr: CorpusDocument[] = [];
+  const tribal: CorpusDocument[] = [];
+  const byModel = new Map<string, CorpusDocument[]>();
 
-  for (const c of chunks) {
-    if (isTribal(c)) {
-      tribal.push(c);
-    } else if (c.unit_model) {
-      const arr = byModel.get(c.unit_model) || [];
-      arr.push(c);
-      byModel.set(c.unit_model, arr);
+  for (const d of docs) {
+    if (isTribal(d)) {
+      tribal.push(d);
+    } else if (d.unit_model) {
+      const arr = byModel.get(d.unit_model) || [];
+      arr.push(d);
+      byModel.set(d.unit_model, arr);
     } else {
       // A manual with no model scope is shared federal reference → 49 CFR.
-      cfr.push(c);
+      cfr.push(d);
     }
   }
 
-  const tabs: Tab[] = [
-    { key: "all", label: "All", kind: "all", chunks },
-  ];
+  const tabs: Tab[] = [{ key: "all", label: "All", kind: "all", docs }];
   if (cfr.length) {
-    tabs.push({ key: "cfr", label: "49 CFR", kind: "cfr", chunks: cfr });
+    tabs.push({ key: "cfr", label: "49 CFR", kind: "cfr", docs: cfr });
   }
   for (const model of [...byModel.keys()].sort()) {
     tabs.push({
       key: `model:${model}`,
       label: model,
       kind: "model",
-      chunks: byModel.get(model)!,
+      docs: byModel.get(model)!,
     });
   }
   if (tribal.length) {
-    tabs.push({ key: "tribal", label: "Tribal", kind: "tribal", chunks: tribal });
+    tabs.push({ key: "tribal", label: "Tribal", kind: "tribal", docs: tribal });
   }
   return tabs;
-}
-
-function figureCount(chunks: CorpusChunk[]): number {
-  return chunks.reduce((n, c) => n + (c.figures?.length || 0), 0);
 }
 
 export function KnowledgeLibrary() {
@@ -74,16 +62,23 @@ export function KnowledgeLibrary() {
   const [openChunk, setOpenChunk] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["corpus", q],
-    queryFn: () => listCorpusChunks({ q: q || undefined, limit: 2000 }),
+    queryKey: ["corpus-documents"],
+    queryFn: () => listCorpusDocuments(),
   });
 
-  const tabs = useMemo(() => buildTabs(data || []), [data]);
+  const filtered = useMemo(() => {
+    const docs = data || [];
+    const needle = q.trim().toLowerCase();
+    if (!needle) return docs;
+    return docs.filter((d) =>
+      `${d.doc_title} ${d.doc_id} ${d.unit_model || ""}`
+        .toLowerCase()
+        .includes(needle),
+    );
+  }, [data, q]);
+
+  const tabs = useMemo(() => buildTabs(filtered), [filtered]);
   const activeTab = tabs.find((t) => t.key === active) || tabs[0];
-  const groups: DocGroup[] = useMemo(
-    () => groupByDoc(activeTab?.chunks || []),
-    [activeTab],
-  );
 
   return (
     <div className="dash">
@@ -102,8 +97,8 @@ export function KnowledgeLibrary() {
         >
           Every answer the assistant gives is grounded in one of these sources.
           Manuals are organized by locomotive model; 49 CFR is shared federal
-          regulation; tribal notes are the senior techs&apos; own knowledge. Each
-          chunk shows the exact page and PDF it came from, so you can verify it.
+          regulation; tribal notes are the senior techs&apos; own knowledge. Open
+          a manual to read the exact document Railio cites.
         </p>
 
         <div
@@ -121,28 +116,17 @@ export function KnowledgeLibrary() {
             style={{ maxWidth: 380 }}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search across all sources…"
+            placeholder="Search documents…"
           />
-          <div
-            style={{
-              display: "inline-flex",
-              flexWrap: "wrap",
-              gap: 6,
-            }}
-          >
-            {tabs.map((t) => {
-              const figs = figureCount(t.chunks);
-              return (
-                <FilterButton
-                  key={t.key}
-                  label={`${tabIcon(t.kind)}${t.label} · ${t.chunks.length}${
-                    figs ? ` · ${figs}🖼` : ""
-                  }`}
-                  active={activeTab?.key === t.key}
-                  onClick={() => setActive(t.key)}
-                />
-              );
-            })}
+          <div style={{ display: "inline-flex", flexWrap: "wrap", gap: 6 }}>
+            {tabs.map((t) => (
+              <FilterButton
+                key={t.key}
+                label={`${tabIcon(t.kind)}${t.label} · ${t.docs.length}`}
+                active={activeTab?.key === t.key}
+                onClick={() => setActive(t.key)}
+              />
+            ))}
           </div>
         </div>
 
@@ -157,25 +141,25 @@ export function KnowledgeLibrary() {
               Backend unreachable
             </span>
             <p style={{ marginTop: 8, fontSize: 14 }}>
-              Could not load corpus chunks from{" "}
+              Could not load documents from{" "}
               <code>{process.env.NEXT_PUBLIC_API_BASE}</code>. Make sure the
-              backend exposes <code>GET /api/corpus/chunks</code>.
+              backend exposes <code>GET /api/corpus/documents</code>.
             </p>
           </div>
         )}
-        {data && data.length === 0 && (
+        {data && filtered.length === 0 && (
           <div className="card" style={{ color: "var(--dash-muted)" }}>
-            No chunks match.
+            No documents match.
           </div>
         )}
 
-        {groups.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            {groups.map((g) => (
-              <DocBlock
-                key={`${g.doc_id}`}
-                group={g}
-                onOpen={(id) => setOpenChunk(id)}
+        {activeTab && activeTab.docs.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {activeTab.docs.map((d) => (
+              <DocCard
+                key={`${d.doc_class}:${d.unit_model || ""}:${d.doc_id}`}
+                doc={d}
+                onOpenChunk={(id) => setOpenChunk(id)}
               />
             ))}
           </div>
@@ -229,16 +213,85 @@ function FilterButton({
   );
 }
 
-function DocBlock({
-  group,
-  onOpen,
+function DocCard({
+  doc,
+  onOpenChunk,
 }: {
-  group: DocGroup;
-  onOpen: (chunkId: number) => void;
+  doc: CorpusDocument;
+  onOpenChunk: (chunkId: number) => void;
 }) {
-  const tribal = isTribal(group.chunks[0]);
-  const figs = figureCount(group.chunks);
-  const model = group.chunks[0]?.unit_model;
+  const tribal = isTribal(doc);
+  const [expanded, setExpanded] = useState(false);
+  // Tribal notes have no external document — clicking expands to the notes
+  // inline (the "full text" is the source). Manuals/CFR open their source doc.
+  const href = doc.source_url ? (fileUrl(doc.source_url) ?? doc.source_url) : null;
+  const eyebrow = tribal
+    ? "👤 Tribal knowledge"
+    : doc.unit_model
+      ? `🚂 ${doc.unit_model}`
+      : "§ 49 CFR";
+  const countLabel = `${doc.chunk_count} ${tribal ? "note" : "section"}${
+    doc.chunk_count === 1 ? "" : "s"
+  }${doc.page_count ? ` · ${doc.page_count} pages` : ""}`;
+
+  const Header = (
+    <>
+      <div>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            color: tribal ? "var(--dash-link)" : "var(--dash-muted)",
+            marginBottom: 4,
+          }}
+        >
+          {eyebrow}
+        </div>
+        <h3 className="h4" style={{ fontSize: 18 }}>
+          {doc.doc_title}
+        </h3>
+        <div
+          style={{
+            fontSize: 12,
+            color: "var(--dash-muted)",
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            marginTop: 4,
+          }}
+        >
+          {doc.doc_id} · {countLabel}
+        </div>
+      </div>
+      <span
+        style={{
+          color: "var(--dash-link)",
+          fontSize: 14,
+          alignSelf: "center",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {href
+          ? doc.doc_id.startsWith("cfr_")
+            ? "Open in eCFR ↗"
+            : "Open manual ↗"
+          : expanded
+            ? "Hide notes ▾"
+            : "View notes ▸"}
+      </span>
+    </>
+  );
+
+  const headerStyle: React.CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "16px 20px",
+    background: tribal ? "#e2eaf7" : "var(--dash-bg)",
+    gap: 16,
+    flexWrap: "wrap",
+  };
+
   return (
     <div
       style={{
@@ -249,217 +302,136 @@ function DocBlock({
         background: "#fff",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          padding: "16px 20px",
-          background: tribal ? "#e2eaf7" : "var(--dash-bg)",
-          borderBottom: `1px solid ${tribal ? "#cfddf3" : "var(--dash-line)"}`,
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              color: tribal ? "var(--dash-link)" : "var(--dash-muted)",
-              marginBottom: 4,
-            }}
-          >
-            {tribal
-              ? "👤 Tribal knowledge"
-              : model
-              ? `🚂 ${model}`
-              : "§ 49 CFR"}
-          </div>
-          <h3 className="h4" style={{ fontSize: 18 }}>
-            {group.doc_title}
-          </h3>
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--dash-muted)",
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-              marginTop: 4,
-            }}
-          >
-            {group.doc_id}
-          </div>
-        </div>
-        <span className="micro" style={{ color: "var(--dash-muted)" }}>
-          {group.chunks.length} chunk
-          {group.chunks.length === 1 ? "" : "s"}
-          {figs ? ` · ${figs} figure${figs === 1 ? "" : "s"}` : ""}
-        </span>
-      </div>
-      <div>
-        {group.chunks.map((c) => {
-          const author = tribal ? techNameForChunk(c) : null;
-          const nFigs = c.figures?.length || 0;
-          return (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => onOpen(c.id)}
-              className="form-item-row"
-              style={{
-                appearance: "none",
-                background: "#fff",
-                border: 0,
-                borderBottom: "1px solid var(--dash-line)",
-                padding: "14px 20px",
-                width: "100%",
-                textAlign: "left",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                transition: "background 0.1s",
-                display: "grid",
-                gridTemplateColumns: "200px 1fr 24px",
-                gap: 16,
-                alignItems: "start",
-              }}
-              onMouseEnter={(e) =>
-                ((e.currentTarget as HTMLButtonElement).style.background =
-                  "var(--dash-bg)")
-              }
-              onMouseLeave={(e) =>
-                ((e.currentTarget as HTMLButtonElement).style.background = "#fff")
-              }
-            >
-              <div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    color: "#3a3a3e",
-                  }}
-                >
-                  {c.source_label}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "var(--dash-muted)",
-                    marginTop: 4,
-                    fontFamily:
-                      "ui-monospace, SFMono-Regular, Menlo, monospace",
-                  }}
-                >
-                  {c.page != null ? `Page ${c.page}` : "Unpaginated"} · {c.doc_id}
-                </div>
-                {nFigs > 0 && (
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "#3a3a3e",
-                      marginTop: 4,
-                      fontWeight: 700,
-                    }}
-                  >
-                    🖼 {nFigs} figure{nFigs === 1 ? "" : "s"}
-                  </div>
-                )}
-                {author && (
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "var(--dash-link)",
-                      marginTop: 4,
-                      fontWeight: 700,
-                    }}
-                  >
-                    By {author.name}
-                    <span
-                      style={{
-                        color: "var(--dash-muted)",
-                        fontWeight: 400,
-                        marginLeft: 4,
-                      }}
-                    >
-                      · {author.shift}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "#3a3a3e",
-                    lineHeight: 1.55,
-                    overflow: "hidden",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: "vertical",
-                  }}
-                >
-                  {c.text}
-                </div>
-                {nFigs > 0 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      marginTop: 8,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    {c.figures.slice(0, 4).map((f, i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={i}
-                        src={fileUrl(f.path)}
-                        alt={f.figure_label || f.caption || "figure"}
-                        style={{
-                          height: 56,
-                          width: "auto",
-                          border: "1px solid var(--dash-card-border)",
-                          background: "#fff",
-                          objectFit: "contain",
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-              <span
-                style={{
-                  color: "var(--dash-link)",
-                  fontSize: 14,
-                  alignSelf: "center",
-                  textAlign: "right",
-                }}
-              >
-                →
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          style={{ ...headerStyle, textDecoration: "none", color: "inherit" }}
+        >
+          {Header}
+        </a>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          style={{
+            ...headerStyle,
+            width: "100%",
+            appearance: "none",
+            border: 0,
+            cursor: "pointer",
+            font: "inherit",
+            textAlign: "left",
+          }}
+        >
+          {Header}
+        </button>
+      )}
+
+      {!href && expanded && (
+        <TribalNotes doc={doc} onOpenChunk={onOpenChunk} />
+      )}
     </div>
   );
 }
 
-function groupByDoc(chunks: CorpusChunk[]): DocGroup[] {
-  const map = new Map<string, DocGroup>();
-  for (const c of chunks) {
-    const key = `${c.doc_class}::${c.unit_model || ""}::${c.doc_id}`;
-    let g = map.get(key);
-    if (!g) {
-      g = { doc_id: c.doc_id, doc_title: c.doc_title, chunks: [] };
-      map.set(key, g);
-    }
-    g.chunks.push(c);
+function TribalNotes({
+  doc,
+  onOpenChunk,
+}: {
+  doc: CorpusDocument;
+  onOpenChunk: (chunkId: number) => void;
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["corpus-doc-chunks", doc.doc_id],
+    queryFn: () => listCorpusChunks({ doc_id: doc.doc_id, limit: 500 }),
+  });
+
+  if (isLoading) {
+    return (
+      <div style={{ padding: "14px 20px", color: "var(--dash-muted)" }}>
+        <span className="micro">Loading notes…</span>
+      </div>
+    );
   }
-  return [...map.values()].sort((a, b) =>
-    a.doc_title.localeCompare(b.doc_title),
+
+  return (
+    <div>
+      {(data || []).map((c: CorpusChunk) => {
+        const author = techNameForChunk(c);
+        return (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onOpenChunk(c.id)}
+            style={{
+              appearance: "none",
+              background: "#fff",
+              border: 0,
+              borderTop: "1px solid var(--dash-line)",
+              padding: "14px 20px",
+              width: "100%",
+              textAlign: "left",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              display: "block",
+            }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLButtonElement).style.background =
+                "var(--dash-bg)")
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLButtonElement).style.background = "#fff")
+            }
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                color: "#3a3a3e",
+              }}
+            >
+              {c.source_label}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--dash-link)",
+                marginTop: 4,
+                fontWeight: 700,
+              }}
+            >
+              By {author.name}
+              <span
+                style={{
+                  color: "var(--dash-muted)",
+                  fontWeight: 400,
+                  marginLeft: 4,
+                }}
+              >
+                · {author.shift}
+              </span>
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: "#3a3a3e",
+                lineHeight: 1.55,
+                marginTop: 6,
+                overflow: "hidden",
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical",
+              }}
+            >
+              {c.text}
+            </div>
+          </button>
+        );
+      })}
+    </div>
   );
 }

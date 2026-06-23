@@ -1,10 +1,12 @@
 (function () {
-  // ── Hero phone: looping live-diagnosis transcript ─────────────────────────
+  // ── Hero phone: looping live-diagnosis transcript (mirrors the real chat) ──
   var TRANSCRIPT = [
-    { who: 'tech', t: '00:02', html: "Brake pipe pressure dropping on car six. Won't hold above 75 PSI." },
-    { who: 'ai',   t: '00:04', html: "Pulling Unit 4423. Last B-end inspection 14 days ago. <b>Most likely cause: leaking angle cock gasket on car 6.</b>" },
-    { who: 'tech', t: '00:18', html: "Where's the part?" },
-    { who: 'ai',   t: '00:20', html: "Gasket <b>P/N 9120-44A</b>. Two in stock at Yard 7. Reserved one — want me to walk you through the swap?" },
+    { who: 'tech', html: "Brake pipe pressure dropping on car six. Won't hold above 75 PSI." },
+    { who: 'ai',   html: "Pulling Unit 4423 — last B-end inspection 14 days ago. <b>Most likely cause: a leaking angle-cock gasket on car 6.</b>"
+                       + '<div class="cites">Cited <span class="cite-link">49 CFR §232.103</span> · <span class="cite-link">Senior-tech note — Yard 7</span></div>' },
+    { who: 'tech', html: "Where's the part?" },
+    { who: 'ai',   html: "Gasket <b>P/N 9120-44A</b> — two in stock at Yard 7, I reserved one. Want me to walk you through the swap?"
+                       + '<div class="cites">Cited <span class="cite-link">Parts inventory — Yard 7</span></div>' },
   ];
   var transcriptEl = document.getElementById('ph-transcript');
   var step = 0;
@@ -14,18 +16,19 @@
     var shown = Math.min(step, TRANSCRIPT.length);
     for (var i = 0; i < shown; i++) {
       var m = TRANSCRIPT[i];
-      var who = m.who === 'ai' ? 'Railio' : 'Tech JM';
-      var avTxt = m.who === 'ai' ? 'R' : 'JM';
+      var who = m.who === 'ai' ? 'Railio' : 'Tech';
       html += '<div class="ph-msg ' + m.who + '">'
-            +   '<span class="av">' + avTxt + '</span>'
-            +   '<div class="bub"><div>' + m.html + '</div>'
-            +     '<span class="ts">' + who + ' · ' + m.t + '</span>'
+            +   '<div class="bub">'
+            +     '<div class="role">' + who + '</div>'
+            +     '<div>' + m.html + '</div>'
             +   '</div>'
             + '</div>';
     }
-    if (step < TRANSCRIPT.length) {
-      html += '<div class="ph-msg ai"><span class="av">R</span>'
-            + '<div class="bub"><span class="typing"><i></i><i></i><i></i></span></div></div>';
+    if (step < TRANSCRIPT.length && TRANSCRIPT[step].who === 'ai') {
+      html += '<div class="ph-msg ai"><div class="bub">'
+            +   '<div class="role">Railio</div>'
+            +   '<div class="tool-note">🔧 Checking the manual… <span class="typing"><i></i><i></i><i></i></span></div>'
+            + '</div></div>';
     }
     transcriptEl.innerHTML = html;
   }

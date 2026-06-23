@@ -33,3 +33,14 @@ def upload_figure(storage_key: str, body: bytes) -> str:
         file_options={"content-type": "image/png", "upsert": "true"},
     )
     return f"{STORAGE_URL_PREFIX}/{storage_key}"
+
+
+def upload_pdf(storage_key: str, body: bytes) -> str:
+    """Upload the source PDF and return its storage key (what documents.pdf_path
+    stores). Served inline by the backend so the browser viewer honors #page=N."""
+    _client().storage.from_(STORAGE_BUCKET).upload(
+        path=storage_key,
+        file=body,
+        file_options={"content-type": "application/pdf", "upsert": "true"},
+    )
+    return storage_key

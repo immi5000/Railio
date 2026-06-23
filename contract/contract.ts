@@ -87,6 +87,7 @@ export type ListCorpusChunksQuery = {
   limit?: number;
 };
 export type ListCorpusChunksResponse = { chunks: CorpusChunk[] };
+export type ListCorpusDocumentsResponse = { documents: CorpusDocument[] };
 
 // === Domain ===
 export type Organization = {
@@ -292,6 +293,25 @@ export type CorpusChunk = {
   // reference with no model (e.g. 49 CFR).
   unit_model: string | null;
   figures: CorpusFigure[];
+  // Deep link to the source at this chunk's location (eCFR section, or PDF
+  // #page=N). Computed server-side; null when the source has no openable doc
+  // (tribal/history) — the caller falls back to the in-app chunk drawer.
+  source_url?: string | null;
+  // True PDF page index for OEM manuals (distinct from the printed `page`).
+  pdf_page?: number | null;
+};
+
+// One source document for the Knowledge library (CFR part, OEM manual, or a
+// tribal note set), derived by grouping chunks. `source_url` opens the whole
+// document (eCFR part page or the PDF); null for tribal docs (shown inline).
+export type CorpusDocument = {
+  doc_class: DocClass;
+  doc_id: string;
+  doc_title: string;
+  unit_model: string | null;
+  chunk_count: number;
+  page_count: number | null;
+  source_url: string | null;
 };
 
 // === Streaming events on POST /api/tickets/:id/messages ===

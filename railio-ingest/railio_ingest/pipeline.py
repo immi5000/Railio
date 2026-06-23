@@ -30,7 +30,8 @@ _NATIVE_TEXT_MIN = 40
 @dataclass
 class Chunk:
     page_label: str  # printed book-page if known, else PDF-page ref
-    page_num: Optional[int]
+    page_num: Optional[int]  # printed page (for display); may be None
+    pdf_page: int  # 1-based PDF page index — the #page=N deep-link target
     text: str
     source_label: str
     figures: list[dict[str, Any]] = field(default_factory=list)
@@ -138,6 +139,7 @@ def extract(
             Chunk(
                 page_label=page_label,
                 page_num=_safe_int(printed),
+                pdf_page=pdf_page_human,
                 text=body,
                 source_label=source_label,
                 figures=figures,

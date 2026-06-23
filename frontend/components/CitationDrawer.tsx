@@ -69,6 +69,21 @@ export function CitationDrawer({
             <h3 className="h3" style={{ marginBottom: 8 }}>
               {data.doc_title}
             </h3>
+            {data.source_url && (
+              <a
+                href={fileUrl(data.source_url) ?? data.source_url}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-super btn-sm"
+                style={{ textDecoration: "none", marginBottom: 16 }}
+              >
+                {data.doc_id.startsWith("cfr_")
+                  ? "Open in eCFR →"
+                  : data.page != null
+                    ? `Open manual at p.${data.page} →`
+                    : "Open manual →"}
+              </a>
+            )}
             <div
               style={{
                 fontSize: 12,

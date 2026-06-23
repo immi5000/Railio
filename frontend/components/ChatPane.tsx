@@ -3,9 +3,16 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { apiUrl, authHeaders, fileUrl, getTicket, uploadPhotos } from "@/lib/api";
+import {
+  apiUrl,
+  authHeaders,
+  fileUrl,
+  getCorpusChunk,
+  getTicket,
+  uploadPhotos,
+} from "@/lib/api";
 import type {
   Citation,
   CorpusFigure,
@@ -60,6 +67,7 @@ export function ChatPane({
   const [streaming, setStreaming] = useState(false);
   const [live, setLive] = useState<LiveAssistant | null>(null);
   const [openChunk, setOpenChunk] = useState<number | null>(null);
+  const [previewFigure, setPreviewFigure] = useState<CorpusFigure | null>(null);
   // Map tool-call call_id → tool name so `tool_call_completed` (which only
   // carries call_id) can dispatch on the original tool name.
   const callIdToName = useRef<Map<string, string>>(new Map());
@@ -318,6 +326,31 @@ export function ChatPane({
     }
   }
 
+  // Inline citation click. Manual/CFR cites route straight to the source (the
+  // PDF at the right page, or the eCFR section) in a new tab; tribal notes have
+  // no external document, so they open the in-app chunk drawer instead. We open
+  // the tab synchronously (inside the click) to dodge popup blockers, then point
+  // it at the resolved URL once the chunk's source_url comes back.
+  async function openCitation(c: Citation) {
+    if (c.doc_class !== "manual") {
+      setOpenChunk(c.chunk_id);
+      return;
+    }
+    const w = window.open("about:blank", "_blank");
+    try {
+      const chunk = await getCorpusChunk(c.chunk_id);
+      const url = chunk.source_url ? fileUrl(chunk.source_url) : undefined;
+      if (url && w) {
+        w.location.href = url;
+        return;
+      }
+    } catch {
+      // fall through to the drawer below
+    }
+    if (w) w.close();
+    setOpenChunk(c.chunk_id);
+  }
+
   const composerValue = interim || draft;
 
   return (
@@ -359,16 +392,18 @@ export function ChatPane({
           <MessageBubble
             key={m.id}
             message={m}
-            onCitationClick={(c) => setOpenChunk(c.chunk_id)}
+            onCitationClick={openCitation}
             onOpenChunk={(id) => setOpenChunk(id)}
+            onPreviewFigure={setPreviewFigure}
           />
         ))}
 
         {live && (
           <LiveBubble
             live={live}
-            onCitationClick={(c) => setOpenChunk(c.chunk_id)}
+            onCitationClick={openCitation}
             onOpenChunk={(id) => setOpenChunk(id)}
+            onPreviewFigure={setPreviewFigure}
             onPhotoSend={uploadAndSend}
           />
         )}
@@ -467,6 +502,13 @@ export function ChatPane({
         <CitationDrawer chunkId={openChunk} onClose={() => setOpenChunk(null)} />
       )}
 
+      {previewFigure && (
+        <FigureLightbox
+          figure={previewFigure}
+          onClose={() => setPreviewFigure(null)}
+        />
+      )}
+
       {toast && <div className="toast">{toast}</div>}
     </div>
   );
@@ -530,10 +572,12 @@ function MessageBubble({
   message,
   onCitationClick,
   onOpenChunk,
+  onPreviewFigure,
 }: {
   message: Message;
   onCitationClick: (c: Citation) => void;
   onOpenChunk: (chunkId: number) => void;
+  onPreviewFigure: (figure: CorpusFigure) => void;
 }) {
   const isUser = message.role === "tech" || message.role === "dispatcher";
   const isSystem = message.role === "system" || message.role === "tool";
@@ -584,7 +628,14 @@ function MessageBubble({
           {message.role === "assistant" ? "Railio" : message.role}
         </div>
         {message.role === "assistant" ? (
-          <Markdown>{message.content}</Markdown>
+          <Markdown
+            onCite={(id) => {
+              const c = message.citations?.find((x) => x.chunk_id === id);
+              c ? onCitationClick(c) : onOpenChunk(id);
+            }}
+          >
+            {message.content}
+          </Markdown>
         ) : (
           <div
             style={{ whiteSpace: "pre-wrap", fontSize: 14, lineHeight: 1.5 }}
@@ -614,7 +665,7 @@ function MessageBubble({
               <FigureThumb
                 key={`${f.chunkId}-${i}`}
                 figure={f.figure}
-                onOpen={() => onOpenChunk(f.chunkId)}
+                onOpen={() => onPreviewFigure(f.figure)}
               />
             ))}
           </div>
@@ -628,29 +679,6 @@ function MessageBubble({
           </div>
         )}
 
-        {message.citations && message.citations.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              marginTop: 8,
-            }}
-          >
-            {message.citations.map((c, i) => (
-              <button
-                key={`${c.chunk_id}-${i}`}
-                className={
-                  c.doc_class === "manual" ? "cite cite-manual" : "cite cite-tribal"
-                }
-                onClick={() => onCitationClick(c)}
-                title={c.source_label}
-              >
-                <span aria-hidden>{c.doc_class === "manual" ? "📖" : "👤"}</span>
-                {c.source_label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -687,6 +715,57 @@ function FigureThumb({
         style={{ width: 96, height: 96, objectFit: "cover", display: "block" }}
       />
     </button>
+  );
+}
+
+function FigureLightbox({
+  figure,
+  onClose,
+}: {
+  figure: CorpusFigure;
+  onClose: () => void;
+}) {
+  const url = fileUrl(figure.path);
+  const label = figure.figure_label || figure.caption || "figure";
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  if (!url) return null;
+  return (
+    <div
+      className="figure-lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-label={label}
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        aria-label="Close"
+        className="figure-lightbox-close"
+        onClick={onClose}
+      >
+        ×
+      </button>
+      <figure
+        className="figure-lightbox-body"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={label} />
+        {(figure.figure_label || figure.caption) && (
+          <figcaption>
+            {figure.figure_label ? <strong>{figure.figure_label}</strong> : null}
+            {figure.figure_label && figure.caption ? " — " : null}
+            {figure.caption}
+          </figcaption>
+        )}
+      </figure>
+    </div>
   );
 }
 
@@ -832,11 +911,13 @@ function LiveBubble({
   live,
   onCitationClick,
   onOpenChunk,
+  onPreviewFigure,
   onPhotoSend,
 }: {
   live: LiveAssistant;
   onCitationClick: (c: Citation) => void;
   onOpenChunk: (chunkId: number) => void;
+  onPreviewFigure: (figure: CorpusFigure) => void;
   onPhotoSend: (file: File) => void;
 }) {
   return (
@@ -868,7 +949,14 @@ function LiveBubble({
         </div>
 
         {live.text ? (
-          <Markdown>{live.text}</Markdown>
+          <Markdown
+            onCite={(id) => {
+              const c = live.citations.find((x) => x.chunk_id === id);
+              c ? onCitationClick(c) : onOpenChunk(id);
+            }}
+          >
+            {live.text}
+          </Markdown>
         ) : (
           <div style={{ fontSize: 14, lineHeight: 1.5 }}>
             <span className="micro" style={{ color: "var(--muted)" }}>
@@ -891,27 +979,12 @@ function LiveBubble({
               <FigureThumb
                 key={`${f.chunkId}-${i}`}
                 figure={f.figure}
-                onOpen={() => onOpenChunk(f.chunkId)}
+                onOpen={() => onPreviewFigure(f.figure)}
               />
             ))}
           </div>
         )}
 
-        {live.citations.length > 0 && (
-          <div style={{ marginTop: 8 }}>
-            {live.citations.map((c, i) => (
-              <button
-                key={`${c.chunk_id}-${i}`}
-                className={
-                  c.doc_class === "manual" ? "cite cite-manual" : "cite cite-tribal"
-                }
-                onClick={() => onCitationClick(c)}
-              >
-                {c.doc_class === "manual" ? "📖" : "👤"} {c.source_label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -972,11 +1045,22 @@ function RequestPhotoBlock({
   );
 }
 
-function Markdown({ children }: { children: string }) {
+function Markdown({
+  children,
+  onCite,
+}: {
+  children: string;
+  onCite?: (chunkId: number) => void;
+}) {
   return (
     <div className="md">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        // Default sanitization strips the custom `cite:` scheme to ""; preserve it
+        // so inline citation links survive to the `a` renderer below.
+        urlTransform={(url) =>
+          url.startsWith("cite:") ? url : defaultUrlTransform(url)
+        }
         components={{
           // Skip images the model emits with an empty/missing URL — a bare
           // src="" trips the browser's empty-src warning and re-requests the page.
@@ -985,6 +1069,29 @@ function Markdown({ children }: { children: string }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={src} alt={alt ?? ""} style={{ maxWidth: "100%" }} />
             ) : null,
+          a: ({ href, children }) => {
+            const m = /^cite:(\d+)$/.exec(href ?? "");
+            if (m) {
+              const chunkId = Number(m[1]);
+              return (
+                <a
+                  className="cite-link"
+                  href={href}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onCite?.(chunkId);
+                  }}
+                >
+                  {children}
+                </a>
+              );
+            }
+            return (
+              <a href={href} target="_blank" rel="noopener noreferrer">
+                {children}
+              </a>
+            );
+          },
         }}
       >
         {children}

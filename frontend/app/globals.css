@@ -447,6 +447,17 @@ button {
   color: var(--mta);
   text-decoration: underline;
 }
+/* Inline citation links (cite:<chunk_id>) — subtle in-sentence reference. */
+.md a.cite-link {
+  color: var(--dash-link);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.md a.cite-link:hover {
+  text-decoration-style: solid;
+}
 .md code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12.5px;
@@ -611,6 +622,73 @@ button {
   border-color: #e2eaf7;
   color: var(--dash-link);
   background: #e2eaf7;
+}
+
+/* Inline citation link inside an assistant reply — the model's [label](cite:ID).
+   A quiet underlined link that opens the source manual/section. */
+.cite-link {
+  color: var(--dash-link);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.cite-link:hover {
+  text-decoration-style: solid;
+  background: #eef3fb;
+}
+
+/* === Figure lightbox (enlarged image preview from chat) === */
+.figure-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(0, 0, 0, 0.78);
+}
+.figure-lightbox-body {
+  margin: 0;
+  max-width: min(1100px, 92vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.figure-lightbox-body img {
+  max-width: 100%;
+  max-height: 84vh;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+}
+.figure-lightbox-body figcaption {
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  max-width: 72ch;
+}
+.figure-lightbox-close {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+.figure-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.26);
 }
 
 /* === Drawer === */

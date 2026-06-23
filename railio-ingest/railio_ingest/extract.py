@@ -26,7 +26,7 @@ from typing import Any
 from . import db, embeddings
 from .config import get_settings
 from .pipeline import Chunk, extract
-from .storage import upload_figure
+from .storage import upload_figure, upload_pdf
 
 
 def _now() -> str:
@@ -58,6 +58,7 @@ def _chunks_preview(chunks: list[Chunk]) -> list[dict[str, Any]]:
         {
             "page_label": c.page_label,
             "page_num": c.page_num,
+            "pdf_page": c.pdf_page,
             "source_label": c.source_label,
             "text": c.text,
             "figures": c.figures,
@@ -95,6 +96,11 @@ async def _write_to_db(
     model_id = await db.resolve_model(args.model, args.oem, now)
 
     unit_model = args.model
+    # Upload the source PDF so the website can deep-link to the original doc at a
+    # page. Stored under a stable per-doc key; upsert makes re-runs idempotent.
+    pdf_key = f"manuals/{args.doc_id}/source.pdf"
+    upload_pdf(pdf_key, Path(args.pdf).read_bytes())
+    print(f"• uploaded source PDF → {pdf_key}")
     document_id = await db.upsert_document(
         model_id=model_id,
         doc_id=args.doc_id,
@@ -103,6 +109,7 @@ async def _write_to_db(
         unit_model=unit_model,
         page_count=len(chunks),
         now=now,
+        pdf_path=pdf_key,
     )
     removed = await db.delete_document_chunks(document_id)
     if removed:
@@ -123,6 +130,7 @@ async def _write_to_db(
                 "doc_title": args.doc_title,
                 "source_label": c.source_label,
                 "page": c.page_num,
+                "pdf_page": c.pdf_page,
                 "text": c.text,
                 "unit_model": unit_model,
                 "embedding": embeddings.to_vector_literal(vec),

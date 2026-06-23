@@ -67,7 +67,24 @@ python -m railio_ingest.extract \
 ```
 
 Re-running the same `--doc-id` **replaces** that document's chunks (scoped
-delete + reinsert); other docs/models/orgs are untouched.
+delete + reinsert); other docs/models/orgs are untouched. The real write also
+uploads the source PDF to `manuals/<doc_id>/source.pdf` and records it on
+`documents.pdf_path`, and stores each chunk's true PDF page index in
+`corpus_chunks.pdf_page` — so the website can deep-link a citation to the manual
+at its page (`<pdf>#page=N`).
+
+### Backfill (data ingested before pdf_path / pdf_page existed)
+
+For a manual already in prod, give it an openable PDF + per-chunk PDF page
+**without** re-running the vision pipeline or re-minting chunk ids:
+
+```bash
+python -m railio_ingest.backfill_pdf_pages \
+  --pdf ./SD60.pdf --doc-id emd_sd60_computer_troubleshooting
+```
+
+It uploads the PDF, re-renders book-pages (native text only, cheap) to recompute
+each page's `source_label`, and updates the matching chunk's `pdf_page` in place.
 
 ## Notes
 

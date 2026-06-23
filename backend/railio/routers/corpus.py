@@ -10,30 +10,47 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from ..contract import Organization
+from ..corpus_links import resolve_document_url, resolve_source_url
 from ..db import session_scope
 from ..org_context import get_current_org
 
 router = APIRouter()
 
-# `unit_model` is core schema; `figures` is added by the offline manual-ingest
-# tool and may be absent on a DB that has never ingested an OEM manual. Detect it
-# once so the library query degrades gracefully instead of erroring.
-_has_figures: Optional[bool] = None
+# `unit_model` is core schema; `figures`, `pdf_page`, `document_id` and the
+# `documents` table are added by the offline manual-ingest tool and may be absent
+# on a DB that never ingested an OEM manual. Detect each once so queries degrade
+# gracefully (CFR-only deep links still work) instead of erroring.
+_col_cache: dict[str, bool] = {}
 
 
-async def _figures_supported(session: Any) -> bool:
-    global _has_figures
-    if _has_figures is None:
+async def _has_column(session: Any, table: str, column: str) -> bool:
+    key = f"{table}.{column}"
+    if key not in _col_cache:
         row = (
             await session.execute(
                 text(
                     "SELECT 1 FROM information_schema.columns "
-                    "WHERE table_name = 'corpus_chunks' AND column_name = 'figures'"
-                )
+                    "WHERE table_name = :t AND column_name = :c"
+                ),
+                {"t": table, "c": column},
             )
         ).first()
-        _has_figures = row is not None
-    return _has_figures
+        _col_cache[key] = row is not None
+    return _col_cache[key]
+
+
+async def _figures_supported(session: Any) -> bool:
+    return await _has_column(session, "corpus_chunks", "figures")
+
+
+async def _pdf_supported(session: Any) -> bool:
+    """True when the offline-ingest manual columns exist (documents.pdf_path +
+    corpus_chunks.document_id/pdf_page), so we can deep-link OEM manual PDFs."""
+    return (
+        await _has_column(session, "documents", "pdf_path")
+        and await _has_column(session, "corpus_chunks", "document_id")
+        and await _has_column(session, "corpus_chunks", "pdf_page")
+    )
 
 
 def _normalize(row: dict[str, Any]) -> dict[str, Any]:
@@ -50,6 +67,7 @@ def _normalize(row: dict[str, Any]) -> dict[str, Any]:
 @router.get("/chunks")
 async def list_chunks(
     doc_class: Optional[str] = None,
+    doc_id: Optional[str] = None,
     q: Optional[str] = None,
     limit: int = 500,
     org: Organization = Depends(get_current_org),
@@ -64,6 +82,9 @@ async def list_chunks(
     if doc_class in ("manual", "tribal_knowledge"):
         where.append("doc_class = :cls")
         params["cls"] = doc_class
+    if doc_id:
+        where.append("doc_id = :doc_id")
+        params["doc_id"] = doc_id
     if like:
         where.append(
             "(text ILIKE :like OR doc_title ILIKE :like OR source_label ILIKE :like)"
@@ -160,15 +181,21 @@ async def get_chunk(
     chunk_id: int, org: Organization = Depends(get_current_org)
 ) -> JSONResponse:
     async with session_scope() as session:
-        fig_col = ", figures" if await _figures_supported(session) else ""
+        fig_col = ", c.figures" if await _figures_supported(session) else ""
+        pdf = await _pdf_supported(session)
+        pdf_select = ", c.pdf_page, d.pdf_path" if pdf else ""
+        pdf_join = (
+            "LEFT JOIN documents d ON d.id = c.document_id" if pdf else ""
+        )
         row = (
             await session.execute(
                 text(
                     f"""
-                    SELECT id, doc_class, doc_id, doc_title, source_label, page,
-                           text, unit_model{fig_col}
-                    FROM corpus_chunks
-                    WHERE id = :id AND (org_id = :org OR org_id IS NULL)
+                    SELECT c.id, c.doc_class, c.doc_id, c.doc_title,
+                           c.source_label, c.page, c.text, c.unit_model
+                           {fig_col}{pdf_select}
+                    FROM corpus_chunks c {pdf_join}
+                    WHERE c.id = :id AND (c.org_id = :org OR c.org_id IS NULL)
                     """
                 ),
                 {"id": chunk_id, "org": org.id},
@@ -176,4 +203,51 @@ async def get_chunk(
         ).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="not found")
-    return JSONResponse(_normalize(dict(row)))
+    d = _normalize(dict(row))
+    d["source_url"] = resolve_source_url(d)
+    # pdf_path is an internal storage key; don't leak it to the client.
+    d.pop("pdf_path", None)
+    return JSONResponse(d)
+
+
+@router.get("/documents")
+async def list_documents(
+    org: Organization = Depends(get_current_org),
+) -> JSONResponse:
+    """The Knowledge library, document-first: one row per source document
+    (CFR part, OEM manual, tribal note set) with a count and an openable link.
+    Derived by grouping chunks so it works even without the offline `documents`
+    table; LEFT JOIN documents only to enrich OEM manuals with their PDF."""
+    async with session_scope() as session:
+        pdf = await _pdf_supported(session)
+        pdf_select = ", MAX(d.pdf_path) AS pdf_path, MAX(d.page_count) AS page_count"
+        pdf_join = (
+            "LEFT JOIN documents d ON d.id = c.document_id" if pdf else ""
+        )
+        if not pdf:
+            pdf_select = ", NULL AS pdf_path, NULL AS page_count"
+        rows = (
+            await session.execute(
+                text(
+                    f"""
+                    SELECT c.doc_class, c.doc_id, c.doc_title, c.unit_model,
+                           COUNT(*) AS chunk_count{pdf_select}
+                    FROM corpus_chunks c {pdf_join}
+                    WHERE (c.org_id = :org OR c.org_id IS NULL)
+                    GROUP BY c.doc_class, c.doc_id, c.doc_title, c.unit_model
+                    ORDER BY c.doc_class, c.unit_model NULLS FIRST, c.doc_title
+                    """
+                ),
+                {"org": org.id},
+            )
+        ).mappings().all()
+
+    docs = []
+    for r in rows:
+        d = dict(r)
+        d["chunk_count"] = int(d["chunk_count"] or 0)
+        d["page_count"] = int(d["page_count"]) if d.get("page_count") else None
+        d["source_url"] = resolve_document_url(d)
+        d.pop("pdf_path", None)
+        docs.append(d)
+    return JSONResponse({"documents": docs})
