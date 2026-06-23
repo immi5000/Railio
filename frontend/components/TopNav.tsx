@@ -9,10 +9,9 @@ import { getMe } from "@/lib/api";
 import { useRole } from "@/components/RoleProvider";
 import type { Role } from "@/lib/role";
 
-type NavItem = { href: string; label: string; title?: string; external?: boolean };
+type NavItem = { href: string; label: string; title?: string };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/landing/index.html", label: "← Landing", title: "Back to landing page", external: true },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/work", label: "Tickets" },
   { href: "/knowledge", label: "Knowledge", title: "Browse what the copilot cites" },
@@ -176,7 +175,6 @@ export function TopNav() {
   }
 
   function isActive(item: NavItem): boolean {
-    if (item.external) return false;
     return pathname === item.href || (pathname?.startsWith(`${item.href}/`) ?? false);
   }
 
@@ -188,23 +186,7 @@ export function TopNav() {
 
   const navLinks = NAV_ITEMS.map((item) => {
     const active = isActive(item);
-    const inner = (
-      <>
-        {active && <span className="fig-nav-dot" />}
-        {item.label}
-      </>
-    );
-    return item.external ? (
-      <a
-        key={item.href}
-        href={item.href}
-        className="fig-nav-link"
-        data-active={active}
-        title={item.title}
-      >
-        {inner}
-      </a>
-    ) : (
+    return (
       <Link
         key={item.href}
         href={item.href}
@@ -212,7 +194,8 @@ export function TopNav() {
         data-active={active}
         title={item.title}
       >
-        {inner}
+        {active && <span className="fig-nav-dot" />}
+        {item.label}
       </Link>
     );
   });

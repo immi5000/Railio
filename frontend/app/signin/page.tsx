@@ -51,6 +51,7 @@ function SignInInner() {
   return (
     <main
       style={{
+        position: "relative",
         minHeight: "100vh",
         display: "grid",
         placeItems: "center",
@@ -58,6 +59,13 @@ function SignInInner() {
         padding: "24px",
       }}
     >
+      <a
+        href="/landing/index.html"
+        className="dash-link"
+        style={{ position: "absolute", top: 24, left: 24 }}
+      >
+        ← Back to home
+      </a>
       <div
         className="dash-card"
         style={{
