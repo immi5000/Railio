@@ -35,6 +35,17 @@
   /* Sticky nav zone height (padding + pill + fade). Dashboard grey extends
      behind this so the page is one continuous #f4f5f7 at scroll-top. */
   --fig-nav-zone: 94px;
+
+  /* Figma "Redesign" design-system tokens. Promoted to :root (from .dash) so
+     both the dashboard and the /work page can consume them. */
+  --dash-line: #eef0f2;
+  --dash-border: #e4e5e8;
+  --dash-bg: #f4f5f7;
+  --dash-muted: #7a7a7e;
+  --dash-faint: #9a9aa0;
+  --dash-link: #2683eb;
+  --dash-card-border: #ecedef;
+  --dash-yellow: #fff246;
 }
 
 * {
@@ -734,16 +745,11 @@ button {
   scrollbar-width: thin;
 }
 
-/* Chat list / composer mobile tightening */
+/* Chat list mobile tightening */
 @media (max-width: 640px) {
   .chat-list {
     padding: 16px !important;
     gap: 12px !important;
-  }
-  .chat-composer {
-    padding: 8px !important;
-    /* Respect iOS safe-area at the bottom of the screen */
-    padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
   }
 }
 
@@ -803,109 +809,627 @@ button {
   }
 }
 
-/* === Workspace (persistent 3-pane: rail · center · context) ===
-   The three regions are always reserved, so selecting a ticket fills the
-   center/context columns instead of reshaping the rail — no layout jump. */
-.workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 300px) minmax(0, 1fr) minmax(0, 360px);
-  height: calc(100vh - 56px);
-  min-height: 0;
+/* === Work order page (Figma redesign: dashboard-styled detail + off-canvas
+   ticket drawer). Reuses the .dash-* design system. === */
+.work {
+  /* Pull grey behind the sticky nav so scroll-top is one continuous surface. */
+  margin-top: calc(-1 * var(--fig-nav-zone));
+  padding-top: var(--fig-nav-zone);
+  min-height: 100vh;
+  background: var(--dash-bg);
+  padding-left: 32px;
+  padding-right: 32px;
+  padding-bottom: 32px;
 }
-.workspace > .pane {
-  min-height: 0;
-  overflow: auto;
+@media (max-width: 760px) {
+  .work {
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-bottom: 20px;
+  }
+}
+.work-inner {
+  max-width: 1440px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
+  gap: 24px;
 }
-.workspace-rail {
-  border-right: 1px solid var(--border);
-  background: #fff;
+
+/* Header */
+.work-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.workspace-center {
+.work-toggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.work-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.work-head-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
   min-width: 0;
 }
-.workspace-context {
-  border-left: 1px solid var(--border);
-  background: #fff;
+.work-title {
+  font-family: "Inter", "Archivo", sans-serif;
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: #000;
+  margin: 0;
 }
-/* Tablet: drop the context column; tech reaches it via the in-detail toggle. */
-@media (max-width: 1024px) {
-  .workspace {
-    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
-  }
-  .workspace-context {
-    display: none;
-  }
+
+/* Body: copilot + context */
+.work-body {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 24px;
+  align-items: start;
 }
-/* Phone: rail collapses; the selected detail owns the screen. */
-@media (max-width: 760px) {
-  .workspace {
+@media (max-width: 980px) {
+  .work-body {
     grid-template-columns: 1fr;
   }
-  .workspace-rail.rail-hidden {
-    display: none;
+}
+.work-copilot {
+  display: flex;
+  flex-direction: column;
+  min-height: 620px;
+  overflow: hidden;
+}
+.work-copilot-head {
+  padding: 20px 28px 0;
+}
+.work-copilot-title {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px;
+  font-weight: 400;
+  color: #000;
+  margin: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eeeff1;
+}
+.work-context {
+  display: flex;
+  flex-direction: column;
+  gap: 21px;
+  min-width: 0;
+}
+
+/* Header: Figma yellow CTA pill + white status pill with a colored dot. */
+.work-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  color: #000;
+  background: var(--dash-yellow);
+  border: 1px solid var(--dash-yellow);
+  border-radius: 20px;
+  padding: 10px 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.12s;
+}
+.work-cta:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+.work-cta:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.work-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  color: #3a3a3e;
+  background: #fff;
+  border: 1px solid #d8d9dc;
+  border-radius: 20px;
+  padding: 5px 12px 5px 10px;
+  white-space: nowrap;
+}
+.work-status .work-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* Right-column context cards (Figma): white rounded cards, IBM Plex Mono
+   titles, mono data, blue/black chips. Scoped to .work-context so no other
+   page's .panel is affected. */
+.work-context .panel {
+  border: 1px solid var(--dash-card-border);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  margin-bottom: 0;
+  overflow: hidden;
+}
+.work-context .panel-header {
+  background: #fff;
+  padding: 20px 28px;
+}
+.work-context .panel-header[data-open="true"] {
+  padding-bottom: 14px;
+}
+.work-context .panel-title {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #000;
+}
+.work-context .panel-count {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--dash-faint);
+}
+.work-context .panel-chevron {
+  font-size: 9px;
+  color: #000;
+}
+.work-context .panel-body {
+  padding: 0 28px 20px;
+}
+
+/* Generic work context card (non-collapsible, e.g. Unit & intake) */
+.wc-card {
+  background: #fff;
+  border: 1px solid var(--dash-card-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  padding: 20px 28px;
+}
+.wc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.wc-title {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px;
+  color: #000;
+}
+.wc-sub {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--dash-muted);
+}
+.wc-link {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  color: var(--dash-link);
+}
+.wc-unit {
+  font-family: "Inter", sans-serif;
+  font-weight: 500;
+  font-size: 32px;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: #000;
+}
+.wc-meta-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+.wc-meta-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--dash-faint);
+}
+.wc-meta-value {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  color: #3a3a3e;
+}
+.wc-divider {
+  border: 0;
+  border-top: 1px solid #eeeff1;
+  margin: 0;
+}
+.wc-symptom {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #3a3a3e;
+  line-height: 1.4;
+}
+
+/* Parts-to-bring rows */
+.wc-part {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid #f4f5f7;
+}
+.wc-part:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.wc-part-name {
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: #000;
+}
+.wc-part-meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--dash-muted);
+  margin-top: 3px;
+}
+.wc-part-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+}
+.wc-qty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: #3a3a3e;
+  background: var(--dash-bg);
+  border: 1px solid var(--dash-border);
+  border-radius: 99px;
+  padding: 4px 14px;
+}
+
+/* Mono chips (faults + tribal) */
+.wc-chip {
+  display: inline-flex;
+  align-items: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  border-radius: 99px;
+  padding: 5px 12px;
+}
+.wc-chip--crit {
+  background: #000;
+  color: #fff;
+}
+.wc-chip--blue {
+  background: #e2eaf7;
+  color: var(--dash-link);
+}
+.wc-chip--soft {
+  background: var(--dash-bg);
+  color: #3a3a3e;
+  border: 1px solid var(--dash-border);
+}
+.wc-quote {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #3a3a3e;
+  line-height: 1.3;
+}
+.wc-attrib {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--dash-muted);
+  margin-top: 9px;
+}
+
+/* === Figma chat interface (Copilot card body) === */
+.rc-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 19px;
+  width: 100%;
+  max-width: 525px;
+  margin: auto;
+  padding: 24px 0;
+}
+.rc-empty-hint {
+  font-family: "Inter", sans-serif;
+  font-size: 15px;
+  color: #3a3a3e;
+  text-align: center;
+}
+.rc-try {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--dash-faint);
+  text-align: center;
+  margin-top: 18px;
+}
+.rc-suggest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.rc-suggest {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  color: #000;
+  background: var(--dash-bg);
+  border: 1px solid #e9eaec;
+  border-radius: 12px;
+  padding: 14px 25px;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s;
+}
+.rc-suggest:hover:not(:disabled) {
+  border-color: #000;
+}
+.rc-suggest:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Composer: rounded grey bar holding mic + input + IMG + yellow Send. */
+.rc-composer {
+  margin: 0 28px 20px;
+  background: var(--dash-bg);
+  border: 1px solid #e9eaec;
+  border-radius: 15px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rc-composer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.rc-input-group {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1;
+  min-width: 0;
+}
+.rc-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  color: #000;
+  line-height: 1.4;
+  max-height: 120px;
+  padding: 0;
+}
+.rc-input::placeholder {
+  color: var(--dash-faint);
+}
+.rc-input:focus {
+  outline: none;
+}
+.rc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+/* Square-ish white chrome box shared by the mic + IMG buttons. */
+.rc-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  background: #fff;
+  border: 1px solid var(--dash-border);
+  border-radius: 12px;
+  cursor: pointer;
+  color: #000;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.rc-box:hover:not(:disabled) {
+  border-color: #000;
+}
+.rc-box[data-active="true"] {
+  background: #000;
+  border-color: #000;
+  color: var(--dash-yellow);
+}
+.rc-mic {
+  width: 46px;
+  position: relative;
+}
+.rc-imgbtn {
+  padding: 0 16px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: #7a7a7e;
+}
+.rc-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 27px;
+  background: var(--dash-yellow);
+  border: 1px solid var(--dash-yellow);
+  border-radius: 12px;
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: #000;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.12s;
+}
+.rc-send:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+.rc-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.rc-pending {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+@media (max-width: 640px) {
+  .rc-composer {
+    margin: 0 16px 16px;
+  }
+  .rc-actions .rc-send {
+    padding: 0 16px;
   }
 }
 
-.ticket-card {
-  transition: background 0.1s, border-color 0.1s;
-}
-.ticket-card:hover {
-  background: var(--pale);
+/* Quiet placeholder when no ticket is selected. */
+.work-placeholder {
+  display: grid;
+  place-items: center;
+  padding: 64px 24px;
+  text-align: center;
+  color: var(--dash-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
 }
 
-/* === Role mode banner (rail header) === */
-.mode-banner {
+/* Off-canvas ticket drawer */
+.work-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.32);
+  z-index: 60;
+}
+.work-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(360px, 90vw);
+  background: #fff;
+  border-right: 1px solid var(--dash-border);
+  box-shadow: 2px 0 16px rgba(16, 24, 40, 0.12);
+  z-index: 61;
+  transform: translateX(-100%);
+  transition: transform 0.18s ease;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: var(--s3) var(--s4);
-  border-bottom: 1px solid var(--border);
-  color: #fff;
 }
-.mode-banner .mode-title {
-  font-size: 13px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.work-drawer.is-open {
+  transform: translateX(0);
 }
-.mode-banner .mode-sub {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  opacity: 0.85;
+.work-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--dash-line);
 }
-.mode-banner--dispatch {
-  background: var(--dispatch);
+.work-drawer-title {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #000;
 }
-.mode-banner--tech {
-  background: var(--tech);
+.work-drawer-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--dash-muted);
+  padding: 4px;
+}
+.work-drawer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--dash-line);
+}
+.work-drawer-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-/* === Segmented role toggle === */
+/* Segmented role toggle (dash-styled, lives in the drawer) */
 .seg-toggle {
   display: inline-flex;
-  border: 1px solid var(--border);
+  border: 1px solid var(--dash-border);
+  border-radius: 40px;
+  overflow: hidden;
 }
 .seg-toggle-item {
-  padding: 6px 12px;
+  padding: 6px 14px;
+  font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
-  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
   border: none;
   cursor: pointer;
   background: #fff;
-  color: var(--ink);
+  color: var(--dash-muted);
 }
-.seg-toggle-item[data-active="true"][data-role="dispatch"] {
-  background: var(--dispatch);
+.seg-toggle-item[data-active="true"] {
+  background: #000;
   color: #fff;
 }
-.seg-toggle-item[data-active="true"][data-role="tech"] {
-  background: var(--tech);
-  color: #fff;
+
+/* Ticket row card (drawer queue) */
+.work-ticket {
+  text-align: left;
+  border: 1px solid var(--dash-border);
+  border-radius: 12px;
+  background: #fff;
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  font: inherit;
+  transition: border-color 0.1s, box-shadow 0.1s;
+}
+.work-ticket:hover {
+  border-color: #000;
+}
+.work-ticket[data-active="true"] {
+  border-color: #000;
+  box-shadow: 0 0 0 1px #000;
 }
 
 /* === Collapsible context panels === */
@@ -953,25 +1477,6 @@ button {
 }
 .panel-body {
   padding: var(--s4);
-}
-
-/* Slim placeholder shown in the context column when nothing is selected. */
-.context-placeholder {
-  height: 100%;
-  display: grid;
-  place-items: center;
-  padding: var(--s5);
-  color: var(--muted);
-  text-align: center;
-}
-
-/* Guided empty state in the center pane. */
-.workspace-empty {
-  height: 100%;
-  display: grid;
-  place-items: center;
-  padding: var(--s6);
-  text-align: center;
 }
 
 /* Toast */
@@ -1206,12 +1711,6 @@ button {
    mixes Inter (UI) + IBM Plex Mono (data) + Source Serif (lede).
    ============================================================ */
 .dash {
-  --dash-line: #eef0f2;
-  --dash-border: #e4e5e8;
-  --dash-bg: #f4f5f7;
-  --dash-muted: #7a7a7e;
-  --dash-faint: #9a9aa0;
-  --dash-link: #2683eb;
   /* Pull grey behind the sticky nav so scroll-top is one continuous surface. */
   margin-top: calc(-1 * var(--fig-nav-zone));
   padding-top: var(--fig-nav-zone);

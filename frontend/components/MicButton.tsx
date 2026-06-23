@@ -166,6 +166,8 @@ export function MicButton({
   return (
     <button
       type="button"
+      className="rc-box rc-mic"
+      data-active={active}
       title={
         error
           ? error
@@ -175,20 +177,6 @@ export function MicButton({
       }
       aria-pressed={active}
       onClick={() => (active ? stop() : start())}
-      style={{
-        appearance: "none",
-        border: `1px solid ${active ? "var(--mta)" : "var(--border)"}`,
-        background: active ? "var(--mta)" : "#fff",
-        color: active ? "#fff" : "var(--ink)",
-        cursor: "pointer",
-        width: 42,
-        height: 42,
-        position: "relative",
-        display: "grid",
-        placeItems: "center",
-        userSelect: "none",
-        transition: "background 0.12s, border-color 0.12s, color 0.12s",
-      }}
     >
       <svg
         width="16"

@@ -45,6 +45,53 @@ export function PhotoUpload({
     [onAdd, ticketId],
   );
 
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept="image/*"
+      capture="environment"
+      multiple
+      style={{ display: "none" }}
+      onChange={(e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length) handleFiles(files);
+        e.target.value = "";
+      }}
+    />
+  );
+
+  // Compact (Figma composer): a single "+IMG" chrome button. Drop/paste are
+  // bound to the button itself; pending thumbnails are rendered by the parent.
+  if (compact) {
+    return (
+      <button
+        type="button"
+        className="rc-box rc-imgbtn"
+        onClick={() => inputRef.current?.click()}
+        disabled={busy}
+        title={error || "Attach images (drop, paste, or click)"}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          const files = Array.from(e.dataTransfer.files).filter((f) =>
+            f.type.startsWith("image/"),
+          );
+          if (files.length) handleFiles(files);
+        }}
+        onPaste={(e) => {
+          const files = Array.from(e.clipboardData.files).filter((f) =>
+            f.type.startsWith("image/"),
+          );
+          if (files.length) handleFiles(files);
+        }}
+      >
+        {busy ? "…" : "+IMG"}
+        {fileInput}
+      </button>
+    );
+  }
+
   return (
     <div>
       <div
@@ -66,8 +113,8 @@ export function PhotoUpload({
         }}
         style={{
           border: "1px dashed var(--border)",
-          padding: compact ? 8 : 16,
-          background: compact ? "transparent" : "#fff",
+          padding: 16,
+          background: "#fff",
           display: "flex",
           alignItems: "center",
           gap: 12,
@@ -82,19 +129,7 @@ export function PhotoUpload({
         >
           {busy ? "Uploading..." : "+ Photo"}
         </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          multiple
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const files = Array.from(e.target.files || []);
-            if (files.length) handleFiles(files);
-            e.target.value = "";
-          }}
-        />
+        {fileInput}
         <span style={{ fontSize: 12, color: "var(--muted)" }}>
           Drop, paste, or click to attach images.
         </span>

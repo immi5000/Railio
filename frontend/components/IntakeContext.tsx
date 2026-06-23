@@ -1,16 +1,22 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getTicket, patchTicket } from "@/lib/api";
-import type { TicketStatus } from "@/lib/contract";
-import { formatDate, severityClass, statusLabel, statusPillClass } from "@/lib/format";
+import { useQuery } from "@tanstack/react-query";
+import { getTicket } from "@/lib/api";
+import type { Severity } from "@/lib/contract";
+import { formatDate } from "@/lib/format";
 import { ContextPanel, Empty } from "./ContextPanel";
 import { DeleteTicketButton } from "./DeleteTicketButton";
 
+const SEV_ABBR: Record<Severity, string> = {
+  critical: "crit",
+  major: "maj",
+  minor: "min",
+};
+
 /**
  * Dispatcher counterpart to RepairContext. Surfaces what the dispatcher
- * captured (symptoms, codes, parsed faults, pre-arrival briefing) and the
- * hand-off action, so the dispatcher's workflow lives in the same 3-pane shell.
+ * captured (symptoms, codes, parsed faults, pre-arrival briefing). Rendered as
+ * direct children of .work-context so the cards stack with the page's gap.
  */
 export function IntakeContext({
   ticketId,
@@ -19,27 +25,15 @@ export function IntakeContext({
   ticketId: string;
   onHandedOff: () => void;
 }) {
-  const qc = useQueryClient();
   const { data: ticket } = useQuery({
     queryKey: ["ticket", ticketId],
     queryFn: () => getTicket(ticketId),
   });
 
-  const handoffMut = useMutation({
-    mutationFn: () => patchTicket(ticketId, { status: "AWAITING_TECH" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
-      qc.invalidateQueries({ queryKey: ["tickets"] });
-      onHandedOff();
-    },
-  });
-
   if (!ticket) {
     return (
-      <div style={{ padding: "var(--s5)" }}>
-        <span className="micro" style={{ color: "var(--muted)" }}>
-          Loading intake…
-        </span>
+      <div className="wc-card">
+        <span className="wc-sub">Loading intake…</span>
       </div>
     );
   }
@@ -51,47 +45,21 @@ export function IntakeContext({
   const faults = ticket.fault_dump_parsed || [];
 
   return (
-    <div style={{ padding: "var(--s4)" }}>
-      <div style={{ marginBottom: "var(--s4)" }}>
-        <span className="sect-eyebrow">Intake details</span>
-      </div>
-
-      <div
-        style={{
-          border: "1px solid var(--border)",
-          padding: "var(--s4)",
-          marginBottom: "var(--s3)",
-          background: "var(--pale)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "baseline",
-            marginBottom: "var(--s2)",
-          }}
-        >
-          <div style={{ fontWeight: 700, fontSize: 14 }}>
-            {ticket.asset.reporting_mark} {ticket.asset.road_number}
-          </div>
-          <div style={{ display: "flex", gap: "var(--s1)", alignItems: "center" }}>
-            <span className={severityClass(ticket.severity)} style={{ textTransform: "capitalize" }}>
-              {ticket.severity}
-            </span>
-            <span className={statusPillClass(ticket.status as TicketStatus)}>
-              {statusLabel(ticket.status as TicketStatus)}
-            </span>
-          </div>
+    <>
+      <div className="wc-card" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="wc-head">
+          <span className="wc-title">Unit &amp; intake</span>
+          <span className="wc-link">{ticket.asset.unit_model}</span>
         </div>
-        <div className="micro" style={{ color: "var(--muted)" }}>
-          {ticket.asset.unit_model} · opened {formatDate(ticket.opened_at)}
+        <div className="wc-unit">
+          {ticket.asset.reporting_mark} {ticket.asset.road_number}
         </div>
+        <div className="wc-sub">Opened {formatDate(ticket.opened_at)}</div>
       </div>
 
       <ContextPanel title="Reported symptoms" defaultOpen>
         {ticket.initial_symptoms ? (
-          <p style={{ fontSize: 13, lineHeight: 1.5, color: "var(--ink-2)", whiteSpace: "pre-wrap" }}>
+          <p className="wc-symptom" style={{ whiteSpace: "pre-wrap" }}>
             {ticket.initial_symptoms}
           </p>
         ) : (
@@ -101,9 +69,11 @@ export function IntakeContext({
 
       <ContextPanel title="Error codes" count={codes.length || undefined} defaultOpen={codes.length > 0}>
         {codes.length > 0 ? (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s1)" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {codes.map((c) => (
-              <span key={c} className="pill pill-soft">{c}</span>
+              <span key={c} className="wc-chip wc-chip--soft">
+                {c}
+              </span>
             ))}
           </div>
         ) : (
@@ -113,10 +83,14 @@ export function IntakeContext({
 
       <ContextPanel title="Parsed faults" count={faults.length || undefined} defaultOpen={faults.length > 0}>
         {faults.length > 0 ? (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s1)" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {faults.map((p, i) => (
-              <span key={`${p.code}-${i}`} className={severityClass(p.severity)} title={p.description}>
-                {p.code} · {p.severity}
+              <span
+                key={`${p.code}-${i}`}
+                className={p.severity === "critical" ? "wc-chip wc-chip--crit" : "wc-chip wc-chip--soft"}
+                title={p.description}
+              >
+                {p.code} · {SEV_ABBR[p.severity]}
               </span>
             ))}
           </div>
@@ -127,7 +101,7 @@ export function IntakeContext({
 
       <ContextPanel title="Pre-arrival briefing" defaultOpen>
         {ticket.pre_arrival_summary ? (
-          <p style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap", color: "var(--ink-2)" }}>
+          <p className="wc-symptom" style={{ whiteSpace: "pre-wrap", fontSize: 14 }}>
             {ticket.pre_arrival_summary}
           </p>
         ) : (
@@ -135,31 +109,9 @@ export function IntakeContext({
         )}
       </ContextPanel>
 
-      {ticket.status === "AWAITING_TECH" && (
-        <button
-          className="btn btn-super"
-          style={{ width: "100%", marginTop: "var(--s2)" }}
-          onClick={() => handoffMut.mutate()}
-          disabled={handoffMut.isPending}
-        >
-          {handoffMut.isPending ? "Handing off…" : "Hand off to tech →"}
-        </button>
-      )}
-      {handoffMut.error && (
-        <div style={{ color: "#8a1f15", fontSize: 12, marginTop: "var(--s2)" }}>
-          {(handoffMut.error as Error).message}
-        </div>
-      )}
-
-      <div
-        style={{
-          marginTop: "var(--s4)",
-          paddingTop: "var(--s3)",
-          borderTop: "1px solid var(--border)",
-        }}
-      >
+      <div className="wc-card">
         <DeleteTicketButton ticketId={ticketId} onDeleted={onHandedOff} />
       </div>
-    </div>
+    </>
   );
 }

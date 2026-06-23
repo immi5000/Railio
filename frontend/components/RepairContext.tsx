@@ -3,10 +3,16 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getTicket, listParts, fileUrl } from "@/lib/api";
-import type { Citation, Part, TicketDetail, TicketStatus } from "@/lib/contract";
-import { formatDate, formatDateOnly, severityClass, statusLabel, statusPillClass } from "@/lib/format";
+import type { Citation, ParsedFault, Part, Severity, TicketDetail } from "@/lib/contract";
+import { formatDateOnly } from "@/lib/format";
 import { CitationDrawer } from "./CitationDrawer";
 import { ContextPanel, Empty } from "./ContextPanel";
+
+const SEV_ABBR: Record<Severity, string> = {
+  critical: "crit",
+  major: "maj",
+  minor: "min",
+};
 
 export function RepairContext({ ticketId }: { ticketId: string }) {
   const { data: ticket } = useQuery({
@@ -21,13 +27,13 @@ export function RepairContext({ ticketId }: { ticketId: string }) {
 
   const [openChunk, setOpenChunk] = useState<number | null>(null);
 
-  const dedupedCitations: Citation[] = useMemo(() => {
+  const tribalCitations: Citation[] = useMemo(() => {
     if (!ticket) return [];
     const seen = new Set<number>();
     const out: Citation[] = [];
     for (const m of ticket.messages) {
       for (const c of m.citations || []) {
-        if (!seen.has(c.chunk_id)) {
+        if (c.doc_class === "tribal_knowledge" && !seen.has(c.chunk_id)) {
           seen.add(c.chunk_id);
           out.push(c);
         }
@@ -49,39 +55,47 @@ export function RepairContext({ ticketId }: { ticketId: string }) {
 
   if (!ticket) {
     return (
-      <div style={{ padding: "var(--s5)" }}>
-        <span className="micro" style={{ color: "var(--muted)" }}>
-          Loading context…
-        </span>
+      <div className="wc-card">
+        <span className="wc-sub">Loading context…</span>
       </div>
     );
   }
 
-  // Smart defaults: before work starts, intake info matters most; once the
-  // repair is underway, parts/photos/citations are what the tech reaches for.
   const started = ticket.status !== "AWAITING_TECH";
   const faults = ticket.fault_dump_parsed || [];
+  const firstCode =
+    faults[0]?.code ||
+    (ticket.initial_error_codes ?? "").split(",").map((c) => c.trim()).filter(Boolean)[0] ||
+    null;
 
   return (
-    <div style={{ padding: "var(--s4)" }}>
-      <div style={{ marginBottom: "var(--s4)" }}>
-        <span className="sect-eyebrow">Repair context</span>
-      </div>
+    <>
+      <UnitIntakeCard ticket={ticket} errorCode={firstCode} />
 
-      <TicketCard ticket={ticket} />
-      <UnitInfo ticket={ticket} />
+      <ContextPanel
+        title="Parts to bring"
+        count={ticket.ticket_parts?.length || undefined}
+        defaultOpen={started}
+      >
+        <PartsToBring ticket={ticket} parts={parts || []} unitModel={ticket.asset.unit_model} firstCode={firstCode} />
+      </ContextPanel>
 
-      <ContextPanel title="Parsed faults" count={faults.length || undefined} defaultOpen={!started}>
+      <ContextPanel
+        title="Faults & senior-tech notes"
+        defaultOpen={started}
+      >
+        <FaultsAndNotes
+          faults={faults}
+          tribal={tribalCitations}
+          onOpenChunk={setOpenChunk}
+        />
+      </ContextPanel>
+
+      <ContextPanel title="Parsed faults" count={faults.length || undefined} defaultOpen={false}>
         {faults.length > 0 ? (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s1)" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {faults.map((p, i) => (
-              <span
-                key={`${p.code}-${i}`}
-                className={severityClass(p.severity)}
-                title={p.description}
-              >
-                {p.code} · {p.severity}
-              </span>
+              <FaultChip key={`${p.code}-${i}`} fault={p} />
             ))}
           </div>
         ) : (
@@ -89,69 +103,36 @@ export function RepairContext({ ticketId }: { ticketId: string }) {
         )}
       </ContextPanel>
 
-      <ContextPanel title="Pre-arrival briefing" defaultOpen={!started}>
-        {ticket.pre_arrival_summary ? (
-          <p style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap", color: "var(--ink-2)" }}>
-            {ticket.pre_arrival_summary}
-          </p>
-        ) : (
-          <Empty>Dispatcher and AI haven&rsquo;t written one yet.</Empty>
-        )}
-      </ContextPanel>
-
-      <ContextPanel
-        title="Parts"
-        count={ticket.ticket_parts?.length || undefined}
-        defaultOpen={started}
-      >
-        <SuggestedParts ticket={ticket} parts={parts || []} />
-      </ContextPanel>
-
-      <ContextPanel title="Citations" count={dedupedCitations.length || undefined} defaultOpen={started}>
-        {dedupedCitations.length === 0 ? (
-          <Empty>No citations yet.</Empty>
-        ) : (
-          <div style={{ display: "flex", flexWrap: "wrap" }}>
-            {dedupedCitations.map((c) => (
-              <button
-                key={c.chunk_id}
-                className={c.doc_class === "manual" ? "cite cite-manual" : "cite cite-tribal"}
-                onClick={() => setOpenChunk(c.chunk_id)}
-              >
-                {c.doc_class === "manual" ? "📖" : "👤"} {c.source_label}
-              </button>
-            ))}
-          </div>
-        )}
-      </ContextPanel>
-
-      <ContextPanel title="Photos" count={allPhotos.length || undefined} defaultOpen={started}>
+      <ContextPanel title="Photos" count={allPhotos.length || undefined} defaultOpen={false}>
         {allPhotos.length === 0 ? (
           <Empty>No photos sent yet.</Empty>
         ) : (
-          <div style={{ display: "flex", gap: "var(--s2)", overflowX: "auto", paddingBottom: "var(--s1)" }}>
-            {allPhotos.map((p, i) => (
-              <a
-                key={`${p.path}-${i}`}
-                href={fileUrl(p.path)}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  flex: "0 0 96px",
-                  width: 96,
-                  height: 96,
-                  border: "1px solid var(--border)",
-                  background: "var(--pale)",
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={fileUrl(p.path)}
-                  alt="ticket photo"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              </a>
-            ))}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {allPhotos
+              .filter((p) => fileUrl(p.path))
+              .map((p, i) => (
+                <a
+                  key={`${p.path}-${i}`}
+                  href={fileUrl(p.path)}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: 10,
+                    overflow: "hidden",
+                    border: "1px solid var(--dash-border)",
+                    background: "var(--dash-bg)",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={fileUrl(p.path)}
+                    alt="ticket photo"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                </a>
+              ))}
           </div>
         )}
       </ContextPanel>
@@ -159,189 +140,188 @@ export function RepairContext({ ticketId }: { ticketId: string }) {
       {openChunk != null && (
         <CitationDrawer chunkId={openChunk} onClose={() => setOpenChunk(null)} />
       )}
-    </div>
+    </>
   );
 }
 
-function TicketCard({ ticket }: { ticket: TicketDetail }) {
+function UnitIntakeCard({
+  ticket,
+  errorCode,
+}: {
+  ticket: TicketDetail;
+  errorCode: string | null;
+}) {
+  const a = ticket.asset;
   const [showRaw, setShowRaw] = useState(false);
-  const codes = (ticket.initial_error_codes ?? "")
-    .split(",")
-    .map((c) => c.trim())
-    .filter(Boolean);
-  const hasRaw = !!ticket.fault_dump_raw;
   return (
-    <div
-      style={{
-        border: "1px solid var(--border)",
-        padding: "var(--s4)",
-        marginBottom: "var(--s3)",
-        background: "var(--pale)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          marginBottom: "var(--s2)",
-        }}
-      >
-        <div style={{ fontWeight: 700, fontSize: 14 }} title={ticket.short_id}>
-          {ticket.title || "Ticket"}
-        </div>
-        <div style={{ display: "flex", gap: "var(--s1)", alignItems: "center" }}>
-          <span
-            className={severityClass(ticket.severity)}
-            style={{ textTransform: "capitalize" }}
-            title={`Severity: ${ticket.severity}`}
-          >
-            {ticket.severity}
-          </span>
-          <span className={statusPillClass(ticket.status as TicketStatus)}>
-            {statusLabel(ticket.status as TicketStatus)}
-          </span>
-        </div>
-      </div>
-      <div className="micro" style={{ color: "var(--muted)", marginBottom: "var(--s2)" }}>
-        Opened {formatDate(ticket.opened_at)}
-        {ticket.closed_at && ` · closed ${formatDate(ticket.closed_at)}`}
+    <div className="wc-card" style={{ display: "flex", flexDirection: "column", gap: 17 }}>
+      <div className="wc-head">
+        <span className="wc-title">Unit &amp; intake</span>
+        <span className="wc-link">{a.unit_model}</span>
       </div>
 
-      {codes.length > 0 && (
-        <div style={{ marginBottom: "var(--s2)" }}>
-          <div className="micro" style={{ marginBottom: "var(--s1)" }}>Initial error codes</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s1)" }}>
-            {codes.map((c) => (
-              <span key={c} className="pill pill-soft">{c}</span>
-            ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="wc-unit">
+          {a.reporting_mark} {a.road_number}
+        </div>
+
+        <div className="wc-meta-row">
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="wc-meta-label">IN SERVICE</span>
+            <span className="wc-meta-value">{formatDateOnly(a.in_service_date)}</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span className="wc-meta-label">LAST INSP.</span>
+            <span className="wc-meta-value">{formatDateOnly(a.last_inspection_at)}</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+            <span className="wc-meta-label">ERROR CODE</span>
+            <span className="wc-meta-value">{errorCode || "—"}</span>
           </div>
         </div>
-      )}
 
-      {ticket.initial_symptoms && (
-        <div style={{ marginBottom: hasRaw ? "var(--s2)" : 0 }}>
-          <div className="micro" style={{ marginBottom: "var(--s1)" }}>Initial symptoms</div>
-          <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--ink-2)", whiteSpace: "pre-wrap" }}>
-            {ticket.initial_symptoms}
-          </div>
+        <hr className="wc-divider" />
+
+        <div className="wc-symptom">
+          <span style={{ color: "var(--dash-muted)" }}>Symptoms: </span>
+          {ticket.initial_symptoms || "—"}
         </div>
-      )}
 
-      {hasRaw && (
-        <div>
-          <button
-            className="micro"
-            onClick={() => setShowRaw((v) => !v)}
-            style={{
-              background: "transparent",
-              border: "none",
-              padding: 0,
-              cursor: "pointer",
-              color: "var(--mta)",
-              textDecoration: "underline",
-            }}
-          >
-            {showRaw ? "Hide" : "Show"} raw fault dump
-          </button>
-          {showRaw && (
-            <pre
+        {ticket.fault_dump_raw && (
+          <div>
+            <button
+              className="wc-sub"
+              onClick={() => setShowRaw((v) => !v)}
               style={{
-                marginTop: "var(--s1)",
-                padding: "var(--s2)",
-                background: "#0a0a0a",
-                color: "#e5e5e5",
-                fontSize: 11,
-                lineHeight: 1.4,
-                overflow: "auto",
-                maxHeight: 200,
-                whiteSpace: "pre-wrap",
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                color: "var(--dash-link)",
+                textDecoration: "underline",
               }}
             >
-              {ticket.fault_dump_raw}
-            </pre>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function UnitInfo({ ticket }: { ticket: TicketDetail }) {
-  const a = ticket.asset;
-  return (
-    <div style={{ border: "1px solid var(--ink)", padding: "var(--s4)", marginBottom: "var(--s4)" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          borderBottom: "1px solid var(--ink)",
-          paddingBottom: "var(--s2)",
-          marginBottom: "var(--s3)",
-        }}
-      >
-        <span className="micro">Unit</span>
-        <span className="micro" style={{ color: "var(--mta)" }}>{a.unit_model}</span>
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.01em" }}>
-        {a.reporting_mark} {a.road_number}
-      </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "var(--s3)",
-          marginTop: "var(--s3)",
-          fontSize: 12,
-        }}
-      >
-        <div>
-          <div className="micro">In service</div>
-          <div>{formatDateOnly(a.in_service_date)}</div>
-        </div>
-        <div>
-          <div className="micro">Last inspection</div>
-          <div>{formatDateOnly(a.last_inspection_at)}</div>
-        </div>
+              {showRaw ? "Hide" : "Show"} raw fault dump
+            </button>
+            {showRaw && (
+              <pre
+                style={{
+                  marginTop: 8,
+                  padding: 12,
+                  borderRadius: 8,
+                  background: "#0a0a0a",
+                  color: "#e5e5e5",
+                  fontSize: 11,
+                  lineHeight: 1.4,
+                  overflow: "auto",
+                  maxHeight: 200,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {ticket.fault_dump_raw}
+              </pre>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function SuggestedParts({ ticket, parts }: { ticket: TicketDetail; parts: Part[] }) {
+function PartsToBring({
+  ticket,
+  parts,
+  unitModel,
+  firstCode,
+}: {
+  ticket: TicketDetail;
+  parts: Part[];
+  unitModel: string;
+  firstCode: string | null;
+}) {
   if (!ticket.ticket_parts || ticket.ticket_parts.length === 0) {
     return <Empty>None yet — Railio adds them as it diagnoses.</Empty>;
   }
   const partsById = new Map(parts.map((p) => [p.id, p]));
+  const subtitle = firstCode
+    ? `Relevant to fault ${firstCode} · ${unitModel}`
+    : `Suggested for ${unitModel}`;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-      {ticket.ticket_parts.map((tp) => {
-        const p = partsById.get(tp.part_id);
-        return (
-          <div
-            key={tp.id}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr auto",
-              gap: "var(--s2)",
-              padding: "var(--s2) 0",
-              borderBottom: "1px solid var(--pale)",
-              fontSize: 13,
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 700 }}>{p?.name || "Unknown part"}</div>
-              <div style={{ color: "var(--muted)", fontSize: 12 }}>
-                {p?.part_number || "—"} · Bin {p?.bin_location || "?"} · qty {p?.qty_on_hand ?? "?"}
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="wc-sub">{subtitle}</div>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {ticket.ticket_parts.map((tp) => {
+          const p = partsById.get(tp.part_id);
+          const insufficient = p != null && p.qty_on_hand < tp.qty;
+          return (
+            <div key={tp.id} className="wc-part">
+              <div style={{ minWidth: 0 }}>
+                <div className="wc-part-name">{p?.name || "Unknown part"}</div>
+                <div className="wc-part-meta">
+                  {p?.part_number || "—"} · {p?.bin_location || "Bin ?"}
+                </div>
+              </div>
+              <div className="wc-part-right">
+                {insufficient && <span className="wc-chip wc-chip--blue">Insufficient</span>}
+                <span className="wc-qty">x{tp.qty}</span>
               </div>
             </div>
-            <span className="micro" style={{ color: "var(--muted)", alignSelf: "center" }}>
-              {tp.added_via === "ai_suggestion" ? "AI" : "manual"}
-            </span>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
+  );
+}
+
+function FaultsAndNotes({
+  faults,
+  tribal,
+  onOpenChunk,
+}: {
+  faults: ParsedFault[];
+  tribal: Citation[];
+  onOpenChunk: (id: number) => void;
+}) {
+  if (faults.length === 0 && tribal.length === 0) {
+    return <Empty>No faults parsed and no senior-tech notes yet.</Empty>;
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
+      {faults.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {faults.map((p, i) => (
+            <FaultChip key={`${p.code}-${i}`} fault={p} />
+          ))}
+        </div>
+      )}
+      {tribal.length > 0 && (
+        <>
+          {faults.length > 0 && <hr className="wc-divider" />}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {tribal.map((c) => (
+              <button
+                key={c.chunk_id}
+                className="wc-chip wc-chip--blue"
+                onClick={() => onOpenChunk(c.chunk_id)}
+                style={{ cursor: "pointer", border: "none" }}
+                title={c.source_label}
+              >
+                {c.source_label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function FaultChip({ fault }: { fault: ParsedFault }) {
+  const cls =
+    fault.severity === "critical" ? "wc-chip wc-chip--crit" : "wc-chip wc-chip--soft";
+  return (
+    <span className={cls} title={fault.description}>
+      {fault.code} · {SEV_ABBR[fault.severity]}
+    </span>
   );
 }

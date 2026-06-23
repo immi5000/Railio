@@ -70,8 +70,11 @@ export async function authHeaders(): Promise<Record<string, string>> {
 }
 
 /** Resolve a backend-stored path (e.g. /uploads/foo.jpg) into a fully-qualified URL the browser can load. */
-export function fileUrl(path: string | null | undefined): string {
-  if (!path) return "";
+// Returns undefined (not "") for a missing path so React drops the src/href
+// attribute entirely — an empty string triggers the browser's "empty src"
+// warning and a wasteful re-request of the current page.
+export function fileUrl(path: string | null | undefined): string | undefined {
+  if (!path) return undefined;
   if (/^https?:\/\//.test(path)) return path;
   return apiUrl(path);
 }

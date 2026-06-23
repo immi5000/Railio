@@ -36,12 +36,15 @@ type Props = {
   emptyHint?: string;
   /** Inline upload UI handler — defaults to opening the file picker. */
   onRequestPhoto?: (prompt: string) => void;
+  /** Drop the pane's own border/background to fill a parent card (Copilot). */
+  bare?: boolean;
 };
 
 export function ChatPane({
   ticketId,
   role,
   emptyHint,
+  bare = false,
 }: Props) {
   const qc = useQueryClient();
   const { data } = useQuery({
@@ -322,9 +325,11 @@ export function ChatPane({
       style={{
         display: "flex",
         flexDirection: "column",
+        flex: 1,
+        minWidth: 0,
         height: "100%",
         background: "#fff",
-        border: "1px solid var(--border)",
+        border: bare ? "none" : "1px solid var(--border)",
       }}
     >
       <div
@@ -332,7 +337,7 @@ export function ChatPane({
         className="scroll-chat chat-list"
         style={{
           flex: 1,
-          padding: 24,
+          padding: bare ? "8px 28px 16px" : 24,
           display: "flex",
           flexDirection: "column",
           gap: 16,
@@ -372,9 +377,11 @@ export function ChatPane({
           style={{
             background: "#ffe6e3",
             color: "#8a1f15",
+            margin: bare ? "0 28px 12px" : 0,
             padding: "8px 16px",
             fontSize: 13,
-            borderTop: "1px solid #f08d80",
+            borderRadius: bare ? 10 : 0,
+            borderTop: bare ? "none" : "1px solid #f08d80",
           }}
         >
           {inCooldown
@@ -383,71 +390,74 @@ export function ChatPane({
         </div>
       )}
 
-      <div
-        className="chat-composer"
-        style={{
-          borderTop: "1px solid var(--border)",
-          padding: 12,
-          background: "var(--pale)",
-        }}
-      >
-        <PhotoUpload
-          ticketId={ticketId}
-          pending={pending}
-          onAdd={(a) => setPending((p) => [...p, ...a])}
-          onRemove={(path) =>
-            setPending((p) => p.filter((x) => x.path !== path))
-          }
-          compact
-        />
-        <div
-          className="chat-composer-row"
-          style={{
-            display: "flex",
-            gap: 8,
-            marginTop: 8,
-            alignItems: "stretch",
-          }}
-        >
-          <MicButton
-            onInterim={(t) => setInterim(t)}
-            onFinal={(t) => {
-              setInterim("");
-              if (t) setDraft((prev) => (prev ? prev + " " + t : t));
-            }}
-          />
-          <textarea
-            className="textarea"
-            placeholder={streaming ? "Assistant is responding…" : "Message…"}
-            value={composerValue}
-            onChange={(e) => {
-              setInterim("");
-              setDraft(e.target.value);
-            }}
-            onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                e.preventDefault();
-                send();
+      <div className="rc-composer">
+        {pending.length > 0 && (
+          <div className="rc-pending">
+            {pending.map((p) => (
+              <PendingThumb
+                key={p.path}
+                src={p.localUrl || fileUrl(p.path)}
+                onRemove={() =>
+                  setPending((prev) => prev.filter((x) => x.path !== p.path))
+                }
+              />
+            ))}
+          </div>
+        )}
+        <div className="rc-composer-row">
+          <div className="rc-input-group">
+            <MicButton
+              onInterim={(t) => setInterim(t)}
+              onFinal={(t) => {
+                setInterim("");
+                if (t) setDraft((prev) => (prev ? prev + " " + t : t));
+              }}
+            />
+            <textarea
+              className="rc-input"
+              rows={1}
+              placeholder={
+                streaming ? "Railio is responding…" : "Message Railio…"
               }
-            }}
-            disabled={streaming}
-            style={{
-              flex: 1,
-              minHeight: 60,
-              fontStyle: interim ? "italic" : "normal",
-              color: interim ? "var(--muted)" : "var(--ink)",
-            }}
-          />
-          <button
-            className="btn btn-super chat-send"
-            onClick={() => send()}
-            disabled={
-              streaming || inCooldown || (!draft.trim() && pending.length === 0)
-            }
-            style={{ alignSelf: "stretch" }}
-          >
-            {streaming ? "Sending…" : inCooldown ? `Wait ${cooldownLeft}s` : "Send"}
-          </button>
+              value={composerValue}
+              onChange={(e) => {
+                setInterim("");
+                setDraft(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              disabled={streaming}
+              style={{
+                fontStyle: interim ? "italic" : "normal",
+                color: interim ? "var(--dash-muted)" : "#000",
+              }}
+            />
+          </div>
+          <div className="rc-actions">
+            <PhotoUpload
+              ticketId={ticketId}
+              pending={pending}
+              onAdd={(a) => setPending((p) => [...p, ...a])}
+              onRemove={(path) =>
+                setPending((p) => p.filter((x) => x.path !== path))
+              }
+              compact
+            />
+            <button
+              className="rc-send"
+              onClick={() => send()}
+              disabled={
+                streaming || inCooldown || (!draft.trim() && pending.length === 0)
+              }
+            >
+              {streaming ? "Sending…" : inCooldown ? `Wait ${cooldownLeft}s` : "Send"}
+              {!streaming && !inCooldown && <span aria-hidden>→</span>}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -473,49 +483,24 @@ function EmptyState({
 }) {
   const questions = useMemo(() => buildSuggestedQuestions(ticket), [ticket]);
   return (
-    <div
-      style={{
-        color: "var(--muted)",
-        textAlign: "center",
-        padding: "32px 24px",
-        fontSize: 13,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 16,
-      }}
-    >
-      <div>{hint}</div>
+    <div className="rc-empty">
+      <div className="rc-empty-hint">{hint}</div>
       {questions.length > 0 && (
-        <div style={{ width: "100%", maxWidth: 460 }}>
-          <div
-            className="micro"
-            style={{ color: "var(--muted)", marginBottom: 8 }}
-          >
-            Try asking
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <>
+          <div className="rc-try">TRY ASKING</div>
+          <div className="rc-suggest-list">
             {questions.map((q) => (
               <button
                 key={q}
                 onClick={() => onPick(q)}
                 disabled={disabled}
-                className="pill pill-soft"
-                style={{
-                  textAlign: "left",
-                  padding: "8px 12px",
-                  fontSize: 13,
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  opacity: disabled ? 0.5 : 1,
-                  whiteSpace: "normal",
-                  lineHeight: 1.4,
-                }}
+                className="rc-suggest"
               >
                 {q}
               </button>
             ))}
           </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -677,6 +662,7 @@ function FigureThumb({
 }) {
   const url = fileUrl(figure.path);
   const label = figure.figure_label || figure.caption || "figure";
+  if (!url) return null;
   return (
     <button
       onClick={onOpen}
@@ -699,8 +685,61 @@ function FigureThumb({
   );
 }
 
+function PendingThumb({
+  src,
+  onRemove,
+}: {
+  src: string | undefined;
+  onRemove: () => void;
+}) {
+  if (!src) return null;
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: 56,
+        height: 56,
+        borderRadius: 10,
+        overflow: "hidden",
+        border: "1px solid var(--dash-border)",
+        background: "#fff",
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt="attachment"
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+      />
+      <button
+        type="button"
+        aria-label="Remove"
+        onClick={onRemove}
+        style={{
+          position: "absolute",
+          top: 2,
+          right: 2,
+          width: 16,
+          height: 16,
+          borderRadius: "50%",
+          background: "#000",
+          color: "#fff",
+          border: 0,
+          cursor: "pointer",
+          fontSize: 10,
+          lineHeight: "16px",
+          padding: 0,
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 function AttachmentThumb({ attachment }: { attachment: Attachment }) {
   const url = fileUrl(attachment.path);
+  if (!url) return null;
   if (attachment.kind === "image") {
     return (
       <a
@@ -927,7 +966,20 @@ function RequestPhotoBlock({
 function Markdown({ children }: { children: string }) {
   return (
     <div className="md">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // Skip images the model emits with an empty/missing URL — a bare
+          // src="" trips the browser's empty-src warning and re-requests the page.
+          img: ({ src, alt }) =>
+            src ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={src} alt={alt ?? ""} style={{ maxWidth: "100%" }} />
+            ) : null,
+        }}
+      >
+        {children}
+      </ReactMarkdown>
     </div>
   );
 }
