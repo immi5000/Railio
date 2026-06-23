@@ -588,20 +588,11 @@ button {
   gap: 6px;
   font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
-<<<<<<< Updated upstream
   font-weight: 400;
   letter-spacing: 0;
   padding: 4px 12px;
   border-radius: 99px;
   border: 1px solid var(--dash-border);
-=======
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
->>>>>>> Stashed changes
   background: #fff;
   cursor: pointer;
   margin-right: 6px;
@@ -648,18 +639,11 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-<<<<<<< Updated upstream
   background: var(--dash-bg);
   border: 1px solid var(--dash-border);
   border-radius: 99px;
   padding: 4px 12px;
   font-family: "IBM Plex Mono", monospace;
-=======
-  background: var(--pale);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 4px 10px;
->>>>>>> Stashed changes
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0;
