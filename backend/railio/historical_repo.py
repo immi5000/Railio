@@ -31,6 +31,7 @@ def _row_to_record(r: dict) -> HistoricalRecord:
         repairs=r["repairs"] or [],
         tests=[HistoricalTest(**t) for t in (r["tests"] or [])],
         technician=r["technician"],
+        notes=r["notes"],
         created_at=r["created_at"],
     )
 
@@ -42,7 +43,7 @@ async def list_historical_records(org_id: int, asset_id: int) -> list[Historical
                 text(
                     """
                     SELECT id, org_id, asset_id, reported_date, completed_date,
-                           record_type, repairs, tests, technician, created_at
+                           record_type, repairs, tests, technician, notes, created_at
                     FROM historical_records
                     WHERE org_id = :org AND asset_id = :asset
                     ORDER BY reported_date DESC NULLS LAST, id DESC
@@ -73,6 +74,8 @@ def _embed_text(asset: Asset, rec: HistoricalRecord) -> str:
         )
     if rec.technician:
         parts.append(f"Technician: {rec.technician}.")
+    if rec.notes:
+        parts.append(f"Notes: {rec.notes}.")
     return " ".join(parts)
 
 
@@ -121,7 +124,7 @@ async def get_historical_record(
                 text(
                     """
                     SELECT id, org_id, asset_id, reported_date, completed_date,
-                           record_type, repairs, tests, technician, created_at
+                           record_type, repairs, tests, technician, notes, created_at
                     FROM historical_records
                     WHERE org_id = :org AND id = :id
                     """
@@ -142,16 +145,17 @@ async def update_historical_record(
     repairs: Optional[list[str]] = None,
     tests: Optional[list[HistoricalTest]] = None,
     technician: Optional[str] = None,
+    notes: Optional[str] = None,
 ) -> HistoricalRecord:
     stmt = text(
         """
         UPDATE historical_records
         SET reported_date = :reported, completed_date = :completed,
             record_type = :rtype, repairs = :repairs, tests = :tests,
-            technician = :tech
+            technician = :tech, notes = :notes
         WHERE id = :id AND org_id = :org AND asset_id = :asset
         RETURNING id, org_id, asset_id, reported_date, completed_date,
-                  record_type, repairs, tests, technician, created_at
+                  record_type, repairs, tests, technician, notes, created_at
         """
     ).bindparams(bindparam("repairs", type_=JSONB), bindparam("tests", type_=JSONB))
     async with session_scope() as session:
@@ -168,6 +172,7 @@ async def update_historical_record(
                     "repairs": repairs or [],
                     "tests": [t.model_dump() for t in (tests or [])],
                     "tech": technician,
+                    "notes": notes,
                 },
             )
         ).mappings().first()
@@ -185,6 +190,7 @@ async def create_historical_record(
     repairs: Optional[list[str]] = None,
     tests: Optional[list[HistoricalTest]] = None,
     technician: Optional[str] = None,
+    notes: Optional[str] = None,
 ) -> HistoricalRecord:
     repairs = repairs or []
     tests = tests or []
@@ -193,12 +199,12 @@ async def create_historical_record(
         """
         INSERT INTO historical_records
             (org_id, asset_id, reported_date, completed_date, record_type,
-             repairs, tests, technician, created_at)
+             repairs, tests, technician, notes, created_at)
         VALUES
             (:org, :asset, :reported, :completed, :rtype,
-             :repairs, :tests, :tech, :at)
+             :repairs, :tests, :tech, :notes, :at)
         RETURNING id, org_id, asset_id, reported_date, completed_date,
-                  record_type, repairs, tests, technician, created_at
+                  record_type, repairs, tests, technician, notes, created_at
         """
     ).bindparams(bindparam("repairs", type_=JSONB), bindparam("tests", type_=JSONB))
     async with session_scope() as session:
@@ -214,6 +220,7 @@ async def create_historical_record(
                     "repairs": repairs,
                     "tests": [t.model_dump() for t in tests],
                     "tech": technician,
+                    "notes": notes,
                     "at": created_at,
                 },
             )

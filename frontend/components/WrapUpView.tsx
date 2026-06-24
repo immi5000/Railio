@@ -8,7 +8,7 @@ import {
   finalizeWrapUp,
   getTicket,
   getWrapUpDraft,
-  listParts,
+  listAllParts,
 } from "@/lib/api";
 import { ChatPane } from "./ChatPane";
 import type { Part } from "@/lib/contract";
@@ -37,7 +37,7 @@ export function WrapUpView({ ticketId }: { ticketId: string }) {
 
   const { data: allParts } = useQuery({
     queryKey: ["parts"],
-    queryFn: () => listParts(),
+    queryFn: () => listAllParts(),
   });
 
   const [summary, setSummary] = useState("");

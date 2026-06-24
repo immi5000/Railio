@@ -83,6 +83,7 @@ async def main() -> None:
                 repairs=rec.get("repairs") or [],
                 tests=[HistoricalTest(**t) for t in (rec.get("tests") or [])],
                 technician=rec.get("technician"),
+                notes=rec.get("notes"),
             )
             total += 1
         print(f"load_history[{slug}]: {asset.reporting_mark} {asset.road_number} — {len(records)} records")

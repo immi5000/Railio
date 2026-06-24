@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getTicket, listParts, fileUrl } from "@/lib/api";
+import { getTicket, listAllParts, fileUrl } from "@/lib/api";
 import type { Citation, ParsedFault, Part, Severity, TicketDetail } from "@/lib/contract";
 import { formatDateOnly } from "@/lib/format";
 import { CitationDrawer } from "./CitationDrawer";
@@ -22,7 +22,7 @@ export function RepairContext({ ticketId }: { ticketId: string }) {
 
   const { data: parts } = useQuery({
     queryKey: ["parts", "all"],
-    queryFn: () => listParts(),
+    queryFn: () => listAllParts(),
   });
 
   const [openChunk, setOpenChunk] = useState<number | null>(null);

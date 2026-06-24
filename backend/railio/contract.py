@@ -72,6 +72,7 @@ class HistoricalRecord(BaseModel):
     repairs: list[str] = []
     tests: list[HistoricalTest] = []
     technician: Optional[str] = None
+    notes: Optional[str] = None
     created_at: str
 
 
@@ -160,6 +161,11 @@ class Part(BaseModel):
     department: Optional[str] = None
     subsidiary: Optional[str] = None
     inv_class: Optional[str] = None
+
+
+class ListPartsResponse(BaseModel):
+    parts: list[Part]
+    total: int
 
 
 class TicketPart(BaseModel):
@@ -261,6 +267,7 @@ class CreateHistoricalRecordBody(BaseModel):
     repairs: list[str] = []
     tests: list[HistoricalTest] = []
     technician: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class CreatePartBody(BaseModel):

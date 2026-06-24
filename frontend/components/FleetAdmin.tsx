@@ -371,6 +371,7 @@ function HistoryTable({ asset }: { asset: Asset }) {
                 <Th>Completed</Th>
                 <Th>Type</Th>
                 <Th>Repairs &amp; tests</Th>
+                <Th>Notes</Th>
                 <Th>Technician</Th>
                 <Th></Th>
               </tr>
@@ -433,6 +434,11 @@ function HistoryRow({
         )}
         {record.repairs.length === 0 && record.tests.length === 0 && "—"}
       </Td>
+      <Td>
+        <div style={{ whiteSpace: "pre-wrap", maxWidth: 280 }}>
+          {record.notes ?? "—"}
+        </div>
+      </Td>
       <Td>{record.technician ?? "—"}</Td>
       <Td>
         <button
@@ -461,6 +467,7 @@ function EditRow({
   const [completed, setCompleted] = useState(record.completed_date ?? "");
   const [recordType, setRecordType] = useState(record.record_type ?? "");
   const [technician, setTechnician] = useState(record.technician ?? "");
+  const [notes, setNotes] = useState(record.notes ?? "");
   const [repairsText, setRepairsText] = useState(record.repairs.join("\n"));
   const [testsText, setTestsText] = useState(
     record.tests
@@ -488,6 +495,7 @@ function EditRow({
         completed_date: completed.trim() || null,
         record_type: recordType.trim() || null,
         technician: technician.trim() || null,
+        notes: notes.trim() || null,
         repairs,
         tests,
       });
@@ -541,6 +549,16 @@ function EditRow({
           value={testsText}
           onChange={(e) => setTestsText(e.target.value)}
           placeholder="Tests — one per line (optional 'YYYY-MM-DD: name')"
+        />
+      </Td>
+      <Td>
+        <textarea
+          className="input"
+          rows={3}
+          style={{ minWidth: 220 }}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Notes"
         />
       </Td>
       <Td>
@@ -708,6 +726,7 @@ function AddRecordForm({ asset }: { asset: Asset }) {
   const [technician, setTechnician] = useState("");
   const [repairsText, setRepairsText] = useState("");
   const [testsText, setTestsText] = useState("");
+  const [notes, setNotes] = useState("");
 
   const mut = useMutation({
     mutationFn: () => {
@@ -725,6 +744,7 @@ function AddRecordForm({ asset }: { asset: Asset }) {
         completed_date: completed.trim() || null,
         record_type: recordType.trim() || null,
         technician: technician.trim() || null,
+        notes: notes.trim() || null,
         repairs,
         tests,
       });
@@ -737,6 +757,7 @@ function AddRecordForm({ asset }: { asset: Asset }) {
       setTechnician("");
       setRepairsText("");
       setTestsText("");
+      setNotes("");
       setOpen(false);
     },
   });
@@ -798,6 +819,13 @@ function AddRecordForm({ asset }: { asset: Asset }) {
         rows={3}
         value={testsText}
         onChange={(e) => setTestsText(e.target.value)}
+      />
+      <textarea
+        className="input"
+        placeholder="Notes"
+        rows={3}
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
       />
       {mut.error && (
         <span className="micro" style={{ color: "#c0392b" }}>

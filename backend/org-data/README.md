@@ -50,10 +50,13 @@ matching asset is skipped.
       "record_type": "Quarterly Periodic Inspection",
       "repairs": ["Replaced: main air valve leak front and rear"],
       "tests": [{ "date": "2026-05-05", "name": "AFM CAL" }],
-      "technician": "Pate, Phillip" }
+      "technician": "Pate, Phillip",
+      "notes": "OOS for 52 days" }
   ]
 }
 ```
+`notes` is optional free-text (the source spreadsheet's Observations column); it
+renders in its own table column and is embedded into the corpus chunk.
 A new locomotive model needs **no code change** — just use its name in `unit_model`
 and add the matching manual under `corpus/`.
 

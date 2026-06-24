@@ -139,6 +139,7 @@ _STATEMENTS = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_historical_records_asset ON historical_records (org_id, asset_id)",
+    "ALTER TABLE historical_records ADD COLUMN IF NOT EXISTS notes text",
     # === Multi-tenancy (by organization) ===
     # An organization is a railroad tenant. Org-private data (assets, tickets,
     # parts inventory, tribal/repair history) is never visible to another org;

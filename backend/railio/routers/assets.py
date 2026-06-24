@@ -119,6 +119,7 @@ async def post_asset_history(
         repairs=body.repairs,
         tests=body.tests,
         technician=body.technician,
+        notes=body.notes,
     )
     return JSONResponse(rec.model_dump())
 
@@ -143,5 +144,6 @@ async def patch_asset_history(
         repairs=body.repairs,
         tests=body.tests,
         technician=body.technician,
+        notes=body.notes,
     )
     return JSONResponse(rec.model_dump())

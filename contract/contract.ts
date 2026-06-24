@@ -153,6 +153,7 @@ export type HistoricalRecord = {
   repairs: string[];
   tests: HistoricalTest[];
   technician: string | null;
+  notes: string | null;
   created_at: string;
 };
 
@@ -163,6 +164,7 @@ export type CreateHistoricalRecordBody = {
   repairs?: string[];
   tests?: HistoricalTest[];
   technician?: string | null;
+  notes?: string | null;
 };
 
 export type Citation = {
@@ -256,6 +258,8 @@ export type Part = {
   subsidiary: string | null;
   inv_class: string | null;
 };
+
+export type ListPartsResponse = { parts: Part[]; total: number };
 
 export type TicketPart = {
   id: number;

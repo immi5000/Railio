@@ -15,6 +15,7 @@ import type {
   FinalizeWrapUpBody,
   Asset,
   Part,
+  ListPartsResponse,
   CreatePartBody,
   ParsedFault,
   Ticket,
@@ -262,12 +263,27 @@ export async function updateHistoricalRecord(
 export async function listParts(opts?: {
   unit_model?: string;
   q?: string;
-}): Promise<Part[]> {
+  limit?: number;
+  offset?: number;
+}): Promise<ListPartsResponse> {
   const params = new URLSearchParams();
   if (opts?.unit_model) params.set("unit_model", opts.unit_model);
   if (opts?.q) params.set("q", opts.q);
+  if (opts?.limit != null) params.set("limit", String(opts.limit));
+  if (opts?.offset != null) params.set("offset", String(opts.offset));
   const qs = params.toString();
-  return jsonFetch<Part[]>(`/api/parts${qs ? `?${qs}` : ""}`);
+  return jsonFetch<ListPartsResponse>(`/api/parts${qs ? `?${qs}` : ""}`);
+}
+
+// Full catalog as a flat array — for callers that build a part_id → Part lookup
+// (e.g. resolving a ticket's used parts), which must see every part regardless
+// of the paginated table's page.
+export async function listAllParts(opts?: {
+  unit_model?: string;
+  q?: string;
+}): Promise<Part[]> {
+  const res = await listParts({ ...opts, limit: 10000 });
+  return res.parts;
 }
 
 export async function createPart(body: CreatePartBody): Promise<Part> {

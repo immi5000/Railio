@@ -3,7 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPart, listAssets, listParts, patchPart } from "@/lib/api";
-import type { Part, PartLocation, UnitModel } from "@/lib/contract";
+import type {
+  ListPartsResponse,
+  Part,
+  PartLocation,
+  UnitModel,
+} from "@/lib/contract";
 
 // Column order + default widths (px). Headers, the <colgroup>, and the resize
 // handles all key off this so they stay in sync.
@@ -23,6 +28,7 @@ const COLUMNS: { key: string; label: string; width: number }[] = [
   { key: "alternates", label: "Alternates", width: 160 },
 ];
 const MIN_COL_WIDTH = 60;
+const PAGE_SIZE = 100;
 const WIDTHS_STORAGE_KEY = "railio_parts_col_widths";
 
 // Resizable column widths, persisted to localStorage so they survive reloads.
@@ -86,13 +92,21 @@ export function PartsAdmin() {
   const [q, setQ] = useState("");
   const [unit, setUnit] = useState<UnitModel | "">("");
   const [adding, setAdding] = useState(false);
+  const [page, setPage] = useState(0);
   const { widths, setWidth } = useColumnWidths();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["parts", q, unit],
+    queryKey: ["parts", q, unit, page],
     queryFn: () =>
-      listParts({ q: q || undefined, unit_model: unit || undefined }),
+      listParts({
+        q: q || undefined,
+        unit_model: unit || undefined,
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
+      }),
   });
+  const parts = data?.parts ?? [];
+  const total = data?.total ?? 0;
 
   // Unit-model filter options come from the live fleet roster, not a literal.
   const { data: assets } = useQuery({
@@ -136,14 +150,20 @@ export function PartsAdmin() {
             className="input"
             style={{ maxWidth: 320 }}
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(0);
+            }}
             placeholder="Search part #, name, supplier..."
           />
           <select
             className="select"
             style={{ maxWidth: 200 }}
             value={unit}
-            onChange={(e) => setUnit(e.target.value as UnitModel | "")}
+            onChange={(e) => {
+              setUnit(e.target.value as UnitModel | "");
+              setPage(0);
+            }}
           >
             <option value="">All units</option>
             {unitModels.map((m) => (
@@ -163,11 +183,18 @@ export function PartsAdmin() {
             className="micro"
             style={{ color: "var(--dash-muted)", marginLeft: "auto" }}
           >
-            {data?.length ?? 0} part{(data?.length ?? 0) === 1 ? "" : "s"}
+            {total} part{total === 1 ? "" : "s"}
           </span>
         </div>
 
-        {adding && <AddPartForm onDone={() => setAdding(false)} />}
+        {adding && (
+          <AddPartForm
+            onDone={() => {
+              setAdding(false);
+              setPage(0);
+            }}
+          />
+        )}
 
         {isLoading && (
           <div className="card" style={{ color: "var(--dash-muted)" }}>
@@ -182,12 +209,12 @@ export function PartsAdmin() {
             <p style={{ marginTop: 8 }}>{(error as Error).message}</p>
           </div>
         )}
-        {data && data.length === 0 && (
+        {data && parts.length === 0 && (
           <div className="card" style={{ color: "var(--dash-muted)" }}>
             No parts match.
           </div>
         )}
-        {data && data.length > 0 && (
+        {data && parts.length > 0 && (
           <div
             style={{
               overflowX: "auto",
@@ -233,21 +260,62 @@ export function PartsAdmin() {
                 </tr>
               </thead>
               <tbody>
-                {data.map((p) => (
+                {parts.map((p) => (
                   <PartRow
                     key={p.id}
                     part={p}
                     onSave={(patch) =>
-                      qc.setQueryData<Part[]>(["parts", q, unit], (old) =>
-                        old?.map((x) =>
-                          x.id === p.id ? ({ ...x, ...patch } as Part) : x,
-                        ),
+                      qc.setQueryData<ListPartsResponse>(
+                        ["parts", q, unit, page],
+                        (old) =>
+                          old
+                            ? {
+                                ...old,
+                                parts: old.parts.map((x) =>
+                                  x.id === p.id
+                                    ? ({ ...x, ...patch } as Part)
+                                    : x,
+                                ),
+                              }
+                            : old,
                       )
                     }
                   />
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {total > PAGE_SIZE && (
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              marginTop: 16,
+              alignItems: "center",
+            }}
+          >
+            <button
+              type="button"
+              className="btn btn-sm"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              ← Prev
+            </button>
+            <span className="micro" style={{ color: "var(--dash-muted)" }}>
+              Showing {page * PAGE_SIZE + 1}–
+              {Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+            </span>
+            <button
+              type="button"
+              className="btn btn-sm"
+              disabled={(page + 1) * PAGE_SIZE >= total}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next →
+            </button>
           </div>
         )}
       </div>

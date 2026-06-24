@@ -237,6 +237,7 @@ class HistoricalRecord(Base):
     repairs = Column(JSONB)
     tests = Column(JSONB)
     technician = Column(Text)
+    notes = Column(Text)
     created_at = Column(Text, nullable=False)
 
 

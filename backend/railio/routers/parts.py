@@ -67,8 +67,12 @@ def _row_to_part(r) -> dict[str, Any]:
 async def list_parts(
     unit_model: Optional[str] = None,
     q: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
     org: Organization = Depends(get_current_org),
 ) -> JSONResponse:
+    limit = max(1, min(10000, int(limit or 100)))
+    offset = max(0, int(offset or 0))
     like = f"%{q}%" if q else None
     params: dict[str, Any] = {"org": org.id}
     where = ["p.org_id = :org"]
@@ -83,12 +87,18 @@ async def list_parts(
             "(p.name ILIKE :like OR p.description ILIKE :like OR p.part_number ILIKE :like)"
         )
         params["like"] = like
-    sql = text(
-        f"SELECT * FROM parts p WHERE {' AND '.join(where)} ORDER BY p.name ASC"
+    where_sql = " AND ".join(where)
+    count_sql = text(f"SELECT COUNT(*) FROM parts p WHERE {where_sql}")
+    # id tie-break keeps paging stable when names collide.
+    page_sql = text(
+        f"SELECT * FROM parts p WHERE {where_sql} "
+        "ORDER BY p.name ASC, p.id ASC LIMIT :lim OFFSET :off"
     )
+    page_params = {**params, "lim": limit, "off": offset}
     async with session_scope() as session:
-        rows = (await session.execute(sql, params)).mappings().all()
-    return JSONResponse([_row_to_part(r) for r in rows])
+        total = (await session.execute(count_sql, params)).scalar_one()
+        rows = (await session.execute(page_sql, page_params)).mappings().all()
+    return JSONResponse({"parts": [_row_to_part(r) for r in rows], "total": total})
 
 
 @router.post("")
