@@ -1430,11 +1430,32 @@ button {
   flex-wrap: wrap;
 }
 @media (max-width: 640px) {
+  /* Compact the composer so the bottom bar feels natural to tap on a phone
+     (desktop keeps the larger 56px chrome). */
   .rc-composer {
-    margin: 0 16px 16px;
+    margin: 0 12px 12px;
+    padding: 8px 10px;
+    gap: 8px;
   }
-  .rc-actions .rc-send {
-    padding: 0 16px;
+  .rc-input-group {
+    gap: 10px;
+  }
+  .rc-actions {
+    gap: 6px;
+  }
+  .rc-box,
+  .rc-send {
+    height: 40px;
+  }
+  .rc-mic {
+    width: 40px;
+  }
+  .rc-imgbtn {
+    padding: 0 10px;
+  }
+  .rc-send {
+    padding: 0 14px;
+    font-size: 12px;
   }
 }
 
@@ -2646,6 +2667,12 @@ button {
 /* Compact the header on phones so the chat reclaims vertical space, and bump
    the composer input to 16px so iOS doesn't zoom on focus. */
 @media (max-width: 760px) {
+  /* Match body to the dynamic viewport so iOS doesn't leave a grey strip
+     (body 100vh > .work 100dvh = the URL-bar gap under the chat). */
+  body:has(.work) {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
   /* Tighten the whole work column so the chat gets the screen. */
   .work {
     padding-bottom: 8px;
