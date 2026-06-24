@@ -205,6 +205,7 @@ export function PartsAdmin() {
         )}
         {data && parts.length > 0 && (
           <div
+            className="resp-table"
             style={{
               overflowX: "auto",
               border: "1px solid var(--dash-card-border)",
@@ -553,19 +554,19 @@ function PartRow({
 
   return (
     <tr style={{ borderBottom: "1px solid var(--dash-line)" }}>
-      <Td>
+      <Td label="Part #">
         <Cell value={part.part_number} onCommit={(v) => commit({ part_number: v })} />
       </Td>
-      <Td>
+      <Td label="Name">
         <Cell value={part.name} onCommit={(v) => commit({ name: v })} />
       </Td>
-      <Td>
+      <Td label="Description">
         <Cell
           value={part.description || ""}
           onCommit={(v) => commit({ description: v || null })}
         />
       </Td>
-      <Td>
+      <Td label="Compatible">
         <Cell
           value={(part.compatible_units || []).join(",")}
           onCommit={(v) =>
@@ -578,45 +579,45 @@ function PartRow({
           }
         />
       </Td>
-      <Td>
+      <Td label="Bin">
         <Cell
           value={part.bin_location || ""}
           onCommit={(v) => commit({ bin_location: v || null })}
         />
       </Td>
-      <Td>
+      <Td label="On hand">
         <Cell
           value={String(part.qty_on_hand)}
           numeric
           onCommit={(v) => commit({ qty_on_hand: Number(v) || 0 })}
         />
       </Td>
-      <Td>
+      <Td label="Avg cost">
         <Cell
           value={part.avg_cost != null ? String(part.avg_cost) : ""}
           numeric
           onCommit={(v) => commit({ avg_cost: v === "" ? null : Number(v) })}
         />
       </Td>
-      <Td>
+      <Td label="Value">
         <ReadCell value={fmtMoney(part.on_hand_value)} />
       </Td>
-      <Td>
+      <Td label="Locations">
         <ReadCell value={fmtLocations(part.locations)} title={locTitle(part.locations)} />
       </Td>
-      <Td>
+      <Td label="Dept">
         <Cell
           value={part.department || ""}
           onCommit={(v) => commit({ department: v || null })}
         />
       </Td>
-      <Td>
+      <Td label="Supplier">
         <Cell
           value={part.supplier || ""}
           onCommit={(v) => commit({ supplier: v || null })}
         />
       </Td>
-      <Td>
+      <Td label="Lead (d)">
         <Cell
           value={part.lead_time_days != null ? String(part.lead_time_days) : ""}
           numeric
@@ -625,7 +626,7 @@ function PartRow({
           }
         />
       </Td>
-      <Td>
+      <Td label="Alternates">
         <Cell
           value={(part.alternate_part_numbers || []).join(",")}
           onCommit={(v) =>
@@ -642,9 +643,16 @@ function PartRow({
   );
 }
 
-function Td({ children }: { children: React.ReactNode }) {
+function Td({
+  children,
+  label,
+}: {
+  children: React.ReactNode;
+  label?: string;
+}) {
   return (
     <td
+      data-label={label}
       style={{
         padding: 0,
         borderRight: "1px solid var(--dash-line)",

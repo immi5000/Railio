@@ -45,15 +45,7 @@ export function FleetAdmin() {
           Fleet &amp; historical records
         </h1>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "240px 1fr",
-            gap: 24,
-            marginTop: 24,
-            alignItems: "start",
-          }}
-        >
+        <div className="admin-split" style={{ marginTop: 24 }}>
           <div>
           <div
             style={{
@@ -340,6 +332,7 @@ function HistoryTable({ asset }: { asset: Asset }) {
       )}
       {data && data.length > 0 && (
         <div
+          className="resp-table"
           style={{
             overflowX: "auto",
             border: "1px solid var(--dash-card-border)",
@@ -408,10 +401,10 @@ function HistoryRow({
   }
   return (
     <tr style={{ borderBottom: "1px solid var(--dash-line)", verticalAlign: "top" }}>
-      <Td>{fmtDate(record.reported_date)}</Td>
-      <Td>{fmtDate(record.completed_date)}</Td>
-      <Td>{record.record_type ?? "—"}</Td>
-      <Td>
+      <Td label="Reported">{fmtDate(record.reported_date)}</Td>
+      <Td label="Completed">{fmtDate(record.completed_date)}</Td>
+      <Td label="Type">{record.record_type ?? "—"}</Td>
+      <Td label="Repairs & tests">
         {record.repairs.length > 0 && (
           <div style={{ marginBottom: record.tests.length > 0 ? 8 : 0 }}>
             <strong>Repairs:</strong>
@@ -435,12 +428,12 @@ function HistoryRow({
         )}
         {record.repairs.length === 0 && record.tests.length === 0 && "—"}
       </Td>
-      <Td>
-        <div style={{ whiteSpace: "pre-wrap", maxWidth: 280 }}>
+      <Td label="Notes">
+        <div style={{ whiteSpace: "pre-wrap", maxWidth: 280, overflowWrap: "break-word" }}>
           {record.notes ?? "—"}
         </div>
       </Td>
-      <Td>{record.technician ?? "—"}</Td>
+      <Td label="Technician">{record.technician ?? "—"}</Td>
       <Td>
         <button
           type="button"
@@ -509,7 +502,7 @@ function EditRow({
 
   return (
     <tr style={{ borderBottom: "1px solid var(--dash-line)", verticalAlign: "top" }}>
-      <Td>
+      <Td label="Reported">
         <input
           className="input"
           style={{ minWidth: 110 }}
@@ -518,7 +511,7 @@ function EditRow({
           placeholder="YYYY-MM-DD"
         />
       </Td>
-      <Td>
+      <Td label="Completed">
         <input
           className="input"
           style={{ minWidth: 110 }}
@@ -527,14 +520,14 @@ function EditRow({
           placeholder="YYYY-MM-DD"
         />
       </Td>
-      <Td>
+      <Td label="Type">
         <input
           className="input"
           value={recordType}
           onChange={(e) => setRecordType(e.target.value)}
         />
       </Td>
-      <Td>
+      <Td label="Repairs & tests">
         <textarea
           className="input"
           rows={3}
@@ -552,7 +545,7 @@ function EditRow({
           placeholder="Tests — one per line (optional 'YYYY-MM-DD: name')"
         />
       </Td>
-      <Td>
+      <Td label="Notes">
         <textarea
           className="input"
           rows={3}
@@ -562,7 +555,7 @@ function EditRow({
           placeholder="Notes"
         />
       </Td>
-      <Td>
+      <Td label="Technician">
         <input
           className="input"
           value={technician}
@@ -868,6 +861,16 @@ function Th({ children }: { children?: React.ReactNode }) {
   );
 }
 
-function Td({ children }: { children: React.ReactNode }) {
-  return <td style={{ padding: "10px 12px" }}>{children}</td>;
+function Td({
+  children,
+  label,
+}: {
+  children: React.ReactNode;
+  label?: string;
+}) {
+  return (
+    <td data-label={label} style={{ padding: "10px 12px" }}>
+      {children}
+    </td>
+  );
 }

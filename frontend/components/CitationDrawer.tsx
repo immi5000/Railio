@@ -127,6 +127,7 @@ export function CitationDrawer({
                 fontSize: 14,
                 lineHeight: 1.6,
                 whiteSpace: "pre-wrap",
+                overflowWrap: "break-word",
               }}
             >
               {data.text}

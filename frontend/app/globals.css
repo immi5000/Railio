@@ -680,8 +680,8 @@ button {
 }
 .figure-lightbox-close {
   position: fixed;
-  top: 16px;
-  right: 20px;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(20px, env(safe-area-inset-right));
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -804,6 +804,92 @@ button {
   .chat-list {
     padding: 16px !important;
     gap: 12px !important;
+  }
+}
+
+/* === Admin two-column (units list + detail) collapses on phones === */
+.admin-split {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .admin-split {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+/* === Responsive data tables ===
+   Wide admin tables (Parts inventory, Fleet history) carry fixed pixel widths
+   so they read clearly on desktop. On phones we drop the columns and render
+   each row as a stacked label/value card so nothing scrolls sideways.
+   Each <td> supplies its column header via data-label. */
+@media (max-width: 640px) {
+  .resp-table {
+    overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  .resp-table table {
+    display: block;
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto !important;
+    background: transparent !important;
+  }
+  .resp-table colgroup,
+  .resp-table thead {
+    display: none;
+  }
+  .resp-table tbody {
+    display: block;
+  }
+  .resp-table tbody tr {
+    display: block;
+    background: #fff;
+    border: 1px solid var(--dash-card-border) !important;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
+  .resp-table tbody td {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 6px 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--dash-line) !important;
+    overflow: visible !important;
+    white-space: normal;
+  }
+  .resp-table tbody td:last-child {
+    border-bottom: 0 !important;
+  }
+  .resp-table tbody td[data-label]::before {
+    content: attr(data-label);
+    flex: none;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--dash-faint);
+    white-space: nowrap;
+  }
+  .resp-table tbody td > * {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: right;
+  }
+  /* Editable cells / inputs sit full-width on their own line below the label. */
+  .resp-table tbody td input,
+  .resp-table tbody td textarea {
+    width: 100%;
   }
 }
 
@@ -1068,7 +1154,7 @@ button {
 .wc-unit {
   font-family: "Inter", sans-serif;
   font-weight: 400;
-  font-size: 32px;
+  font-size: clamp(22px, 6vw, 32px);
   letter-spacing: -0.03em;
   line-height: 1;
   color: #000;
@@ -1099,6 +1185,7 @@ button {
   font-size: 13px;
   color: #3a3a3e;
   line-height: 1.4;
+  overflow-wrap: break-word;
 }
 
 /* Parts-to-bring rows */
@@ -1792,6 +1879,7 @@ button {
   top: calc(100% + 10px);
   right: 0;
   min-width: 240px;
+  max-width: calc(100vw - 32px);
   background: #fff;
   border: 1px solid var(--dash-border);
   border-radius: 14px;
@@ -2470,4 +2558,28 @@ button {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #9a9aa0;
+}
+
+/* === Phone tier (≤520px) ===
+   Placed at end-of-file so these overrides win over the base rules above
+   (media queries add no specificity — source order decides). Pulls the
+   generous 28px gutters in to 16px and stacks the 3-up unit metadata so
+   nothing crushes on narrow portrait screens. */
+@media (max-width: 520px) {
+  .wc-meta-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .wc-card {
+    padding: 16px;
+  }
+  .work-context .panel-header {
+    padding: 16px;
+  }
+  .work-drawer-head {
+    padding: 16px 16px 12px;
+  }
+  .work-drawer-list {
+    padding: 0 16px 16px;
+  }
 }
