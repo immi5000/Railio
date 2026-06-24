@@ -190,7 +190,7 @@
     b.innerHTML =
         '<div class="row1">'
       +   '<span class="num">STEP ' + st.num + ' — ' + escHtml(st.k.toUpperCase()) + '</span>'
-      +   '<span class="arr arrow" aria-hidden="true">→</span>'
+      +   '<span class="arr arrow" aria-hidden="true"></span>'
       + '</div>'
       + '<div class="ttl">' + escHtml(st.title) + '</div>'
       + '<p class="sub">' + escHtml(st.sub) + '</p>';

@@ -54,7 +54,23 @@ button{font-family:inherit}
   font-family:'Inter',sans-serif;font-size:13px;font-weight:700;letter-spacing:0;
   border:1px solid transparent;cursor:pointer;transition:filter .12s,background .12s,color .12s,border-color .12s;
   text-decoration:none;white-space:nowrap}
-.arr{transition:transform .15s}
+/* Arrow glyph drawn as an SVG mask so it renders identically on every
+   platform (the unicode → falls back to different system fonts on iOS vs
+   desktop). Inherits color via currentColor. Used by Sign up (.arr),
+   the how-it-works steps (.arrow), and the phone composer send (.ico-arr). */
+.arr,.ico-arr{
+  display:inline-block;
+  width:1em;height:1em;
+  vertical-align:-0.12em;
+  background-color:currentColor;
+  -webkit-mask:var(--ico-arrow) center / contain no-repeat;
+          mask:var(--ico-arrow) center / contain no-repeat;
+  flex:none;
+  transition:transform .15s;
+}
+:root{
+  --ico-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12h15'/%3E%3Cpath d='M13 6l7 6-7 6'/%3E%3C/svg%3E");
+}
 .btn:hover .arr{transform:translateX(4px)}
 
 /* Matches chat .rc-send typography; height aligned with .btn-ghost */
@@ -75,7 +91,10 @@ button{font-family:inherit}
 /* ── Top nav — matches dashboard fig-nav (Figma node 91:863) ── */
 .fig-nav{
   position:fixed;top:0;left:0;right:0;z-index:50;
-  padding:0;
+  /* With viewport-fit=cover the page flows up into the status-bar/notch zone;
+     push the nav itself down by the safe-area inset so it never sits under the
+     notch, while content scrolls behind it. */
+  padding-top:env(safe-area-inset-top,0px);
   pointer-events:none;
   transition:padding .32s cubic-bezier(.22,1,.36,1);
   will-change:padding;
@@ -111,7 +130,7 @@ button{font-family:inherit}
   will-change:width,height,padding,border-radius;
 }
 .fig-nav.is-scrolled{
-  padding:10px 24px 8px;
+  padding:calc(env(safe-area-inset-top,0px) + 10px) 24px 8px;
 }
 .fig-nav.is-scrolled::before{
   opacity:1;
@@ -173,7 +192,7 @@ button{font-family:inherit}
 .fig-nav-actions{display:flex;align-items:center;gap:10px;flex:none}
 @media (max-width:760px){
   .fig-nav-inner{height:64px;padding:0 16px;gap:12px}
-  .fig-nav.is-scrolled{padding:10px 12px}
+  .fig-nav.is-scrolled{padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px}
   .fig-nav.is-scrolled .fig-nav-inner{width:100%;height:56px;padding:0 16px}
   .fig-nav-links.fig-nav-links--desktop{display:none}
   .btn-nav{height:36px;padding:0 12px;font-size:12px}
@@ -191,7 +210,7 @@ section.flush{padding:0}
 footer{position:relative}
 
 .hero{
-  padding:calc(var(--fig-nav-zone) + 8px) 0 24px;
+  padding:calc(var(--fig-nav-zone) + 8px + env(safe-area-inset-top,0px)) 0 24px;
   overflow:visible;
   isolation:isolate;
   background:var(--bg);
@@ -325,6 +344,34 @@ footer{position:relative}
             mask-image:linear-gradient(to bottom,#000 0%,#000 22%,rgba(0,0,0,.4) 38%,transparent 52%);
   }
   .phone-stage::after{display:none}
+  /* The base ::before gradient ends on a faint .18 band that hard-stops at the
+     pseudo-element edge against #how — a visible seam below the phone on mobile.
+     Replace it with a single vertical gradient that resolves fully to the page
+     bg (0 alpha) so the hero melts into #how with no line. */
+  .hero::before{
+    background:linear-gradient(to bottom,
+      rgba(244,245,247,1) 0%,
+      rgba(244,245,247,.92) 12%,
+      rgba(244,245,247,.6) 30%,
+      rgba(244,245,247,.28) 52%,
+      rgba(244,245,247,.1) 74%,
+      rgba(244,245,247,0) 100%);
+  }
+  /* The dither/noise overlay also hard-stops; fade it out earlier so it can't
+     contribute an edge in the same zone. */
+  .hero::after{
+    -webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 40%,rgba(0,0,0,.28) 60%,transparent 78%);
+            mask-image:linear-gradient(to bottom,#000 0%,#000 40%,rgba(0,0,0,.28) 60%,transparent 78%);
+  }
+  /* THE seam: #how paints an opaque --bg rectangle (z-index:4) on top of the
+     hero's gradient tail, and its crisp top edge lands in the fade zone — that
+     hard edge is the line. The body is already --bg, so #how needs no fill of
+     its own here; make it transparent so the hero gradient melts into the body
+     with nothing to draw an edge. */
+  #how{background:transparent}
+  /* The masked video extends 120px below the hero; trim it so its faded tail
+     can't add a second tonal step under the phone. */
+  .hero-media{inset:-24px -24px -40px}
 }
 .iphone-screen{
   position:absolute;
@@ -426,10 +473,7 @@ footer{position:relative}
 .how-step .row1{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
 .how-step .num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase}
 .how-step .arrow{
-  font-family:'Inter',sans-serif;
-  font-size:13px;
-  font-weight:700;
-  line-height:1;
+  font-size:15px;
   color:#000;
 }
 .how-step .ttl{font-size:20px;font-weight:400;letter-spacing:-0.02em;line-height:1.15;margin:2px 0 0}
@@ -488,7 +532,7 @@ footer{position:relative}
 .foot .brand{color:var(--foot-olive);font-size:20px}
 .foot .brand .mk{color:var(--foot-olive)}
 .foot-desc{margin:0;color:var(--foot-olive);opacity:.85;font-size:14px;line-height:1.6;max-width:68ch}
-.foot-cols{display:flex;gap:48px;margin-top:0;flex-wrap:wrap}
+.foot-cols{display:flex;gap:48px;margin-top:0;flex-wrap:nowrap}
 .foot-cols h5{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;font-weight:400;text-transform:uppercase;letter-spacing:.08em;color:var(--foot-olive);opacity:.7;margin:0 0 8px}
 .foot-cols p{margin:0;color:var(--foot-olive);font-size:14px}
 .foot-copy{font-family:'Source Serif 4',Georgia,serif;font-size:18px;color:var(--foot-olive);letter-spacing:-0.01em;white-space:nowrap}
@@ -528,5 +572,10 @@ footer{position:relative}
 .foot-bot{margin-top:20px;padding-top:16px;border-top:1px solid rgba(102,100,15,.25);display:flex;justify-content:space-between;align-items:center;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;color:var(--foot-olive);opacity:.85;text-transform:uppercase;letter-spacing:.06em;flex-wrap:wrap;gap:16px}
 @media (max-width:760px){
   .foot-word{font-size:clamp(56px,20vw,120px)}
-  .foot-mark{--mark-size:clamp(72px,20vw,120px)}
+  .foot-mark{--mark-size:clamp(72px,20vw,120px);--mark-radius:3px}
+  /* Keep Product / Company / Legal on one line; tighten the gap and let the
+     columns flex down so three fit across a phone. */
+  .foot-info{max-width:none}
+  .foot-cols{gap:clamp(16px,5vw,32px)}
+  .foot-cols > div{flex:1 1 0;min-width:0}
 }
