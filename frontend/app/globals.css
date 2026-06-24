@@ -1025,6 +1025,11 @@ button {
   min-height: 0;
   overflow-y: auto;
 }
+/* Each card/panel keeps its natural height so the column scrolls instead of
+   squishing the other panels when one expands (desktop + mobile). */
+.work-context > * {
+  flex-shrink: 0;
+}
 
 /* Header: Figma yellow CTA pill + white status pill with a colored dot. */
 .work-cta {
