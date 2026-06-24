@@ -451,41 +451,32 @@ export function ChatPane({
             ))}
           </div>
         )}
-        <div className="rc-composer-row">
-          <div className="rc-input-group">
-            <MicButton
-              onInterim={(t) => setInterim(t)}
-              onFinal={(t) => {
-                setInterim("");
-                if (t) setDraft((prev) => (prev ? prev + " " + t : t));
-              }}
-            />
-            <textarea
-              ref={inputRef}
-              className="rc-input"
-              rows={1}
-              placeholder={
-                streaming ? "Railio is responding…" : "Message Railio…"
-              }
-              value={composerValue}
-              onChange={(e) => {
-                setInterim("");
-                setDraft(e.target.value);
-              }}
-              onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                  e.preventDefault();
-                  send();
-                }
-              }}
-              disabled={streaming}
-              style={{
-                fontStyle: interim ? "italic" : "normal",
-                color: interim ? "var(--dash-muted)" : "#000",
-              }}
-            />
-          </div>
-          <div className="rc-actions">
+        <textarea
+          ref={inputRef}
+          className="rc-input"
+          rows={1}
+          placeholder={
+            streaming ? "Railio is responding…" : "Message Railio…"
+          }
+          value={composerValue}
+          onChange={(e) => {
+            setInterim("");
+            setDraft(e.target.value);
+          }}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+              e.preventDefault();
+              send();
+            }
+          }}
+          disabled={streaming}
+          style={{
+            fontStyle: interim ? "italic" : "normal",
+            color: interim ? "var(--dash-muted)" : "#000",
+          }}
+        />
+        <div className="rc-composer-actions">
+          <div className="rc-actions-left">
             <PhotoUpload
               ticketId={ticketId}
               pending={pending}
@@ -495,17 +486,24 @@ export function ChatPane({
               }
               compact
             />
-            <button
-              className="rc-send"
-              onClick={() => send()}
-              disabled={
-                streaming || inCooldown || (!draft.trim() && pending.length === 0)
-              }
-            >
-              {streaming ? "Sending…" : inCooldown ? `Wait ${cooldownLeft}s` : "Send"}
-              {!streaming && !inCooldown && <span aria-hidden>→</span>}
-            </button>
+            <MicButton
+              onInterim={(t) => setInterim(t)}
+              onFinal={(t) => {
+                setInterim("");
+                if (t) setDraft((prev) => (prev ? prev + " " + t : t));
+              }}
+            />
           </div>
+          <button
+            className="rc-send"
+            onClick={() => send()}
+            aria-label="Send"
+            disabled={
+              streaming || inCooldown || (!draft.trim() && pending.length === 0)
+            }
+          >
+            {streaming ? "…" : inCooldown ? cooldownLeft : <span aria-hidden>→</span>}
+          </button>
         </div>
       </div>
 

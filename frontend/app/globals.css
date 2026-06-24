@@ -1324,7 +1324,8 @@ button {
   cursor: not-allowed;
 }
 
-/* Composer: rounded grey bar holding mic + input + IMG + yellow Send. */
+/* Composer (Claude-app style): full-width input on top, an actions row below —
+   "+" and mic on the left, a yellow arrow Send on the right. */
 .rc-composer {
   margin: 0 28px 20px;
   background: var(--dash-bg);
@@ -1335,22 +1336,8 @@ button {
   flex-direction: column;
   gap: 12px;
 }
-.rc-composer-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-}
-.rc-input-group {
-  display: flex;
-  align-items: flex-end;
-  gap: 18px;
-  flex: 1;
-  min-width: 0;
-}
 .rc-input {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   border: none;
   background: transparent;
   resize: none;
@@ -1368,13 +1355,18 @@ button {
 .rc-input:focus {
   outline: none;
 }
-.rc-actions {
+.rc-composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rc-actions-left {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: none;
 }
-/* Square-ish white chrome box shared by the mic + IMG buttons. */
+/* Square white chrome box shared by the mic + "+" buttons. */
 .rc-box {
   display: inline-flex;
   align-items: center;
@@ -1400,27 +1392,27 @@ button {
   position: relative;
 }
 .rc-imgbtn {
-  padding: 0 16px;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 11px;
-  color: #7a7a7e;
+  width: 46px;
+  font-family: "Inter", sans-serif;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  color: #3a3a3e;
 }
+/* Yellow arrow Send — square, icon-only. */
 .rc-send {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   height: 56px;
-  padding: 0 27px;
+  width: 46px;
   background: var(--dash-yellow);
   border: 1px solid var(--dash-yellow);
   border-radius: 12px;
   font-family: "Inter", sans-serif;
-  font-weight: 700;
-  font-size: 13px;
+  font-size: 18px;
   color: #000;
   cursor: pointer;
-  white-space: nowrap;
   transition: filter 0.12s;
 }
 .rc-send:hover:not(:disabled) {
@@ -1436,32 +1428,20 @@ button {
   flex-wrap: wrap;
 }
 @media (max-width: 640px) {
-  /* Compact the composer so the bottom bar feels natural to tap on a phone
-     (desktop keeps the larger 56px chrome). */
+  /* Compact the composer so the bottom bar feels natural to tap on a phone. */
   .rc-composer {
     margin: 0 12px 12px;
     padding: 8px 10px;
     gap: 8px;
   }
-  .rc-input-group {
-    gap: 10px;
-  }
-  .rc-actions {
-    gap: 6px;
-  }
   .rc-box,
   .rc-send {
     height: 40px;
   }
-  .rc-mic {
-    width: 40px;
-  }
-  .rc-imgbtn {
-    padding: 0 10px;
-  }
+  .rc-mic,
+  .rc-imgbtn,
   .rc-send {
-    padding: 0 14px;
-    font-size: 12px;
+    width: 40px;
   }
 }
 
@@ -2022,15 +2002,19 @@ button {
 }
 .fig-nav-drawer {
   display: none;
-  max-width: 1440px;
-  margin: 8px auto 0;
+  /* Overlay below the nav pill instead of growing the sticky nav's flow height
+     (which would push the page content down past the fixed --fig-nav-zone). */
+  position: absolute;
+  top: 100%;
+  left: 12px;
+  right: 12px;
   pointer-events: auto;
-  position: relative;
   z-index: 1;
-  background: rgba(255, 255, 255, 0.97);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: #fff;
+  border: 1px solid var(--dash-border);
   border-radius: 18px;
   padding: 16px 24px 20px;
+  box-shadow: 0 16px 32px rgba(16, 24, 40, 0.18);
 }
 .fig-nav-drawer .fig-nav-links {
   flex-direction: column;

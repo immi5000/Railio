@@ -86,7 +86,7 @@ export function PhotoUpload({
           if (files.length) handleFiles(files);
         }}
       >
-        {busy ? "…" : "+IMG"}
+        {busy ? "…" : "+"}
         {fileInput}
       </button>
     );
