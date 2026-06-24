@@ -323,7 +323,9 @@ export type CorpusDocument = {
   doc_class: DocClass;
   doc_id: string;
   doc_title: string;
-  unit_model: string | null;
+  // Every locomotive model this document is tagged to (a manual may cover
+  // several). Empty for shared 49 CFR and tribal notes.
+  unit_models: string[];
   chunk_count: number;
   page_count: number | null;
   source_url: string | null;

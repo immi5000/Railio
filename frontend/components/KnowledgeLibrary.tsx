@@ -7,12 +7,12 @@ import type { CorpusDocument, CorpusChunk } from "@/lib/contract";
 import { CitationDrawer } from "./CitationDrawer";
 import { techNameForChunk } from "@/lib/techNames";
 
-// One tab per knowledge slice. Manuals split by locomotive model; shared
-// reference manuals with no model (49 CFR) get their own tab; tribal is its own.
+// Three knowledge slices. Manuals (OEM, each tagged to one or more locomotive
+// models, shown as chips on the card); shared 49 CFR federal reference; tribal.
 type Tab = {
   key: string;
   label: string;
-  kind: "all" | "cfr" | "model" | "tribal";
+  kind: "manual" | "cfr" | "tribal";
   docs: CorpusDocument[];
 };
 
@@ -21,34 +21,28 @@ function isTribal(d: CorpusDocument) {
 }
 
 function buildTabs(docs: CorpusDocument[]): Tab[] {
+  const manuals: CorpusDocument[] = [];
   const cfr: CorpusDocument[] = [];
   const tribal: CorpusDocument[] = [];
-  const byModel = new Map<string, CorpusDocument[]>();
 
   for (const d of docs) {
     if (isTribal(d)) {
       tribal.push(d);
-    } else if (d.unit_model) {
-      const arr = byModel.get(d.unit_model) || [];
-      arr.push(d);
-      byModel.set(d.unit_model, arr);
+    } else if (d.unit_models.length > 0) {
+      // OEM manual tagged to at least one locomotive model.
+      manuals.push(d);
     } else {
       // A manual with no model scope is shared federal reference → 49 CFR.
       cfr.push(d);
     }
   }
 
-  const tabs: Tab[] = [{ key: "all", label: "All", kind: "all", docs }];
+  const tabs: Tab[] = [];
+  if (manuals.length) {
+    tabs.push({ key: "manuals", label: "Manuals", kind: "manual", docs: manuals });
+  }
   if (cfr.length) {
     tabs.push({ key: "cfr", label: "49 CFR", kind: "cfr", docs: cfr });
-  }
-  for (const model of [...byModel.keys()].sort()) {
-    tabs.push({
-      key: `model:${model}`,
-      label: model,
-      kind: "model",
-      docs: byModel.get(model)!,
-    });
   }
   if (tribal.length) {
     tabs.push({ key: "tribal", label: "Tribal", kind: "tribal", docs: tribal });
@@ -57,7 +51,7 @@ function buildTabs(docs: CorpusDocument[]): Tab[] {
 }
 
 export function KnowledgeLibrary() {
-  const [active, setActive] = useState("all");
+  const [active, setActive] = useState("manuals");
   const [q, setQ] = useState("");
   const [openChunk, setOpenChunk] = useState<number | null>(null);
 
@@ -71,7 +65,7 @@ export function KnowledgeLibrary() {
     const needle = q.trim().toLowerCase();
     if (!needle) return docs;
     return docs.filter((d) =>
-      `${d.doc_title} ${d.doc_id} ${d.unit_model || ""}`
+      `${d.doc_title} ${d.doc_id} ${d.unit_models.join(" ")}`
         .toLowerCase()
         .includes(needle),
     );
@@ -96,7 +90,7 @@ export function KnowledgeLibrary() {
           }}
         >
           Every answer the assistant gives is grounded in one of these sources.
-          Manuals are organized by locomotive model; 49 CFR is shared federal
+          Each manual lists every locomotive it covers; 49 CFR is shared federal
           regulation; tribal notes are the senior techs&apos; own knowledge. Open
           a manual to read the exact document Railio cites.
         </p>
@@ -157,7 +151,7 @@ export function KnowledgeLibrary() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {activeTab.docs.map((d) => (
               <DocCard
-                key={`${d.doc_class}:${d.unit_model || ""}:${d.doc_id}`}
+                key={`${d.doc_class}:${d.doc_id}`}
                 doc={d}
                 onOpenChunk={(id) => setOpenChunk(id)}
               />
@@ -174,8 +168,8 @@ export function KnowledgeLibrary() {
 }
 
 function tabIcon(kind: Tab["kind"]): string {
+  if (kind === "manual") return "🚂 ";
   if (kind === "cfr") return "§ ";
-  if (kind === "model") return "🚂 ";
   if (kind === "tribal") return "👤 ";
   return "";
 }
@@ -227,8 +221,8 @@ function DocCard({
   const href = doc.source_url ? (fileUrl(doc.source_url) ?? doc.source_url) : null;
   const eyebrow = tribal
     ? "👤 Tribal knowledge"
-    : doc.unit_model
-      ? `🚂 ${doc.unit_model}`
+    : doc.unit_models.length > 0
+      ? "🚂 OEM manual"
       : "§ 49 CFR";
   const countLabel = `${doc.chunk_count} ${tribal ? "note" : "section"}${
     doc.chunk_count === 1 ? "" : "s"
@@ -252,6 +246,30 @@ function DocCard({
         <h3 className="h4" style={{ fontSize: 18 }}>
           {doc.doc_title}
         </h3>
+        {doc.unit_models.length > 0 && (
+          <div
+            style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}
+          >
+            {doc.unit_models.map((m) => (
+              <span
+                key={m}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  fontFamily: '"IBM Plex Mono", monospace',
+                  fontSize: 11,
+                  borderRadius: 99,
+                  padding: "4px 12px",
+                  background: "#fff",
+                  border: "1px solid var(--dash-border)",
+                  color: "#3a3a3e",
+                }}
+              >
+                {m}
+              </span>
+            ))}
+          </div>
+        )}
         <div
           style={{
             fontSize: 12,

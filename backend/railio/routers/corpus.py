@@ -236,31 +236,32 @@ async def list_documents(
         )
         if not pdf:
             pdf_select = ", NULL AS pdf_path, NULL AS page_count"
-        # A manual tagged to several models should appear once per model in the
-        # library. CROSS JOIN LATERAL unnest(unit_models[]) (falling back to the
-        # scalar when no array) yields an "effective model" we group on, so e.g.
-        # the shared 645E manual lists under both GP38-2 and SD38-2.
+        # One row per document, carrying the FULL list of models it's tagged to
+        # (a manual shared by several models lists them all). Unnest unit_models[]
+        # (falling back to the scalar) then ARRAY_AGG back, so the count uses
+        # COUNT(DISTINCT c.id) — the LATERAL duplicates each chunk per model.
         if await _has_column(session, "corpus_chunks", "unit_models"):
             model_join = (
                 " CROSS JOIN LATERAL unnest("
                 "COALESCE(NULLIF(c.unit_models, '{}'), ARRAY[c.unit_model])"
-                ") AS um(unit_model)"
+                ") AS m(model)"
             )
-            model_col = "um.unit_model"
+            model_expr = "m.model"
         else:
             model_join = ""
-            model_col = "c.unit_model"
+            model_expr = "c.unit_model"
         rows = (
             await session.execute(
                 text(
                     f"""
                     SELECT c.doc_class, c.doc_id, c.doc_title,
-                           {model_col} AS unit_model,
-                           COUNT(*) AS chunk_count{pdf_select}
+                           ARRAY_AGG(DISTINCT {model_expr})
+                             FILTER (WHERE {model_expr} IS NOT NULL) AS unit_models,
+                           COUNT(DISTINCT c.id) AS chunk_count{pdf_select}
                     FROM corpus_chunks c {pdf_join}{model_join}
                     WHERE (c.org_id = :org OR c.org_id IS NULL)
-                    GROUP BY c.doc_class, c.doc_id, c.doc_title, {model_col}
-                    ORDER BY c.doc_class, {model_col} NULLS FIRST, c.doc_title
+                    GROUP BY c.doc_class, c.doc_id, c.doc_title
+                    ORDER BY c.doc_class, c.doc_title
                     """
                 ),
                 {"org": org.id},
@@ -270,6 +271,7 @@ async def list_documents(
     docs = []
     for r in rows:
         d = dict(r)
+        d["unit_models"] = list(d.get("unit_models") or [])
         d["chunk_count"] = int(d["chunk_count"] or 0)
         d["page_count"] = int(d["page_count"]) if d.get("page_count") else None
         d["source_url"] = resolve_document_url(d)
