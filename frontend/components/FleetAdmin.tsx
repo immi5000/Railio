@@ -210,6 +210,8 @@ function UnitEditForm({
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["assets"] });
+      // Fleet change → re-check which manuals are relevant to the org's models.
+      qc.invalidateQueries({ queryKey: ["corpus-documents"] });
       onDone();
     },
   });
@@ -602,6 +604,8 @@ function AddUnitForm({
       }),
     onSuccess: (a) => {
       qc.invalidateQueries({ queryKey: ["assets"] });
+      // Fleet change → re-check which manuals are relevant to the org's models.
+      qc.invalidateQueries({ queryKey: ["corpus-documents"] });
       onAdded(a);
       setReportingMark("");
       setRoadNumber("");

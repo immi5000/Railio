@@ -38,3 +38,17 @@ def model_family(s: Optional[str]) -> Optional[str]:
         parts.pop(0)
     f = " ".join(parts)
     return _TRAILING_VARIANT.sub("", f)
+
+
+def _sql_family(expr: str) -> str:
+    """SQL mirror of model_family(): normalize a model string to its core series
+    family so a fleet/ticket model matches a manual tagged for a prefix/suffix
+    variant (e.g. "EMD SD60M" ~ "SD60"). Kept in lockstep with model_family
+    above (asserted by test_model_family against real Postgres)."""
+    return (
+        "regexp_replace("
+        "  regexp_replace("
+        "    btrim(regexp_replace(upper(" + expr + "), '\\s+', ' ', 'g')),"
+        "  '^([A-Z]+ )+', ''),"
+        "'([0-9])[A-Z]+$', '\\1')"
+    )

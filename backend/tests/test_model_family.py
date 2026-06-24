@@ -14,8 +14,7 @@ import pytest
 from sqlalchemy import text
 
 from railio.db import session_scope
-from railio.model_family import model_family
-from railio.tools.search_corpus import _sql_family
+from railio.model_family import _sql_family, model_family
 
 # (input, expected family)
 BATTERY = [

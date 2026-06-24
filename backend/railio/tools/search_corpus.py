@@ -13,22 +13,9 @@ from ..corpus_figures import (
 )
 from ..db import session_scope
 from ..embeddings import embed
+from ..model_family import _sql_family
 
 DocClassFilter = Literal["manual", "tribal_knowledge", "any"]
-
-
-def _sql_family(expr: str) -> str:
-    """SQL mirror of model_family(): normalize a model string to its core series
-    family so a ticket's model matches a manual tagged for a prefix/suffix
-    variant (e.g. "EMD SD60M" ~ "SD60"). Kept in lockstep with
-    railio.model_family.model_family (asserted by test_model_family)."""
-    return (
-        "regexp_replace("
-        "  regexp_replace("
-        "    btrim(regexp_replace(upper(" + expr + "), '\\s+', ' ', 'g')),"
-        "  '^([A-Z]+ )+', ''),"
-        "'([0-9])[A-Z]+$', '\\1')"
-    )
 
 
 async def search_corpus(

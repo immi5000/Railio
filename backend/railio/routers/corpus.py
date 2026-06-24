@@ -12,6 +12,7 @@ from sqlalchemy import text
 from ..contract import Organization
 from ..corpus_links import resolve_document_url, resolve_source_url
 from ..db import session_scope
+from ..model_family import _sql_family
 from ..org_context import get_current_org
 
 router = APIRouter()
@@ -250,6 +251,17 @@ async def list_documents(
         else:
             model_join = ""
             model_expr = "c.unit_model"
+        # Keep a doc when it has NO model scope (CFR/tribal → all effective models
+        # NULL) OR when one of its model families is in the org's fleet families.
+        # Family match (via _sql_family) means an "EMD SD60M" unit pulls in the
+        # "EMD SD60" manual. Empty fleet → the IN-set is empty → model-scoped
+        # manuals drop, CFR/tribal stay.
+        having = (
+            f"bool_or({model_expr} IS NOT NULL) = false "
+            f"OR bool_or({_sql_family(model_expr)} IN "
+            f"(SELECT DISTINCT {_sql_family('a.unit_model')} "
+            f"FROM assets a WHERE a.org_id = :org))"
+        )
         rows = (
             await session.execute(
                 text(
@@ -261,6 +273,7 @@ async def list_documents(
                     FROM corpus_chunks c {pdf_join}{model_join}
                     WHERE (c.org_id = :org OR c.org_id IS NULL)
                     GROUP BY c.doc_class, c.doc_id, c.doc_title
+                    HAVING {having}
                     ORDER BY c.doc_class, c.doc_title
                     """
                 ),
