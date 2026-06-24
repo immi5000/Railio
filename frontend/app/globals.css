@@ -2585,3 +2585,115 @@ button {
     padding: 0 16px 16px;
   }
 }
+
+/* === Mobile /work reflow ===
+   On phones the body shows ONE panel at a time via a Chat|Details toggle, so
+   the chat owns the screen (full-height message list + bottom-pinned composer)
+   instead of being crushed into a ~110px card above the stacked context.
+   Hidden on desktop — every rule here is either display:none by default or
+   inside a max-width media query, and lives at EOF so it wins on source order. */
+.work-tabs {
+  display: none;
+}
+.work-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--dash-muted);
+  padding: 9px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.work-tab[data-active="true"] {
+  background: #fff;
+  color: #000;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+@media (max-width: 980px) {
+  .work-tabs {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    background: #eef0f2;
+    border: 1px solid var(--dash-border);
+    border-radius: 12px;
+    padding: 4px;
+  }
+  /* One panel at a time in a single full-height row; the body itself does not
+     scroll — the visible panel's own scroller handles overflow (kills the
+     double-scroll crush from the base ≤980 overflow-y:auto). */
+  .work-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    overflow: hidden;
+  }
+  .work-body[data-mobile-view="chat"] .work-context {
+    display: none;
+  }
+  .work-body[data-mobile-view="details"] .work-copilot {
+    display: none;
+  }
+  .work-body .work-context {
+    height: 100%;
+    min-height: 0;
+  }
+}
+
+/* Compact the header on phones so the chat reclaims vertical space, and bump
+   the composer input to 16px so iOS doesn't zoom on focus. */
+@media (max-width: 760px) {
+  /* Tighten the whole work column so the chat gets the screen. */
+  .work {
+    padding-bottom: 8px;
+  }
+  .work-inner {
+    gap: 10px;
+  }
+  /* Compact header: one slim line of meta + a right-aligned action. */
+  .work-head {
+    gap: 6px;
+  }
+  .work-toggle {
+    font-size: 12px;
+  }
+  .work-title {
+    font-size: 18px;
+    line-height: 1.1;
+  }
+  .work-title-prefix {
+    display: none;          /* show just "#id" on phones */
+  }
+  .work-head-row {
+    gap: 8px;
+    align-items: center;
+  }
+  .work-head-left {
+    gap: 8px;
+    align-items: center;
+  }
+  .dash-sev,
+  .work-status {
+    font-size: 10.5px;
+    padding: 3px 8px;
+  }
+  .work-cta {
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+  /* Keep the action wrapper pinned right even when a longer label wraps. */
+  .work-head-row > :last-child {
+    margin-left: auto;
+  }
+  /* The "Copilot" card label is redundant on a phone (the whole screen is the
+     copilot) — drop it and its padding so the message list starts at the top. */
+  .work-copilot-head {
+    display: none;
+  }
+  .rc-input {
+    font-size: 16px;
+  }
+}

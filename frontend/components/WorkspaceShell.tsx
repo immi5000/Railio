@@ -45,8 +45,11 @@ export function WorkspaceShell() {
 
   // Drawer is open by default when no ticket is selected, closed once one is.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // On phones the body shows one panel at a time; always land on the chat.
+  const [mobileView, setMobileView] = useState<"chat" | "details">("chat");
   useEffect(() => {
     setSidebarOpen(selectedId == null);
+    setMobileView("chat");
   }, [selectedId]);
 
   const { data, isLoading, error } = useQuery({
@@ -104,8 +107,31 @@ export function WorkspaceShell() {
           }
         />
 
+        {selectedId != null && (
+          <div className="work-tabs" role="tablist">
+            <button
+              type="button"
+              className="work-tab"
+              data-active={mobileView === "chat"}
+              aria-selected={mobileView === "chat"}
+              onClick={() => setMobileView("chat")}
+            >
+              Chat
+            </button>
+            <button
+              type="button"
+              className="work-tab"
+              data-active={mobileView === "details"}
+              aria-selected={mobileView === "details"}
+              onClick={() => setMobileView("details")}
+            >
+              Details
+            </button>
+          </div>
+        )}
+
         {selectedId != null ? (
-          <div className="work-body">
+          <div className="work-body" data-mobile-view={mobileView}>
             <section className="dash-card work-copilot">
               <div className="work-copilot-head">
                 <h2 className="work-copilot-title">Copilot</h2>
@@ -184,7 +210,14 @@ function WorkHeader({
       <div className="work-head-row">
         <div className="work-head-left">
           <h1 className="work-title">
-            {ticket ? `Work order #${ticket.short_id}` : "Select a ticket"}
+            {ticket ? (
+              <>
+                <span className="work-title-prefix">Work order </span>#
+                {ticket.short_id}
+              </>
+            ) : (
+              "Select a ticket"
+            )}
           </h1>
           {ticket && (
             <>
