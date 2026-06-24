@@ -17,6 +17,20 @@ from ..embeddings import embed
 DocClassFilter = Literal["manual", "tribal_knowledge", "any"]
 
 
+def _sql_family(expr: str) -> str:
+    """SQL mirror of model_family(): normalize a model string to its core series
+    family so a ticket's model matches a manual tagged for a prefix/suffix
+    variant (e.g. "EMD SD60M" ~ "SD60"). Kept in lockstep with
+    railio.model_family.model_family (asserted by test_model_family)."""
+    return (
+        "regexp_replace("
+        "  regexp_replace("
+        "    btrim(regexp_replace(upper(" + expr + "), '\\s+', ' ', 'g')),"
+        "  '^([A-Z]+ )+', ''),"
+        "'([0-9])[A-Z]+$', '\\1')"
+    )
+
+
 async def search_corpus(
     query: str,
     k: int = 6,
@@ -60,19 +74,27 @@ async def search_corpus(
             fig_col = ", figures" if has_figs else ""
             if unit_model is not None:
                 params["unit_model"] = unit_model
+                # Match by model *family* (OEM prefix + trailing variant letters
+                # stripped) so a manual tagged "EMD SD60" covers an "EMD SD60M"
+                # ticket. Normalize both the bound model and each stored value.
+                fam = _sql_family(":unit_model")
                 if await unit_models_supported(session):
-                    # A chunk matches when the ticket's model is in its
-                    # unit_models[] set; rows without an array fall back to the
-                    # scalar (single-model exact, or NULL = shared-all, e.g. CFR).
+                    # A chunk matches when the ticket's family is among its
+                    # unit_models[] families; rows without an array fall back to
+                    # the scalar (family match, or NULL = shared-all, e.g. CFR).
                     where.append(
                         "("
-                        ":unit_model = ANY(unit_models)"
-                        " OR ((unit_models IS NULL OR cardinality(unit_models) = 0)"
-                        " AND (unit_model = :unit_model OR unit_model IS NULL))"
+                        "  EXISTS (SELECT 1 FROM unnest(unit_models) u"
+                        f"          WHERE {_sql_family('u')} = {fam})"
+                        "  OR ((unit_models IS NULL OR cardinality(unit_models) = 0)"
+                        f"      AND ({_sql_family('unit_model')} = {fam}"
+                        "           OR unit_model IS NULL))"
                         ")"
                     )
                 else:
-                    where.append("(unit_model = :unit_model OR unit_model IS NULL)")
+                    where.append(
+                        f"({_sql_family('unit_model')} = {fam} OR unit_model IS NULL)"
+                    )
             sql = text(
                 f"""
                 SELECT id, doc_class, doc_id, doc_title, source_label, page, text,
