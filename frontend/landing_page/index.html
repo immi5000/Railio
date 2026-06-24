@@ -12,55 +12,74 @@
 </head>
 <body>
 
-  <header class="nav">
-    <div class="wrap nav-in">
-      <a href="#top" class="brand"><span class="mk"><i></i></span>Railio</a>
-      <nav class="nav-links">
-        <a href="#how">How it works</a>
-        <a href="#impact">Projected Impact</a>
-        <a href="#security">Security</a>
+  <header class="fig-nav">
+    <div class="fig-nav-inner">
+      <a href="#top" class="fig-brand"><span class="mk"><i></i></span>Railio</a>
+      <nav class="fig-nav-links fig-nav-links--desktop">
+        <a href="#how" class="fig-nav-link">How it works</a>
+        <a href="#impact" class="fig-nav-link">Projected Impact</a>
+        <a href="#security" class="fig-nav-link">Security</a>
       </nav>
-      <span style="display:inline-flex;gap:10px;align-items:center">
-        <a class="btn btn-ghost" href="/signin">Log in</a>
-        <a class="btn btn-super" href="/signin?mode=signup">Sign up <span class="arr">→</span></a>
-      </span>
+      <div class="fig-nav-actions">
+        <a class="btn btn-ghost btn-nav" href="/signin">Log in</a>
+        <a class="btn btn-super btn-nav" href="/signin?mode=signup">Sign up<span class="arr" aria-hidden="true">→</span></a>
+      </div>
     </div>
   </header>
 
   <section class="hero" id="top">
+    <div class="hero-media" aria-hidden="true">
+      <video class="hero-bg-video" autoplay muted loop playsinline preload="metadata">
+        <source src="assets/hero-train-bg.mp4" type="video/mp4" />
+      </video>
+    </div>
     <div class="wrap hero-grid">
-      <div>
+      <div class="hero-copy">
         <span class="hero-eyebrow"><span class="lbl">Railio · The AI co-pilot for rail maintenance</span></span>
-        <h1 class="display" style="margin-top:24px">The AI co-pilot<br/>for <span class="blue">rail<br/>maintenance.</span></h1>
-        <p class="lede" style="margin-top:32px">Everything the tech needs in one place: manuals, 49 CFR, unit history, and notes from senior techs. Every answer is cited against 49 CFR and the OEM manual, so the guidance stays trustworthy and FRA compliant. It keeps working even when the yard signal drops.</p>
-        <div class="hero-cta" style="margin-top:36px">
-          <a class="btn btn-super" href="/signin?mode=signup">Sign up <span class="arr">→</span></a>
+        <h1 class="display">The AI co-pilot for <span class="blue">rail&nbsp;maintenance.</span></h1>
+        <p class="lede">Manuals, 49 CFR, unit history, and senior-tech notes in one place. Every answer is cited and ready for the yard.</p>
+        <div class="hero-cta">
+          <a class="btn btn-super" href="/signin?mode=signup">Sign up<span class="arr" aria-hidden="true">→</span></a>
           <a class="btn btn-ghost" href="/signin">Log in</a>
         </div>
       </div>
       <div>
         <div class="phone-stage">
-          <div class="phone">
-            <div class="phone-screen">
-              <div class="ph-bar"><span>2:14</span><span>RAILIO</span></div>
-              <div class="ph-app">
-                <div class="ph-top">
-                  <span class="live"><i></i> Live diagnosis</span>
-                  <span class="unit">Unit 4423</span>
-                </div>
-                <div class="ph-card">
-                  <div class="lbl">Active fault</div>
-                  <div class="val"><b>Brake pipe pressure low</b> · Car 6, B-end</div>
-                </div>
-                <div id="ph-transcript" class="ph-transcript" style="display:flex;flex-direction:column;gap:10px"></div>
-                <div class="ph-foot">
-                  <div class="composer">
-                    <span class="cph">Type or paste a fault…</span>
-                    <span class="send">→</span>
+          <div class="iphone-mock" aria-label="Railio app demo">
+            <div class="iphone-screen">
+              <video
+                class="iphone-video"
+                autoplay
+                muted
+                loop
+                playsinline
+                aria-hidden="true"
+              >
+                <source src="assets/railio-demo.mp4" type="video/mp4" />
+                <source src="assets/railio-demo.webm" type="video/webm" />
+              </video>
+              <div class="iphone-demo">
+                <div class="ph-bar"><span>2:14</span><span>RAILIO</span></div>
+                <div class="ph-app">
+                  <div class="ph-top">
+                    <span class="live"><i></i> Live diagnosis</span>
+                    <span class="unit">Unit 4423</span>
+                  </div>
+                  <div class="ph-card">
+                    <div class="lbl">Active fault</div>
+                    <div class="val"><b>Brake pipe pressure low</b> · Car 6, B-end</div>
+                  </div>
+                  <div id="ph-transcript" class="ph-transcript"></div>
+                  <div class="ph-foot">
+                    <div class="composer">
+                      <span class="cph">Type or paste a fault…</span>
+                      <span class="send" aria-hidden="true">→</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+            <div class="iphone-frame" aria-hidden="true"></div>
           </div>
         </div>
       </div>
@@ -147,8 +166,6 @@
     <div class="wrap">
       <div class="foot-top">
         <div class="foot-info">
-          <a href="#top" class="brand"><span class="mk"><i></i></span>Railio</a>
-          <p class="foot-desc">The AI co-pilot for rail maintenance technicians. One place for the manuals, the history, and the tribal knowledge. Manual-grounded. FRA-compliant by citation.</p>
           <div class="foot-cols">
             <div><h5>Product</h5><p>Incoming</p></div>
             <div><h5>Company</h5><p>Incoming</p></div>
@@ -156,9 +173,6 @@
           </div>
         </div>
         <span class="foot-copy">© 2026 · All rights reserved</span>
-      </div>
-      <div class="foot-band">
-        <img src="assets/yard.jpg" alt="Rail yard" loading="lazy" />
       </div>
       <div class="foot-wordmark">
         <span class="foot-mark" aria-hidden="true"><i></i></span>

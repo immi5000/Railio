@@ -234,35 +234,40 @@ button {
   letter-spacing: -0.01em;
   text-transform: uppercase;
 }
-.brand .mk {
+:where(.brand, .fig-brand) .mk {
+  --mark-size: 22px;
+  --mark-stroke: 3px;
   display: inline-block;
-  width: 22px;
-  height: 22px;
+  width: var(--mark-size);
+  height: var(--mark-size);
   position: relative;
+  flex: 0 0 var(--mark-size);
 }
-.brand .mk::before,
-.brand .mk::after {
+:where(.brand, .fig-brand) .mk::before,
+:where(.brand, .fig-brand) .mk::after {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
-  height: 3px;
+  height: var(--mark-stroke);
   background: currentColor;
+  border-radius: calc(var(--mark-stroke) * 0.38);
 }
-.brand .mk::before {
-  top: 5px;
+:where(.brand, .fig-brand) .mk::before {
+  top: 22%;
 }
-.brand .mk::after {
-  bottom: 5px;
+:where(.brand, .fig-brand) .mk::after {
+  bottom: 22%;
 }
-.brand .mk i {
+:where(.brand, .fig-brand) .mk i {
   position: absolute;
   left: 50%;
   top: 0;
   bottom: 0;
-  width: 3px;
-  background: var(--mta);
+  width: var(--mark-stroke);
+  background: currentColor;
   transform: translateX(-50%);
+  border-radius: calc(var(--mark-stroke) * 0.38);
 }
 
 /* === Inputs === */

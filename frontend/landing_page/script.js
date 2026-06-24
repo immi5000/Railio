@@ -1,5 +1,76 @@
 (function () {
-  // ── Hero phone: looping live-diagnosis transcript (mirrors the real chat) ──
+  // ── Nav: full-width at top, compact pill after scroll ──
+  var navEl = document.querySelector('.fig-nav');
+  if (navEl) {
+    var navTicking = false;
+
+    function setNavScrolled() {
+      navEl.classList.toggle('is-scrolled', window.scrollY > 12);
+      navTicking = false;
+    }
+
+    function requestNavUpdate() {
+      if (navTicking) return;
+      navTicking = true;
+      requestAnimationFrame(setNavScrolled);
+    }
+
+    window.addEventListener('scroll', requestNavUpdate, { passive: true });
+    setNavScrolled();
+  }
+
+  // ── Nav: highlight active section (dashboard-style dot prefix) ──
+  var navLinks = document.querySelectorAll('.fig-nav-link[href^="#"]');
+  if (navLinks.length) {
+    var sections = [];
+    navLinks.forEach(function (link) {
+      var id = link.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if (el) sections.push({ id: id, el: el, link: link });
+    });
+
+    function setActive(id) {
+      navLinks.forEach(function (link) {
+        var active = link.getAttribute('href') === '#' + id;
+        link.classList.toggle('is-active', active);
+        var dot = link.querySelector('.fig-nav-dot');
+        if (active && !dot) {
+          dot = document.createElement('span');
+          dot.className = 'fig-nav-dot';
+          dot.setAttribute('aria-hidden', 'true');
+          link.insertBefore(dot, link.firstChild);
+        } else if (!active && dot) {
+          dot.remove();
+        }
+      });
+    }
+
+    function onScroll() {
+      var y = window.scrollY + 120;
+      var current = '';
+      sections.forEach(function (s) {
+        if (s.el.offsetTop <= y) current = s.id;
+      });
+      setActive(current);
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
+  // ── Hero phone: show demo video when available, else animated transcript ──
+  var mockEl = document.querySelector('.iphone-mock');
+  var videoEl = document.querySelector('.iphone-video');
+  if (mockEl && videoEl) {
+    videoEl.addEventListener('loadeddata', function () {
+      mockEl.classList.add('has-video');
+    });
+    videoEl.addEventListener('error', function () {
+      mockEl.classList.remove('has-video');
+    });
+    videoEl.load();
+  }
+
   var TRANSCRIPT = [
     { who: 'tech', html: "Brake pipe pressure dropping on car six. Won't hold above 75 PSI." },
     { who: 'ai',   html: "Pulling Unit 4423 — last B-end inspection 14 days ago. <b>Most likely cause: a leaking angle-cock gasket on car 6.</b>"
@@ -31,6 +102,9 @@
             + '</div></div>';
     }
     transcriptEl.innerHTML = html;
+    requestAnimationFrame(function () {
+      transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    });
   }
   renderTranscript();
   setInterval(function () {
@@ -116,7 +190,7 @@
     b.innerHTML =
         '<div class="row1">'
       +   '<span class="num">STEP ' + st.num + ' — ' + escHtml(st.k.toUpperCase()) + '</span>'
-      +   '<span class="arrow">→</span>'
+      +   '<span class="arr arrow" aria-hidden="true">→</span>'
       + '</div>'
       + '<div class="ttl">' + escHtml(st.title) + '</div>'
       + '<p class="sub">' + escHtml(st.sub) + '</p>';
