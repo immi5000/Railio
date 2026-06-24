@@ -510,7 +510,7 @@ footer{position:relative}
   transform:translateX(-50%);
   border-radius:var(--mark-radius);
 }
-.foot-word{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-weight:400;font-size:clamp(72px,16vw,240px);line-height:1;letter-spacing:-0.06em;color:var(--foot-olive)}
+.foot-word{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-weight:700;font-size:clamp(72px,16vw,240px);line-height:1;letter-spacing:-0.06em;color:var(--foot-olive)}
 .foot-bot{margin-top:20px;padding-top:16px;border-top:1px solid rgba(102,100,15,.25);display:flex;justify-content:space-between;align-items:center;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;color:var(--foot-olive);opacity:.85;text-transform:uppercase;letter-spacing:.06em;flex-wrap:wrap;gap:16px}
 @media (max-width:760px){
   .foot-word{font-size:clamp(56px,20vw,120px)}
