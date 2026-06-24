@@ -55,6 +55,20 @@ export function FleetAdmin() {
           }}
         >
           <div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 12,
+              marginBottom: 12,
+            }}
+          >
+            <h2 className="h4">Units</h2>
+            <span className="micro" style={{ color: "var(--dash-muted)" }}>
+              {(assets ?? []).length} unit
+              {(assets ?? []).length === 1 ? "" : "s"}
+            </span>
+          </div>
           <AddUnitForm
             unitModels={unitModels}
             onAdded={(a) => setSelected(a.id)}
@@ -149,7 +163,7 @@ function UnitButton({
           font: "inherit",
         }}
       >
-        <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 500, fontSize: 14 }}>
+        <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 700, fontSize: 16 }}>
           {asset.reporting_mark} {asset.road_number}
         </div>
         <div className="micro" style={{ color: "var(--dash-muted)", marginTop: 2 }}>
@@ -628,7 +642,7 @@ function AddUnitForm({
     return (
       <button
         type="button"
-        className="btn btn-ghost btn-sm"
+        className="btn btn-sm"
         style={{ marginBottom: 12, width: "100%" }}
         onClick={() => setOpen(true)}
       >
@@ -753,8 +767,8 @@ function AddRecordForm({ asset }: { asset: Asset }) {
     return (
       <button
         type="button"
-        className="btn btn-ghost btn-sm"
-        style={{ marginBottom: 12 }}
+        className="btn btn-sm"
+        style={{ marginBottom: 12, width: "100%" }}
         onClick={() => setOpen(true)}
       >
         + Add record
