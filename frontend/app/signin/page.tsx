@@ -64,7 +64,7 @@ function SignInInner() {
         className="dash-link"
         style={{ position: "absolute", top: 24, left: 24 }}
       >
-        ← Back to home
+        <span className="ico-arr-back" aria-hidden="true" /> Back to home
       </a>
       <div
         className="dash-card"

@@ -78,10 +78,10 @@ export function CitationDrawer({
                 style={{ textDecoration: "none", marginBottom: 16 }}
               >
                 {data.doc_id.startsWith("cfr_")
-                  ? "Open in eCFR →"
+                  ? <>Open in eCFR <span className="ico-arr" aria-hidden="true" /></>
                   : data.page != null
-                    ? `Open manual at p.${data.page} →`
-                    : "Open manual →"}
+                    ? <>Open manual at p.{data.page} <span className="ico-arr" aria-hidden="true" /></>
+                    : <>Open manual <span className="ico-arr" aria-hidden="true" /></>}
               </a>
             )}
             <div

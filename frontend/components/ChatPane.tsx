@@ -502,7 +502,7 @@ export function ChatPane({
               streaming || inCooldown || (!draft.trim() && pending.length === 0)
             }
           >
-            {streaming ? "…" : inCooldown ? cooldownLeft : <span aria-hidden>→</span>}
+            {streaming ? "…" : inCooldown ? cooldownLeft : <span aria-hidden className="ico-arr" />}
           </button>
         </div>
       </div>
@@ -1048,7 +1048,7 @@ function RequestPhotoBlock({
         }}
       />
       <button className="btn btn-super btn-sm" onClick={() => ref.current?.click()}>
-        Send photo →
+        Send photo <span className="ico-arr" aria-hidden="true" />
       </button>
     </div>
   );

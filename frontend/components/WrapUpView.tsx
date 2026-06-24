@@ -78,7 +78,7 @@ export function WrapUpView({ ticketId }: { ticketId: string }) {
     <section
       className="ticket-shell"
       style={{
-        padding: "16px 0 0",
+        padding: "28px 0 0",
         height: "calc(100vh - 56px)",
         display: "flex",
         flexDirection: "column",
@@ -87,7 +87,7 @@ export function WrapUpView({ ticketId }: { ticketId: string }) {
     >
       <div className="wrap" style={{ marginBottom: 12 }}>
         <Link href="/work" className="micro" style={{ color: "var(--dash-muted)" }}>
-          ← Back to queue
+          <span className="ico-arr-back" aria-hidden="true" /> Back to queue
         </Link>
         <div
           style={{
@@ -226,7 +226,7 @@ export function WrapUpView({ ticketId }: { ticketId: string }) {
                   onClick={() => fileMut.mutate()}
                 >
                   {fileMut.isPending ? "Filing…" : "File record & close ticket"}{" "}
-                  <span className="arr">→</span>
+                  <span className="arr ico-arr" aria-hidden="true" />
                 </button>
                 <button
                   className="btn btn-ghost"

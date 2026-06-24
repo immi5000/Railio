@@ -292,7 +292,7 @@ export function PartsAdmin() {
               disabled={page === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
             >
-              ← Prev
+              <span className="ico-arr-back" aria-hidden="true" /> Prev
             </button>
             <span className="micro" style={{ color: "var(--dash-muted)" }}>
               Showing {page * PAGE_SIZE + 1}–
@@ -304,7 +304,7 @@ export function PartsAdmin() {
               disabled={(page + 1) * PAGE_SIZE >= total}
               onClick={() => setPage((p) => p + 1)}
             >
-              Next →
+              Next <span className="ico-arr" aria-hidden="true" />
             </button>
           </div>
         )}

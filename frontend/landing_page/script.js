@@ -30,18 +30,12 @@
     });
 
     function setActive(id) {
+      // The dot lives in the markup and is shown/hidden via CSS, and the label
+      // reserves its bold width with a ghost pseudo — so toggling the class
+      // changes weight + dot visibility without reflowing the nav row.
       navLinks.forEach(function (link) {
         var active = link.getAttribute('href') === '#' + id;
         link.classList.toggle('is-active', active);
-        var dot = link.querySelector('.fig-nav-dot');
-        if (active && !dot) {
-          dot = document.createElement('span');
-          dot.className = 'fig-nav-dot';
-          dot.setAttribute('aria-hidden', 'true');
-          link.insertBefore(dot, link.firstChild);
-        } else if (!active && dot) {
-          dot.remove();
-        }
       });
     }
 

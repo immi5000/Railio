@@ -187,8 +187,15 @@ button{font-family:inherit}
   transition:color .12s;
 }
 .fig-nav-link:hover{color:#000}
+/* Active = bold + dot with NO reflow: the label reserves its bold width via a
+   ghost ::after, and the dot always occupies its slot (faded out until active). */
+.fig-nav-label{display:inline-grid}
+.fig-nav-label::after{content:attr(data-label);font-weight:700;height:0;visibility:hidden;overflow:hidden;pointer-events:none}
+.fig-nav-label,.fig-nav-label::after{grid-area:1 / 1}
 .fig-nav-link.is-active{color:#000;font-weight:700}
 .fig-nav-dot{width:5px;height:5px;border-radius:50%;background:#000;flex:none}
+.fig-nav-link .fig-nav-dot{opacity:0}
+.fig-nav-link.is-active .fig-nav-dot{opacity:1}
 .fig-nav-actions{display:flex;align-items:center;gap:10px;flex:none}
 @media (max-width:760px){
   .fig-nav-inner{height:64px;padding:0 16px;gap:12px}
@@ -210,7 +217,7 @@ section.flush{padding:0}
 footer{position:relative}
 
 .hero{
-  padding:calc(var(--fig-nav-zone) + 8px + env(safe-area-inset-top,0px)) 0 24px;
+  padding:calc(var(--fig-nav-zone) + 32px + env(safe-area-inset-top,0px)) 0 24px;
   overflow:visible;
   isolation:isolate;
   background:var(--bg);
@@ -524,7 +531,7 @@ footer{position:relative}
 @media (max-width:760px){ .sec{grid-template-columns:1fr} }
 
 /* ── Footer — Figma node 57-667 treatment, current content ── */
-.foot{background:var(--foot-yellow);color:var(--foot-olive);padding:12px 0 28px}
+.foot{background:var(--foot-yellow);color:var(--foot-olive);padding:12px 0 calc(28px + env(safe-area-inset-bottom,0px))}
 .foot a{color:var(--foot-olive)}
 .foot a:hover{color:#000}
 .foot-top{display:flex;justify-content:space-between;align-items:flex-end;gap:40px;flex-wrap:wrap}
@@ -571,6 +578,10 @@ footer{position:relative}
 .foot-word{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-weight:700;font-size:clamp(72px,16vw,240px);line-height:1;letter-spacing:-0.06em;color:var(--foot-olive)}
 .foot-bot{margin-top:20px;padding-top:16px;border-top:1px solid rgba(102,100,15,.25);display:flex;justify-content:space-between;align-items:center;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;color:var(--foot-olive);opacity:.85;text-transform:uppercase;letter-spacing:.06em;flex-wrap:wrap;gap:16px}
 @media (max-width:760px){
+  /* Tighten the generous desktop 88px section rhythm on phones, where it reads
+     as too much dead space between How it works / Impact / Security. */
+  section{padding:48px 0}
+  #how{padding-top:56px}
   .foot-word{font-size:clamp(56px,20vw,120px)}
   .foot-mark{--mark-size:clamp(72px,20vw,120px);--mark-radius:3px}
   /* Keep Product / Company / Legal on one line; tighten the gap and let the

@@ -278,8 +278,8 @@ function DocCard({
       >
         {href
           ? doc.doc_id.startsWith("cfr_")
-            ? "Open in eCFR ↗"
-            : "Open manual ↗"
+            ? <>Open in eCFR <span className="ico-arr-ext" aria-hidden="true" /></>
+            : <>Open manual <span className="ico-arr-ext" aria-hidden="true" /></>
           : expanded
             ? "Hide notes ▾"
             : "View notes ▸"}

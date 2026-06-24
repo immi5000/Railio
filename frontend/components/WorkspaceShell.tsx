@@ -205,7 +205,7 @@ function WorkHeader({
   return (
     <header className="work-head">
       <button type="button" className="work-toggle dash-link" onClick={onOpenSidebar}>
-        ← Open sidebar
+        <span className="ico-arr-back" aria-hidden="true" /> Open sidebar
       </button>
       <div className="work-head-row">
         <div className="work-head-left">
@@ -248,7 +248,7 @@ function WorkHeader({
             )}
             {!isTech && ticket.status === "AWAITING_TECH" && (
               <button className="work-cta" onClick={onHandoff} disabled={handingOff}>
-                {handingOff ? "Handing off…" : "Hand off to tech →"}
+                {handingOff ? "Handing off…" : <>Hand off to tech <span className="ico-arr" aria-hidden="true" /></>}
               </button>
             )}
           </div>

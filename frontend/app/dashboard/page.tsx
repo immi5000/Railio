@@ -202,7 +202,7 @@ export default function DashboardPage() {
               </span>
               {alert && (
                 <Link href={`/work?ticket=${alert.id}`} className="dash-link">
-                  View →
+                  View <span className="ico-arr" aria-hidden="true" />
                 </Link>
               )}
             </div>
@@ -382,7 +382,7 @@ export default function DashboardPage() {
                 Fleet availability {availLabel}
               </span>
               <Link href="/admin/fleet" className="dash-link">
-                All fleets →
+                All fleets <span className="ico-arr" aria-hidden="true" />
               </Link>
             </div>
           </div>

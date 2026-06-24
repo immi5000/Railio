@@ -401,7 +401,7 @@ export function DispatcherIntake() {
                     onClick={() => createMut.mutate()}
                   >
                     {createMut.isPending ? "Opening…" : "Open ticket"}{" "}
-                    <span className="arr">→</span>
+                    <span className="arr ico-arr" aria-hidden="true" />
                   </button>
                 ) : (
                   <>
@@ -409,7 +409,7 @@ export function DispatcherIntake() {
                       Ticket {createdTicket.short_id} opened
                     </span>
                     <button className="btn btn-primary" onClick={handoffToTech}>
-                      Hand off to tech →
+                      Hand off to tech <span className="ico-arr" aria-hidden="true" />
                     </button>
                   </>
                 )}

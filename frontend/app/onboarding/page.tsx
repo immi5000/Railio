@@ -153,7 +153,7 @@ export default function OnboardingPage() {
               style={{ width: "100%" }}
               onClick={continueToCompany}
             >
-              Continue →
+              Continue <span className="ico-arr" aria-hidden="true" />
             </button>
           </>
         ) : (
@@ -204,7 +204,7 @@ export default function OnboardingPage() {
                 }}
                 disabled={busy}
               >
-                ← Back
+                <span className="ico-arr-back" aria-hidden="true" /> Back
               </button>
               <button
                 className="btn btn-super"
@@ -212,7 +212,7 @@ export default function OnboardingPage() {
                 onClick={submit}
                 disabled={busy}
               >
-                {busy ? "Setting up…" : "Enter Railio →"}
+                {busy ? "Setting up…" : <>Enter Railio <span className="ico-arr" aria-hidden="true" /></>}
               </button>
             </div>
           </>

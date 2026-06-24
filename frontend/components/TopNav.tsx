@@ -194,8 +194,10 @@ export function TopNav() {
         data-active={active}
         title={item.title}
       >
-        {active && <span className="fig-nav-dot" />}
-        {item.label}
+        <span className="fig-nav-dot" aria-hidden="true" />
+        <span className="fig-nav-label" data-label={item.label}>
+          {item.label}
+        </span>
       </Link>
     );
   });
