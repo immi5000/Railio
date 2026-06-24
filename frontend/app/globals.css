@@ -1740,10 +1740,12 @@ button {
   pointer-events: auto;
   /* Frosted pill (Figma node 91:863: white fill + white stroke).
      The blur softens anything scrolling behind it. */
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 0.46);
+  border: 1px solid rgba(255, 255, 255, 0.68);
   border-radius: 18px;
   box-shadow: 0 2px 8px rgba(16, 24, 40, 0.03);
+  backdrop-filter: saturate(1.1) blur(12px);
+  -webkit-backdrop-filter: saturate(1.1) blur(12px);
 }
 @media (max-width: 760px) {
   .fig-nav {
@@ -1779,7 +1781,7 @@ button {
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
-  color: #6b6f76;
+  color: #000;
   white-space: nowrap;
   transition: color 0.12s;
 }
@@ -1815,7 +1817,7 @@ button {
   font-family: "IBM Plex Mono", monospace;
   font-weight: 400;
   font-size: 11px;
-  color: #7a7a7e;
+  color: #000;
 }
 .fig-avatar {
   width: 30px;
