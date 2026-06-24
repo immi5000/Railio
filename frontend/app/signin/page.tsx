@@ -96,7 +96,7 @@ function SignInInner() {
           style={{
             fontFamily: '"Inter", sans-serif',
             fontSize: 24,
-            fontWeight: 500,
+            fontWeight: 400,
             letterSpacing: "-0.02em",
             margin: "16px 0 6px",
           }}

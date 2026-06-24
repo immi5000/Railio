@@ -13,7 +13,7 @@ const cardStyle: React.CSSProperties = {
 const titleStyle: React.CSSProperties = {
   fontFamily: '"Inter", sans-serif',
   fontSize: 24,
-  fontWeight: 500,
+  fontWeight: 400,
   letterSpacing: "-0.02em",
   margin: "0 0 6px",
 };

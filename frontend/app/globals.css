@@ -91,7 +91,7 @@ button {
 .h1 {
   font-family: "Inter", sans-serif;
   font-size: clamp(28px, 4vw, 40px);
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.05;
   letter-spacing: -0.03em;
   margin: 0;
@@ -99,7 +99,7 @@ button {
 .h2 {
   font-family: "Inter", sans-serif;
   font-size: clamp(24px, 3vw, 32px);
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.1;
   margin: 0;
   letter-spacing: -0.02em;
@@ -107,7 +107,7 @@ button {
 .h3 {
   font-family: "Inter", sans-serif;
   font-size: clamp(20px, 2.4vw, 24px);
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.15;
   margin: 0;
   letter-spacing: -0.01em;
@@ -115,7 +115,7 @@ button {
 .h4 {
   font-family: "Inter", sans-serif;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.2;
   margin: 0;
 }
@@ -874,7 +874,7 @@ button {
 .work-title {
   font-family: "Inter", "Archivo", sans-serif;
   font-size: clamp(24px, 3vw, 32px);
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: -0.02em;
   line-height: 1.05;
   color: #000;
@@ -1067,7 +1067,7 @@ button {
 }
 .wc-unit {
   font-family: "Inter", sans-serif;
-  font-weight: 500;
+  font-weight: 400;
   font-size: 32px;
   letter-spacing: -0.03em;
   line-height: 1;
@@ -1973,7 +1973,7 @@ button {
 .dash-greeting-title {
   font-family: "Inter", "Archivo", sans-serif;
   font-size: clamp(28px, 4vw, 40px);
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: -0.03em;
   line-height: 1.05;
   color: #000;
@@ -2100,7 +2100,7 @@ button {
 }
 .dash-stat-value {
   font-family: "Inter", sans-serif;
-  font-weight: 700;
+  font-weight: 400;
   font-size: clamp(40px, 5vw, 52px);
   line-height: 1;
   color: #000;
@@ -2183,7 +2183,7 @@ button {
 }
 .dash-alert-title {
   font-family: "Inter", sans-serif;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 22px;
   line-height: 1.15;
   color: #000;

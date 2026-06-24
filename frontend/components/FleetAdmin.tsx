@@ -309,7 +309,7 @@ function HistoryTable({ asset }: { asset: Asset }) {
           marginBottom: 12,
         }}
       >
-        <h2 style={{ fontFamily: '"Inter", sans-serif', fontSize: 20, fontWeight: 500, letterSpacing: "-0.01em" }}>
+        <h2 className="h4">
           {asset.reporting_mark} {asset.road_number} · {asset.unit_model}
         </h2>
         <span className="micro" style={{ color: "var(--dash-muted)" }}>
