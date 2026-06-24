@@ -81,19 +81,6 @@ export function KnowledgeLibrary() {
         <h1 className="h2" style={{ marginTop: 12 }}>
           What Railio cites
         </h1>
-        <p
-          style={{
-            color: "var(--dash-muted)",
-            marginTop: 8,
-            maxWidth: 720,
-            fontSize: 14,
-          }}
-        >
-          Every answer the assistant gives is grounded in one of these sources.
-          Each manual lists every locomotive it covers; 49 CFR is shared federal
-          regulation; tribal notes are the senior techs&apos; own knowledge. Open
-          a manual to read the exact document Railio cites.
-        </p>
 
         <div
           style={{

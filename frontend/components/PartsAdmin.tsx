@@ -124,17 +124,6 @@ export function PartsAdmin() {
         <h1 className="h2" style={{ marginTop: 12 }}>
           Parts inventory
         </h1>
-        <p
-          style={{
-            color: "var(--dash-muted)",
-            marginTop: 8,
-            maxWidth: 640,
-            fontSize: 14,
-          }}
-        >
-          Click any cell to edit. Changes save when you blur the field.
-          Unpolished by design — this is the SME&rsquo;s tool during pilot setup.
-        </p>
 
         <div
           style={{

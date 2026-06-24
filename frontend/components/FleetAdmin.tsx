@@ -44,19 +44,6 @@ export function FleetAdmin() {
         <h1 className="h2" style={{ marginTop: 12 }}>
           Fleet &amp; historical records
         </h1>
-        <p
-          style={{
-            color: "var(--dash-muted)",
-            marginTop: 8,
-            maxWidth: 640,
-            fontSize: 14,
-          }}
-        >
-          Select a unit to see its maintenance history — periodic inspections,
-          unscheduled repairs, and the tests run on each visit. These records are
-          also embedded into the copilot&rsquo;s corpus so the tech can ask about
-          a unit&rsquo;s past work.
-        </p>
 
         <div
           style={{
