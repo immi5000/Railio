@@ -1337,13 +1337,13 @@ button {
 }
 .rc-composer-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
 }
 .rc-input-group {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 18px;
   flex: 1;
   min-width: 0;
@@ -1359,6 +1359,7 @@ button {
   color: #000;
   line-height: 1.4;
   max-height: 120px;
+  overflow-y: auto;
   padding: 0;
 }
 .rc-input::placeholder {

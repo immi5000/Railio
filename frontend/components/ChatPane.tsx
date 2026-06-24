@@ -78,6 +78,7 @@ export function ChatPane({
   const [now, setNow] = useState(() => Date.now());
   const listRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-scroll on new content
   useEffect(() => {
@@ -353,6 +354,15 @@ export function ChatPane({
 
   const composerValue = interim || draft;
 
+  // Grow the composer with its content (up to the CSS max-height) so earlier
+  // lines stay visible instead of scrolling out of a fixed one-row textarea.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [composerValue]);
+
   return (
     <div
       style={{
@@ -451,6 +461,7 @@ export function ChatPane({
               }}
             />
             <textarea
+              ref={inputRef}
               className="rc-input"
               rows={1}
               placeholder={
