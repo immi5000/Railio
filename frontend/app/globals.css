@@ -2144,7 +2144,7 @@ button {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   /* Breathing room between the sticky nav and the first element on every
      .dash-based page (dashboard, knowledge, dispatcher, parts, fleet). */
   padding-top: 28px;
@@ -2174,6 +2174,11 @@ button {
   line-height: 1.2;
   color: #6c6c6c;
   margin: 10px 0 0;
+}
+/* Extra breathing room between the greeting and the first stats row, on top of
+   the tight 14px .dash-inner gap used between the bento cards. */
+.dash-inner > header {
+  margin-bottom: 16px;
 }
 
 /* Card surface */
@@ -2268,7 +2273,7 @@ button {
 .dash-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  gap: 20px;
 }
 @media (max-width: 980px) {
   .dash-stats {
@@ -2569,7 +2574,7 @@ button {
 .dash-bottom {
   display: grid;
   grid-template-columns: 1.7fr 1fr;
-  gap: 24px;
+  gap: 20px;
   align-items: stretch;
 }
 .dash-bottom > .dash-card {
