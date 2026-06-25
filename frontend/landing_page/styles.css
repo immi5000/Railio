@@ -23,17 +23,11 @@
   --fig-nav-zone:74px;
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;color:var(--ink);
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
   font-family:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
   line-height:1.5;
 }
-/* html background is the footer yellow so the bottom overscroll/safe-area zone
-   (revealed when rubber-banding past the footer on iOS) is yellow, not white.
-   body stays --bg and covers the rest of the page; the hero paints its own --bg
-   at the top so top overscroll still reads correctly. */
-html{background:var(--foot-yellow)}
-body{background:var(--bg)}
 /* Lock the page to vertical scrolling only. Several hero layers (.hero-media,
    the bg video, hero/phone glow pseudo-elements) extend past the viewport via
    negative insets; overflow-x:hidden on both html and body (more reliable than
