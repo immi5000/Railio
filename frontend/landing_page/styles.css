@@ -28,16 +28,13 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
   line-height:1.5;
 }
-/* Lock the page to vertical scrolling only. Several hero layers (.hero-media,
-   the bg video, hero/phone glow pseudo-elements) extend past the viewport via
-   negative insets; overflow-x:hidden on both html and body (more reliable than
-   clip on iOS Safari) plus max-width:100% stops them from producing a
-   horizontal scroll/pan on mobile. */
-/* overscroll-behavior:none stops the rubber-band bounce so the page can't pull
-   past the top (which revealed a white block above the nav) — it just stops at
-   the nav bar. */
-html{scroll-behavior:smooth;overflow-x:hidden;max-width:100%;overscroll-behavior:none}
-body{overflow-x:hidden;max-width:100%;position:relative;overscroll-behavior:none}
+/* overscroll-behavior:none stops the rubber-band bounce so scrolling to the top
+   just stops at the nav (no white block pulled down) without breaking normal
+   vertical scrolling. Horizontal overflow from the hero's bleed layers is
+   clipped on .hero itself (overflow-x:clip there) — do NOT put overflow on
+   html/body or it turns the body into a content-height box and the page stops
+   scrolling. */
+html{scroll-behavior:smooth;overscroll-behavior:none}
 a{color:inherit;text-decoration:none;transition:color .12s}
 a:hover{color:var(--link)}
 ::selection{background:var(--yellow);color:#000}
@@ -234,6 +231,41 @@ footer{position:relative}
   isolation:isolate;
   background:var(--bg);
   z-index:1;
+}
+
+/* ── Page-load entrance: nav drops from the top, the copy slides in from the
+   right, and the phone rises from the bottom. One shared expo-out easing and a
+   small stagger so it reads as one orchestrated moment. The phone animates only
+   transform/opacity, so its drop-shadow filter stays attached and rises with
+   it. --hero-ease is fast-out, gentle-settle for a clean, premium feel. */
+@keyframes heroNavDrop{
+  from{opacity:0;transform:translateY(-100%)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes heroCopyIn{
+  from{opacity:0;transform:translateX(44px)}
+  to{opacity:1;transform:translateX(0)}
+}
+@keyframes heroPhoneRise{
+  from{opacity:0;transform:translateY(72px)}
+  to{opacity:1;transform:translateY(0)}
+}
+/* Soft, slow settle — a gentle expo-out that eases in slightly then glides to
+   rest, so the entrance feels unhurried and silky rather than snappy. */
+:root{--hero-ease:cubic-bezier(.16,1,.3,1)}
+.fig-nav{
+  animation:heroNavDrop 1.2s var(--hero-ease) both;
+}
+.hero-copy{
+  animation:heroCopyIn 1.5s var(--hero-ease) .25s both;
+  will-change:transform,opacity;
+}
+.iphone-mock{
+  animation:heroPhoneRise 1.7s var(--hero-ease) .45s both;
+  will-change:transform,opacity;
+}
+@media (prefers-reduced-motion:reduce){
+  .fig-nav,.hero-copy,.iphone-mock{animation:none}
 }
 .hero::before{
   content:"";
