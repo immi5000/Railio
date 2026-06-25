@@ -148,7 +148,6 @@ button{font-family:inherit}
   background:rgba(255,255,255,.46);
   border-color:rgba(255,255,255,.68);
   border-radius:18px;
-  box-shadow:0 2px 8px rgba(16,24,40,.03);
 }
 .fig-brand{
   display:inline-flex;align-items:center;gap:10px;
@@ -328,7 +327,7 @@ footer{position:relative}
    cast past the hero/#how boundary without #how's background slicing it into a
    hard line. The page body is already --bg, so this looks identical. */
 #how{padding-top:96px;background:transparent;z-index:4}
-.hero-grid{display:grid;grid-template-columns:minmax(620px,1.32fr) minmax(300px,.68fr);gap:clamp(56px,6vw,104px);align-items:center}
+.hero-grid{display:grid;grid-template-columns:minmax(620px,1.32fr) minmax(340px,.68fr);gap:clamp(56px,6vw,104px);align-items:center}
 @media (min-width:981px){
   .hero-copy{display:flex;flex-direction:column;justify-content:center;margin-left:clamp(32px,4vw,72px)}
 }
@@ -356,7 +355,13 @@ footer{position:relative}
 
 /* ── Hero phone: Figma iPhone 16 frame (node 125:29) + demo in screen slot ── */
 .phone-stage{display:flex;justify-content:center;align-items:center;position:relative}
-@media (max-width:980px){ .phone-stage{justify-content:center} }
+/* The wider screen fills its grid column and reads as right-hugging; nudge the
+   stage left on desktop so the hero feels balanced. (Shift the stage, NOT
+   .iphone-mock — that element runs the heroPhoneRise animation with fill:both,
+   whose final translateY(0) would wipe out a static transform here.) Reset on
+   mobile (stacked). */
+.phone-stage{transform:translateX(-32px)}
+@media (max-width:980px){ .phone-stage{justify-content:center;transform:none} }
 .phone-stage::after{
   content:"";
   position:absolute;
@@ -380,8 +385,13 @@ footer{position:relative}
   --screen-w:359.881;
   --screen-h:765.566;
   --screen-rx:50;
-  --phone-w:min(300px,36vw);
-  --phone-h:calc(var(--phone-w) * var(--iphone-h) / var(--iphone-w));
+  --phone-w:min(340px,40vw);
+  /* Height is derived from --phone-h-w (the "height basis"), NOT --phone-w, so on
+     desktop we can widen the screen without making it taller — the basis stays at
+     the previous 300px/36vw size. Mobile overrides --phone-h-w to its own width
+     so the stacked phone stays correctly proportioned. */
+  --phone-h-w:min(300px,36vw);
+  --phone-h:calc(var(--phone-h-w) * var(--iphone-h) / var(--iphone-w));
   --screen-r:calc(var(--phone-w) * var(--screen-rx) / var(--iphone-w));
   position:relative;
   width:var(--phone-w);
@@ -389,13 +399,6 @@ footer{position:relative}
   flex-shrink:0;
   align-self:flex-start;
   z-index:1;
-  /* Layered drop-shadows (they follow the phone's rounded silhouette, unlike a
-     box-shadow) for a realistic floating device: a tight contact shadow, a
-     mid-range one for form, and a wide soft ambient cast. */
-  filter:
-    drop-shadow(0 2px 4px rgba(16,24,40,.22))
-    drop-shadow(0 14px 22px rgba(16,24,40,.20))
-    drop-shadow(0 42px 64px rgba(16,24,40,.26));
 }
 /* Stacked (mobile) hero: the framed phone is the centerpiece, so enlarge it
    from the desktop 36vw (~135px on a 375px screen — a crushed phone-in-phone)
@@ -405,7 +408,10 @@ footer{position:relative}
   /* Drop the phone shadow on the stacked (mobile) layout — it's a desktop-only
      touch. The phone here sits in the video fade zone over plain --bg, so a cast
      shadow reads as a smudge rather than depth. */
-  .iphone-mock{ --phone-w:min(340px,78vw); align-self:center; filter:none; }
+  /* Stacked layout: phone is full-width and proportional, so the height tracks
+     the (wider) mobile width — not the desktop height basis. */
+  .iphone-mock{ --phone-w:min(340px,78vw); --phone-h-w:min(340px,78vw); align-self:center; }
+  .iphone-screen{ box-shadow:none; }
   /* Stacked layout puts the phone in the hero video's fade zone; fade the video
      out above the phone and drop the halo so the phone floats on plain --bg,
      which continues seamlessly into #how (same color). */
@@ -446,14 +452,20 @@ footer{position:relative}
 .iphone-screen{
   position:absolute;
   z-index:1;
-  left:calc(var(--screen-x) / var(--iphone-w) * 100%);
-  top:calc(var(--screen-y) / var(--iphone-h) * 100%);
-  width:calc(var(--screen-w) / var(--iphone-w) * 100%);
-  height:calc(var(--screen-h) / var(--iphone-h) * 100%);
-  border-radius:var(--screen-r);
+  inset:0;
+  width:100%;
+  height:100%;
+  border-radius:var(--radius);
   overflow:hidden;
-  background:#fff;
+  background:var(--surface);
   isolation:isolate;
+  /* Frameless screen: just a hairline border, no shadow. */
+  border:1px solid var(--card-border);
+  /* Dissolve the bottom of the screen into the hero gradient below so there's no
+     visible edge where the screen ends — the surface, border and content all
+     fade out together over the last stretch of the device. */
+  -webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 78%,rgba(0,0,0,.35) 90%,transparent 100%);
+          mask-image:linear-gradient(to bottom,#000 0%,#000 78%,rgba(0,0,0,.35) 90%,transparent 100%);
 }
 .iphone-video,
 .iphone-demo{
@@ -478,19 +490,8 @@ footer{position:relative}
 }
 .iphone-mock.has-video .iphone-video{display:block}
 .iphone-mock.has-video .iphone-demo{display:none}
-.iphone-frame{
-  position:absolute;
-  inset:0;
-  z-index:2;
-  width:100%;
-  height:100%;
-  background:url("assets/iphone-frame-overlay.svg") no-repeat center / 100% 100%;
-  pointer-events:none;
-  user-select:none;
-}
 
-.ph-bar{padding:38px 18px 4px;display:flex;justify-content:space-between;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:10px;color:var(--faint);font-weight:400}
-.ph-app{padding:6px 12px 20px;height:calc(100% - 50px);display:flex;flex-direction:column;gap:10px;background:#fff}
+.ph-app{padding:24px 22px 22px;height:100%;display:flex;flex-direction:column;gap:10px;background:#fff}
 .ph-top{display:flex;justify-content:space-between;align-items:center;padding:2px}
 .ph-top .live{display:inline-flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:10.5px;color:var(--link);font-weight:400;text-transform:uppercase;letter-spacing:.06em}
 .ph-top .live i{width:7px;height:7px;border-radius:50%;background:var(--link);animation:dot 1.6s infinite}
@@ -539,7 +540,7 @@ footer{position:relative}
   text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:8px;
   transition:border-color .12s,box-shadow .12s;width:100%;font-family:inherit}
 .how-step:hover{border-color:#d4d5d8}
-.how-step[aria-selected="true"]{border-color:#000;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.how-step[aria-selected="true"]{border-color:#000}
 .how-step .row1{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
 .how-step .num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase}
 .how-step .arrow{
@@ -550,7 +551,7 @@ footer{position:relative}
 .how-step .sub{font-size:14px;line-height:1.55;margin:6px 0 0;color:var(--muted);display:none}
 .how-step[aria-selected="true"] .sub{display:block}
 
-.dossier{background:var(--surface);border:1px solid var(--card-border);border-radius:var(--radius);padding:24px;position:relative;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.dossier{background:var(--surface);border:1px solid var(--card-border);border-radius:var(--radius);padding:24px;position:relative}
 .dossier .doss-hd{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:8px}
 .dossier .doss-hd .l{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .dossier .doss-hd .r{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;color:var(--link);letter-spacing:.06em}
@@ -572,7 +573,7 @@ footer{position:relative}
 .checks .c .now-tag{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:10px;font-weight:400;letter-spacing:.06em;color:#000;background:var(--yellow);padding:2px 8px;border-radius:99px;text-transform:uppercase}
 
 .metrics{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
-.m{grid-column:span 4;background:var(--surface);border:1px solid var(--card-border);border-radius:var(--radius);padding:28px 24px;display:flex;flex-direction:column;gap:12px;min-height:220px;justify-content:space-between;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.m{grid-column:span 4;background:var(--surface);border:1px solid var(--card-border);border-radius:var(--radius);padding:28px 24px;display:flex;flex-direction:column;gap:12px;min-height:220px;justify-content:space-between}
 .m.blue{background:var(--yellow);border-color:var(--yellow)}
 .m .lab{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .m.blue .lab{color:rgba(0,0,0,.6)}
@@ -585,7 +586,7 @@ footer{position:relative}
 @media (max-width:680px){ .m{grid-column:span 12} }
 
 .sec{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-.sec .item{background:var(--surface);border:1px solid var(--card-border);border-radius:var(--radius);padding:28px 26px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.sec .item{background:var(--surface);border:1px solid var(--card-border);border-radius:var(--radius);padding:28px 26px}
 .sec .item .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .sec .item .num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.06em;color:var(--faint)}
 .sec .item .badge{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:10.5px;color:#000;background:var(--yellow);padding:4px 10px;border-radius:99px;text-transform:uppercase;letter-spacing:.04em}
