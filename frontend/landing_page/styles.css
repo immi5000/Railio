@@ -33,8 +33,11 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
    negative insets; overflow-x:hidden on both html and body (more reliable than
    clip on iOS Safari) plus max-width:100% stops them from producing a
    horizontal scroll/pan on mobile. */
-html{scroll-behavior:smooth;overflow-x:hidden;max-width:100%}
-body{overflow-x:hidden;max-width:100%;position:relative}
+/* overscroll-behavior:none stops the rubber-band bounce so the page can't pull
+   past the top (which revealed a white block above the nav) — it just stops at
+   the nav bar. */
+html{scroll-behavior:smooth;overflow-x:hidden;max-width:100%;overscroll-behavior:none}
+body{overflow-x:hidden;max-width:100%;position:relative;overscroll-behavior:none}
 a{color:inherit;text-decoration:none;transition:color .12s}
 a:hover{color:var(--link)}
 ::selection{background:var(--yellow);color:#000}
