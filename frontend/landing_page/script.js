@@ -52,17 +52,34 @@
     onScroll();
   }
 
-  // ── Hero phone: show demo video when available, else animated transcript ──
+  // ── Hero phone: show the demo video ONLY once it's genuinely playing,
+  // otherwise keep the animated transcript fallback. Switching on 'loadeddata'
+  // (or relying on the autoplay attribute) caused an intermittent black phone
+  // screen on mobile: the fallback got hidden the moment the element had a
+  // frame buffered, but autoplay was blocked/delayed (or the source 404s), so a
+  // black <video> showed with nothing playing. Gate the swap on 'playing', and
+  // actively kick autoplay via play() so a rejected promise falls back cleanly.
   var mockEl = document.querySelector('.iphone-mock');
   var videoEl = document.querySelector('.iphone-video');
   if (mockEl && videoEl) {
-    videoEl.addEventListener('loadeddata', function () {
+    var showFallback = function () { mockEl.classList.remove('has-video'); };
+    // Only the video actually rendering frames flips us to video mode.
+    videoEl.addEventListener('playing', function () {
       mockEl.classList.add('has-video');
     });
-    videoEl.addEventListener('error', function () {
-      mockEl.classList.remove('has-video');
-    });
+    // Any failure to play keeps/returns to the transcript fallback.
+    videoEl.addEventListener('error', showFallback);
+    videoEl.addEventListener('stalled', showFallback);
+    videoEl.addEventListener('emptied', showFallback);
+    // Try to start it; if autoplay is blocked or the source is missing, stay on
+    // the fallback rather than showing a black frame.
+    var tryPlay = function () {
+      var p = videoEl.play();
+      if (p && typeof p.catch === 'function') p.catch(showFallback);
+    };
+    videoEl.addEventListener('canplay', tryPlay);
     videoEl.load();
+    tryPlay();
   }
 
   var TRANSCRIPT = [
