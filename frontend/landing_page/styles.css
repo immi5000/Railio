@@ -261,7 +261,10 @@ footer{position:relative}
 }
 .hero-media{
   position:absolute;
-  inset:-24px -24px -120px;
+  /* top:0 (not -24px) so the video box never pokes above the document origin —
+     that overscan created scrollable empty space above the hero. Still bleeds
+     left/right and below. */
+  inset:0 -24px -120px;
   z-index:0;
   overflow:hidden;
   pointer-events:none;
@@ -399,7 +402,7 @@ footer{position:relative}
   #how{background:transparent}
   /* The masked video extends 120px below the hero; trim it so its faded tail
      can't add a second tonal step under the phone. */
-  .hero-media{inset:-24px -24px -40px}
+  .hero-media{inset:0 -24px -40px}
 }
 .iphone-screen{
   position:absolute;
@@ -560,7 +563,8 @@ footer{position:relative}
 .foot-desc{margin:0;color:var(--foot-olive);opacity:.85;font-size:14px;line-height:1.6;max-width:68ch}
 .foot-wordmark{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:0}
 .foot-mark{
-  --mark-size:clamp(120px,16vw,240px);
+  /* Sized to sit with the "Railio" wordmark's height rather than tower over it. */
+  --mark-size:clamp(64px,11vw,150px);
   --mark-stroke:calc(var(--mark-size) * .164);
   --mark-radius:6px;
   position:relative;
