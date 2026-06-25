@@ -254,7 +254,11 @@ footer{position:relative}
    rest, so the entrance feels unhurried and silky rather than snappy. */
 :root{--hero-ease:cubic-bezier(.16,1,.3,1)}
 .fig-nav{
-  animation:heroNavDrop 1.2s var(--hero-ease) both;
+  /* fill:backwards (not both) so no transform lingers on the nav after the drop
+     — a leftover transform creates a containing block that disables the inner
+     pill's backdrop-filter (kills the frosted blur). The nav rests at
+     translateY(0) anyway, so clearing it is visually identical. */
+  animation:heroNavDrop 1.2s var(--hero-ease) backwards;
 }
 .hero-copy{
   animation:heroCopyIn 1.5s var(--hero-ease) .25s both;
