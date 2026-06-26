@@ -844,11 +844,23 @@ button {
 }
 
 /* === Admin two-column (units list + detail) collapses on phones === */
-/* === Fleet: off-canvas units drawer + unit detail ===
-   The unit list, filters and add-unit live in the off-canvas drawer (reusing
-   the .work-drawer idiom from the tickets workspace); the selected unit's
-   detail fills the main page. Unit cards reuse .work-ticket so the two drawers
-   read the same. */
+.admin-split {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .admin-split {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+/* === Fleet: persistent units list + unit detail ===
+   The units list lives in the left rail of .admin-split; the selected unit's
+   detail fills the right column. Unit cards reuse .work-ticket so the fleet
+   and tickets lists read the same. */
 .fleet-group {
   display: flex;
   flex-direction: column;
@@ -871,27 +883,6 @@ button {
   border-radius: 999px;
   flex: none;
   display: inline-block;
-}
-/* Selected-unit workspace: identity + inspection summary in a left rail that
-   stays pinned while the unit's history scrolls beside it. */
-.fleet-detail-layout {
-  display: grid;
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
-}
-.fleet-detail-main {
-  position: sticky;
-  top: 24px;
-}
-@media (max-width: 980px) {
-  .fleet-detail-layout {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  .fleet-detail-main {
-    position: static;
-  }
 }
 .fleet-insp {
   margin-top: 16px;
