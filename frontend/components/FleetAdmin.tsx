@@ -65,7 +65,7 @@ export function FleetAdmin() {
             >
               <h2 className="h4">Units</h2>
               <span className="micro" style={{ color: "var(--dash-link)" }}>
-                Count: {allAssets.length}
+                {allAssets.length}
               </span>
             </div>
             <AddUnitForm
