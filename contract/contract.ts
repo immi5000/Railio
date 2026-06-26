@@ -364,6 +364,7 @@ export type StreamEvent =
     }
   | { type: "request_photo"; prompt: string; reason: string }
   | { type: "show_figure"; chunk_id: number; figure: CorpusFigure }
+  | { type: "suggest_replies"; replies: string[] }
   | { type: "assistant_message_persisted"; message: Message }
   | { type: "done" }
   | { type: "error"; error: string };

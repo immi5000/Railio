@@ -34,6 +34,7 @@ type LiveAssistant = {
   toolCalls: ToolCall[];
   requestPhoto: { prompt: string; reason: string } | null;
   figures: ShownFigure[];
+  suggestions: string[];
 };
 
 type Props = {
@@ -116,7 +117,7 @@ export function ChatPane({
 
     setError(null);
     setStreaming(true);
-    setLive({ text: "", citations: [], toolCalls: [], requestPhoto: null, figures: [] });
+    setLive({ text: "", citations: [], toolCalls: [], requestPhoto: null, figures: [], suggestions: [] });
 
     const body = {
       role,
@@ -216,6 +217,7 @@ export function ChatPane({
                 toolCalls: [],
                 requestPhoto: null,
                 figures: [],
+                suggestions: [],
               },
         );
         break;
@@ -275,6 +277,7 @@ export function ChatPane({
                 toolCalls: [],
                 requestPhoto: { prompt: ev.prompt, reason: ev.reason },
                 figures: [],
+                suggestions: [],
               },
         );
         break;
@@ -294,6 +297,21 @@ export function ChatPane({
                 toolCalls: [],
                 requestPhoto: null,
                 figures: [{ chunkId: ev.chunk_id, figure: ev.figure }],
+                suggestions: [],
+              },
+        );
+        break;
+      case "suggest_replies":
+        setLive((prev) =>
+          prev
+            ? { ...prev, suggestions: ev.replies }
+            : {
+                text: "",
+                citations: [],
+                toolCalls: [],
+                requestPhoto: null,
+                figures: [],
+                suggestions: ev.replies,
               },
         );
         break;
@@ -398,13 +416,16 @@ export function ChatPane({
           />
         )}
 
-        {messages.map((m) => (
+        {messages.map((m, i) => (
           <MessageBubble
             key={m.id}
             message={m}
             onCitationClick={openCitation}
             onOpenChunk={(id) => setOpenChunk(id)}
             onPreviewFigure={setPreviewFigure}
+            isLast={i === messages.length - 1 && !live}
+            onPick={(q) => send(q)}
+            picksDisabled={streaming || inCooldown}
           />
         ))}
 
@@ -415,6 +436,8 @@ export function ChatPane({
             onOpenChunk={(id) => setOpenChunk(id)}
             onPreviewFigure={setPreviewFigure}
             onPhotoSend={uploadAndSend}
+            onPick={(q) => send(q)}
+            picksDisabled={streaming || inCooldown}
           />
         )}
       </div>
@@ -582,11 +605,17 @@ function MessageBubble({
   onCitationClick,
   onOpenChunk,
   onPreviewFigure,
+  isLast,
+  onPick,
+  picksDisabled,
 }: {
   message: Message;
   onCitationClick: (c: Citation) => void;
   onOpenChunk: (chunkId: number) => void;
   onPreviewFigure: (figure: CorpusFigure) => void;
+  isLast?: boolean;
+  onPick?: (text: string) => void;
+  picksDisabled?: boolean;
 }) {
   const isUser = message.role === "tech" || message.role === "dispatcher";
   const isSystem = message.role === "system" || message.role === "tool";
@@ -603,6 +632,22 @@ function MessageBubble({
       const out = tc.output as { chunk_id: number; figure: CorpusFigure };
       return { chunkId: out.chunk_id, figure: out.figure };
     });
+
+  // Quick-reply chips ride on persisted suggest_replies tool_calls (no separate
+  // message field → hash chain untouched). They are ephemeral: only the latest
+  // assistant turn shows them, so once the tech replies they disappear.
+  const suggestions: string[] =
+    isLast && message.role === "assistant"
+      ? ((message.tool_calls ?? [])
+          .filter(
+            (tc) =>
+              tc.name === "suggest_replies" &&
+              (tc.output as { ok?: boolean } | undefined)?.ok,
+          )
+          .flatMap(
+            (tc) => (tc.output as { replies?: string[] } | undefined)?.replies ?? [],
+          ))
+      : [];
 
   if (isSystem) {
     return (
@@ -682,10 +727,20 @@ function MessageBubble({
 
         {message.tool_calls && message.tool_calls.length > 0 && (
           <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap" }}>
-            {message.tool_calls.map((tc, i) => (
-              <ToolPill key={i} tc={tc} />
-            ))}
+            {message.tool_calls
+              .filter((tc) => tc.name !== "suggest_replies")
+              .map((tc, i) => (
+                <ToolPill key={i} tc={tc} />
+              ))}
           </div>
+        )}
+
+        {suggestions.length > 0 && onPick && (
+          <QuickReplies
+            replies={suggestions}
+            disabled={picksDisabled}
+            onPick={onPick}
+          />
         )}
 
       </div>
@@ -922,12 +977,16 @@ function LiveBubble({
   onOpenChunk,
   onPreviewFigure,
   onPhotoSend,
+  onPick,
+  picksDisabled,
 }: {
   live: LiveAssistant;
   onCitationClick: (c: Citation) => void;
   onOpenChunk: (chunkId: number) => void;
   onPreviewFigure: (figure: CorpusFigure) => void;
   onPhotoSend: (file: File) => void;
+  onPick: (text: string) => void;
+  picksDisabled?: boolean;
 }) {
   return (
     <div style={{ display: "flex", justifyContent: "flex-start" }}>
@@ -952,9 +1011,11 @@ function LiveBubble({
         </div>
 
         <div style={{ display: "flex", flexWrap: "wrap" }}>
-          {live.toolCalls.map((tc, i) => (
-            <ToolPill key={i} tc={tc} />
-          ))}
+          {live.toolCalls
+            .filter((tc) => tc.name !== "suggest_replies")
+            .map((tc, i) => (
+              <ToolPill key={i} tc={tc} />
+            ))}
         </div>
 
         {live.text ? (
@@ -994,6 +1055,42 @@ function LiveBubble({
           </div>
         )}
 
+        <QuickReplies
+          replies={live.suggestions}
+          disabled={picksDisabled}
+          onPick={onPick}
+        />
+
+      </div>
+    </div>
+  );
+}
+
+function QuickReplies({
+  replies,
+  disabled,
+  onPick,
+}: {
+  replies: string[];
+  disabled?: boolean;
+  onPick: (text: string) => void;
+}) {
+  if (!replies || replies.length === 0) return null;
+  return (
+    <div className="rc-quickreply-wrap">
+      <div className="rc-quickreply-label">Follow Up:</div>
+      <div className="rc-quickreply-row">
+        {replies.slice(0, 2).map((r, i) => (
+          <button
+            key={`${r}-${i}`}
+            type="button"
+            className="rc-quickreply"
+            disabled={disabled}
+            onClick={() => onPick(r)}
+          >
+            {r}
+          </button>
+        ))}
       </div>
     </div>
   );

@@ -1414,6 +1414,45 @@ button {
   cursor: not-allowed;
 }
 
+/* Quick-reply chips: up to 2 short tappable follow-up asks under the latest
+   Railio reply. Hug their content, inline row — an accelerator beside the box. */
+.rc-quickreply-wrap {
+  margin-top: 10px;
+}
+.rc-quickreply-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.rc-quickreply-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rc-quickreply {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #000;
+  background: #fff;
+  border: 1px solid var(--dash-border, #e9eaec);
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s;
+}
+.rc-quickreply:hover:not(:disabled) {
+  border-color: #000;
+  background: var(--dash-bg);
+}
+.rc-quickreply:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Composer (Claude-app style): full-width input on top, an actions row below —
    "+" and mic on the left, a yellow arrow Send on the right. */
 .rc-composer {

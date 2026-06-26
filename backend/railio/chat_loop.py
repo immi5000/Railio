@@ -20,6 +20,7 @@ from .contract import (
 from .messages_repo import insert_message, list_messages
 from .openai_client import chat_model, get_openai
 from .storage import STORAGE_URL_PREFIX, download_bytes
+from .suggested_replies import generate_suggested_replies
 from .system_prompt import SYSTEM_PROMPT
 from .tickets_repo import get_ticket_detail
 from .tools import TOOL_DEFS, execute_tool
@@ -294,6 +295,23 @@ async def run_chat(
                     "tool_call_id": t["id"],
                     "content": json.dumps(output),
                 }
+            )
+
+    # Quick-reply chips: a focused side-call on the final answer (the model won't
+    # reliably emit a trailing tool call). Tech-facing only. Emitted live AND
+    # persisted as a synthetic suggest_replies tool_call so the frontend renders
+    # and reconstructs them exactly like show_figure — no new Message field.
+    if user_role == "tech":
+        replies = await generate_suggested_replies(assistant_text)
+        if replies:
+            emit({"type": "suggest_replies", "replies": replies})
+            all_tool_calls.append(
+                ToolCall(
+                    name="suggest_replies",
+                    input={},
+                    output={"ok": True, "replies": replies},
+                    call_id=f"suggest_{user_msg.id}",
+                )
             )
 
     assistant_msg = await insert_message(
