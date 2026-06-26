@@ -408,7 +408,7 @@ function UnitDetail({
             }}
           >
             <div>
-              <h2 className="dash-section-title">
+              <h2 className="dash-section-title" style={{ fontWeight: 700 }}>
                 {asset.reporting_mark} {asset.road_number}
               </h2>
               <p className="dash-section-sub" style={{ marginTop: 4 }}>
