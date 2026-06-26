@@ -297,8 +297,7 @@ function FacetGroup({
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 5,
-                padding: "3px 9px",
+                padding: "3px 10px",
                 borderRadius: 999,
                 cursor: "pointer",
                 border: `1px solid ${on ? "var(--dash-link)" : "var(--dash-border)"}`,
@@ -307,7 +306,6 @@ function FacetGroup({
                 fontFamily: '"IBM Plex Mono", monospace',
               }}
             >
-              <span style={{ width: 9, textAlign: "center" }}>{on ? "✓" : ""}</span>
               {labels?.[opt] ?? opt}
             </button>
           );
