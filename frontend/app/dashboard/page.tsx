@@ -165,16 +165,16 @@ export default function DashboardPage() {
             {greeting()}, {firstName}
           </h1>
           <p className="dash-greeting-sub">
-            Your fleet status and open work orders are ready to review.
+            Your fleet status and open tickets are ready to review.
           </p>
         </header>
 
         {/* Summary stats */}
         <section className="dash-stats">
-          {/* Open work orders */}
+          {/* Open tickets */}
           <div className="dash-card dash-stat dash-stat--wo">
             <div className="dash-stat-col">
-              <span className="dash-stat-label">Open work orders</span>
+              <span className="dash-stat-label">Open tickets</span>
               <span className="dash-stat-value">
                 {String(open.length).padStart(2, "0")}
               </span>
@@ -202,7 +202,7 @@ export default function DashboardPage() {
                 {alert ? "CRITICAL" : "ALL CLEAR"}
               </span>
               {alert && (
-                <Link href={`/work?ticket=${alert.id}`} className="dash-link">
+                <Link href={`/work?ticket=${alert.id}&from=dashboard`} className="dash-link">
                   View <span className="ico-arr" aria-hidden="true" />
                 </Link>
               )}
@@ -222,7 +222,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Work orders */}
+        {/* Tickets */}
         <section className="dash-card" style={{ padding: "22px 28px" }}>
           <div
             style={{
@@ -234,7 +234,7 @@ export default function DashboardPage() {
             }}
           >
             <div>
-              <h2 className="dash-section-title">Work orders</h2>
+              <h2 className="dash-section-title">Tickets</h2>
               <p className="dash-section-sub">
                 {tickets.length} total · {open.length} open
               </p>
@@ -256,7 +256,7 @@ export default function DashboardPage() {
 
           <div className="dash-table">
             <div className="dash-row dash-wo dash-row--head">
-              <span className="dash-th">Work order</span>
+              <span className="dash-th">Ticket</span>
               <span className="dash-th">Symptoms / fault</span>
               <span className="dash-th">Severity</span>
               <span className="dash-th dash-hide-sm">Status</span>
@@ -267,7 +267,7 @@ export default function DashboardPage() {
 
             {visibleWorkOrders.length === 0 && (
               <div className="dash-row dash-wo">
-                <span className="dash-sub">No work orders.</span>
+                <span className="dash-sub">No tickets.</span>
               </div>
             )}
 
@@ -277,7 +277,7 @@ export default function DashboardPage() {
               return (
                 <Link
                   key={t.id}
-                  href={`/work?ticket=${t.id}`}
+                  href={`/work?ticket=${t.id}&from=dashboard`}
                   className="dash-row dash-wo dash-row--click"
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -321,6 +321,15 @@ export default function DashboardPage() {
                 </Link>
               );
             })}
+          </div>
+
+          <div className="dash-foot">
+            <span className="dash-sub">
+              {open.length} open ticket{open.length === 1 ? "" : "s"}
+            </span>
+            <Link href="/work" className="dash-link">
+              All tickets <span className="ico-arr" aria-hidden="true" />
+            </Link>
           </div>
         </section>
 

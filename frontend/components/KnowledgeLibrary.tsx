@@ -88,7 +88,7 @@ export function KnowledgeLibrary() {
             gap: 12,
             marginTop: 24,
             marginBottom: 16,
-            alignItems: "center",
+            alignItems: "flex-start",
             flexWrap: "wrap",
           }}
         >
@@ -99,11 +99,18 @@ export function KnowledgeLibrary() {
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search documents…"
           />
-          <div style={{ display: "inline-flex", flexWrap: "wrap", gap: 6 }}>
+          <div
+            style={{
+              display: "inline-flex",
+              flexWrap: "wrap",
+              gap: 6,
+              marginLeft: "auto",
+            }}
+          >
             {tabs.map((t) => (
               <FilterButton
                 key={t.key}
-                label={`${tabIcon(t.kind)}${t.label} · ${t.docs.length}`}
+                label={`${t.label} · ${t.docs.length}`}
                 active={activeTab?.key === t.key}
                 onClick={() => setActive(t.key)}
               />
@@ -154,13 +161,6 @@ export function KnowledgeLibrary() {
   );
 }
 
-function tabIcon(kind: Tab["kind"]): string {
-  if (kind === "manual") return "🚂 ";
-  if (kind === "cfr") return "§ ";
-  if (kind === "tribal") return "👤 ";
-  return "";
-}
-
 function FilterButton({
   label,
   active,
@@ -207,10 +207,10 @@ function DocCard({
   // inline (the "full text" is the source). Manuals/CFR open their source doc.
   const href = doc.source_url ? (fileUrl(doc.source_url) ?? doc.source_url) : null;
   const eyebrow = tribal
-    ? "👤 Tribal knowledge"
+    ? "Tribal knowledge"
     : doc.unit_models.length > 0
-      ? "🚂 OEM manual"
-      : "§ 49 CFR";
+      ? "OEM manual"
+      : "49 CFR";
   const countLabel = `${doc.chunk_count} ${tribal ? "note" : "section"}${
     doc.chunk_count === 1 ? "" : "s"
   }${doc.page_count ? ` · ${doc.page_count} pages` : ""}`;
@@ -230,12 +230,12 @@ function DocCard({
         >
           {eyebrow}
         </div>
-        <h3 className="h4" style={{ fontSize: 18 }}>
+        <h3 className="h4" style={{ fontSize: 18, marginBottom: 20 }}>
           {doc.doc_title}
         </h3>
         {doc.unit_models.length > 0 && (
           <div
-            style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}
+            style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}
           >
             {doc.unit_models.map((m) => (
               <span
@@ -247,7 +247,7 @@ function DocCard({
                   fontSize: 11,
                   borderRadius: 99,
                   padding: "4px 12px",
-                  background: "#fff",
+                  background: "var(--dash-bg)",
                   border: "1px solid var(--dash-border)",
                   color: "#3a3a3e",
                 }}
@@ -262,7 +262,6 @@ function DocCard({
             fontSize: 12,
             color: "var(--dash-muted)",
             fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-            marginTop: 4,
           }}
         >
           {doc.doc_id} · {countLabel}
@@ -272,7 +271,7 @@ function DocCard({
         style={{
           color: "var(--dash-link)",
           fontSize: 14,
-          alignSelf: "center",
+          alignSelf: "flex-start",
           whiteSpace: "nowrap",
         }}
       >
@@ -292,7 +291,7 @@ function DocCard({
     justifyContent: "space-between",
     alignItems: "center",
     padding: "16px 20px",
-    background: tribal ? "#e2eaf7" : "var(--dash-bg)",
+    background: tribal ? "#e2eaf7" : "#fff",
     gap: 16,
     flexWrap: "wrap",
   };
@@ -300,10 +299,9 @@ function DocCard({
   return (
     <div
       style={{
-        border: `1px solid ${tribal ? "#cfddf3" : "var(--dash-card-border)"}`,
+        border: `1px solid ${tribal ? "#cfddf3" : "var(--dash-border)"}`,
         borderRadius: 14,
         overflow: "hidden",
-        boxShadow: "0 1px 2px rgba(16, 24, 40, 0.04)",
         background: "#fff",
       }}
     >

@@ -919,7 +919,7 @@ function AttachmentThumb({ attachment }: { attachment: Attachment }) {
       className="pill pill-soft"
       style={{ textDecoration: "none" }}
     >
-      📄 PDF
+      PDF
     </a>
   );
 }
@@ -930,7 +930,7 @@ function ToolPill({ tc }: { tc: ToolCall }) {
   return (
     <div style={{ marginRight: 6, marginBottom: 6 }}>
       <span className="tool-pill" onClick={() => setOpen((v) => !v)}>
-        🔧 {label}
+        {label}
       </span>
       {open && (
         <pre
@@ -1126,7 +1126,7 @@ function RequestPhotoBlock({
           marginBottom: 6,
         }}
       >
-        📷 Photo needed
+        Photo needed
       </div>
       <div style={{ fontSize: 14, marginBottom: 8 }}>{prompt}</div>
       <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>

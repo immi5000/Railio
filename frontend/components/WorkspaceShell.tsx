@@ -2,10 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { getTicket, listTickets, patchTicket } from "@/lib/api";
-import { formatDate, statusLabel } from "@/lib/format";
+import { statusLabel } from "@/lib/format";
 import { useRole } from "@/components/RoleProvider";
 import type { Role } from "@/lib/role";
 import type { Ticket, TicketStatus } from "@/lib/contract";
@@ -23,34 +23,72 @@ function statusDotColor(status: TicketStatus): string {
       return "#8dc572";
   }
 }
+
+// Mirrors the dashboard work-order table palette/labels so the all-tickets
+// page reads identically to the dashboard "Tickets" section.
+const STATUS_DOT: Record<TicketStatus, string> = {
+  AWAITING_TECH: "#e0a200",
+  IN_PROGRESS: "#2683eb",
+  AWAITING_REVIEW: "#9a9aa0",
+  CLOSED: "#5fb85f",
+};
+const STATUS_LABEL: Record<TicketStatus, string> = {
+  AWAITING_TECH: "Awaiting tech",
+  IN_PROGRESS: "In progress",
+  AWAITING_REVIEW: "Awaiting review",
+  CLOSED: "Closed",
+};
+
+const DATETIME_FMT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+function fmtDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "—" : DATETIME_FMT.format(d);
+}
+
+function unitLabel(asset: Ticket["asset"]): string {
+  return `${asset.reporting_mark} ${asset.road_number}`.trim();
+}
+
+function faultLine(t: Ticket): string {
+  const parsed = t.fault_dump_parsed?.[0]?.code?.trim();
+  if (parsed) return parsed;
+  const codes = t.initial_error_codes?.trim();
+  return codes || "no fault code";
+}
+
 import { ChatPane } from "./ChatPane";
 import { RepairContext } from "./RepairContext";
 import { IntakeContext } from "./IntakeContext";
 
 /**
- * Work-order page (Figma redesign): a dashboard-styled detail view — page
- * header + Copilot chat card + stacked context cards — with the ticket queue
- * moved into an off-canvas drawer toggled by "← Open sidebar". Role CTAs
- * moved into an off-canvas drawer toggled by "← Open sidebar". Role CTAs
- * (start / wrap-up / hand off) live in the header; tech/dispatcher mode is
- * switched from the profile menu in the top nav.
+ * Work-order page (Figma redesign): with no ticket selected it shows the full
+ * ticket list — the same dashboard-styled table as the dashboard "Tickets"
+ * section, now as the whole page. Selecting a ticket swaps in the Copilot chat
+ * card + context cards, with a context-aware back button ("Dashboard" or "All
+ * tickets") replacing the old off-canvas drawer. Role CTAs (start / wrap-up /
+ * hand off) live in the header; tech/dispatcher mode is switched from the
+ * profile menu in the top nav.
  */
 export function WorkspaceShell() {
   const router = useRouter();
   const qc = useQueryClient();
   const params = useSearchParams();
   const selectedId = params.get("ticket") || null;
+  // Where the user came from, so the back button points home. Dashboard links
+  // pass from=dashboard; the all-tickets list passes from=tickets (default).
+  const from = params.get("from") === "dashboard" ? "dashboard" : "tickets";
 
   const { role } = useRole();
 
-  // Drawer is open by default when no ticket is selected, closed once one is.
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   // On phones the body shows one panel at a time; always land on the chat.
   const [mobileView, setMobileView] = useState<"chat" | "details">("chat");
-  useEffect(() => {
-    setSidebarOpen(selectedId == null);
-    setMobileView("chat");
-  }, [selectedId]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["tickets", "workspace"],
@@ -72,9 +110,19 @@ export function WorkspaceShell() {
 
   const isDispatch = role === "dispatcher";
 
+  // Open-ticket count per asset, for the all-tickets row badges.
+  const openByAsset = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const t of tickets) {
+      if (t.status !== "CLOSED")
+        m.set(t.asset.id, (m.get(t.asset.id) ?? 0) + 1);
+    }
+    return m;
+  }, [tickets]);
+  const openCount = tickets.filter((t) => t.status !== "CLOSED").length;
+
   function select(shortId: string | null) {
-    router.push(shortId == null ? "/work" : `/work?ticket=${shortId}`);
-    setSidebarOpen(false);
+    router.push(shortId == null ? "/work" : `/work?ticket=${shortId}&from=tickets`);
   }
 
   function invalidateTicket() {
@@ -91,13 +139,42 @@ export function WorkspaceShell() {
     onSuccess: invalidateTicket,
   });
 
+  // No ticket selected: the all-tickets board, with a page eyebrow + title to
+  // match the Knowledge and Fleet pages.
+  if (selectedId == null) {
+    return (
+      <div className="dash">
+        <div className="dash-inner" style={{ paddingBottom: 64, gap: 0 }}>
+          <span className="sect-eyebrow">Tickets</span>
+          <h1 className="h2" style={{ marginTop: 12, marginBottom: 24 }}>
+            All tickets
+          </h1>
+
+          <TicketList
+            role={role}
+            tickets={tickets}
+            isLoading={isLoading}
+            error={!!error}
+            openCount={openCount}
+            openByAsset={openByAsset}
+            onSelect={select}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="work">
       <div className="work-inner">
         <WorkHeader
-          ticket={selectedId != null ? ticket : undefined}
+          ticket={ticket}
           role={role}
-          onOpenSidebar={() => setSidebarOpen(true)}
+          back={
+            from === "dashboard"
+              ? { href: "/dashboard", label: "Dashboard" }
+              : { href: "/work", label: "All tickets" }
+          }
           onStart={() => startMut.mutate()}
           starting={startMut.isPending}
           onHandoff={() => handoffMut.mutate()}
@@ -107,77 +184,58 @@ export function WorkspaceShell() {
           }
         />
 
-        {selectedId != null && (
-          <div className="work-tabs" role="tablist">
-            <button
-              type="button"
-              className="work-tab"
-              data-active={mobileView === "chat"}
-              aria-selected={mobileView === "chat"}
-              onClick={() => setMobileView("chat")}
-            >
-              Chat
-            </button>
-            <button
-              type="button"
-              className="work-tab"
-              data-active={mobileView === "details"}
-              aria-selected={mobileView === "details"}
-              onClick={() => setMobileView("details")}
-            >
-              Details
-            </button>
-          </div>
-        )}
+        <div className="work-tabs" role="tablist">
+          <button
+            type="button"
+            className="work-tab"
+            data-active={mobileView === "chat"}
+            aria-selected={mobileView === "chat"}
+            onClick={() => setMobileView("chat")}
+          >
+            Chat
+          </button>
+          <button
+            type="button"
+            className="work-tab"
+            data-active={mobileView === "details"}
+            aria-selected={mobileView === "details"}
+            onClick={() => setMobileView("details")}
+          >
+            Details
+          </button>
+        </div>
 
-        {selectedId != null ? (
-          <div className="work-body" data-mobile-view={mobileView}>
-            <section className="dash-card work-copilot">
-              <div className="work-copilot-head">
-                <h2 className="work-copilot-title">Copilot</h2>
-              </div>
-              <div className="work-copilot-body">
-                <ChatPane
-                  ticketId={selectedId}
-                  role={role}
-                  bare
-                  emptyHint={
-                    isDispatch
-                      ? "Tell Railio what the engineer reported. It writes the pre-arrival briefing."
-                      : "Tell Railio what you see. Use the mic in the shop."
-                  }
-                />
-              </div>
-            </section>
+        <div className="work-body" data-mobile-view={mobileView}>
+          <section className="dash-card work-copilot">
+            <div className="work-copilot-head">
+              <h2 className="work-copilot-title">Copilot</h2>
+            </div>
+            <div className="work-copilot-body">
+              <ChatPane
+                ticketId={selectedId}
+                role={role}
+                bare
+                emptyHint={
+                  isDispatch
+                    ? "Tell Railio what the engineer reported. It writes the pre-arrival briefing."
+                    : "Tell Railio what you see. Use the mic in the shop."
+                }
+              />
+            </div>
+          </section>
 
-            <aside className="work-context">
-              {isDispatch ? (
-                <IntakeContext
-                  ticketId={selectedId}
-                  onHandedOff={() => select(null)}
-                />
-              ) : (
-                <RepairContext ticketId={selectedId} />
-              )}
-            </aside>
-          </div>
-        ) : (
-          <div className="dash-card work-placeholder">
-            Select a ticket from the sidebar to begin.
-          </div>
-        )}
+          <aside className="work-context">
+            {isDispatch ? (
+              <IntakeContext
+                ticketId={selectedId}
+                onHandedOff={() => select(null)}
+              />
+            ) : (
+              <RepairContext ticketId={selectedId} />
+            )}
+          </aside>
+        </div>
       </div>
-
-      <TicketDrawer
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        role={role}
-        tickets={tickets}
-        isLoading={isLoading}
-        error={!!error}
-        selectedId={selectedId}
-        onSelect={select}
-      />
     </div>
   );
 }
@@ -185,7 +243,7 @@ export function WorkspaceShell() {
 function WorkHeader({
   ticket,
   role,
-  onOpenSidebar,
+  back,
   onStart,
   starting,
   onHandoff,
@@ -194,7 +252,7 @@ function WorkHeader({
 }: {
   ticket: Ticket | undefined;
   role: Role;
-  onOpenSidebar: () => void;
+  back: { href: string; label: string };
   onStart: () => void;
   starting: boolean;
   onHandoff: () => void;
@@ -204,19 +262,19 @@ function WorkHeader({
   const isTech = role === "tech";
   return (
     <header className="work-head">
-      <button type="button" className="work-toggle dash-link" onClick={onOpenSidebar}>
-        <span className="ico-arr-back" aria-hidden="true" /> Open sidebar
-      </button>
+      <Link href={back.href} className="work-toggle dash-link">
+        <span className="ico-arr-back" aria-hidden="true" /> {back.label}
+      </Link>
       <div className="work-head-row">
         <div className="work-head-left">
           <h1 className="work-title">
             {ticket ? (
               <>
-                <span className="work-title-prefix">Work order </span>#
+                <span className="work-title-prefix">Ticket </span>#
                 {ticket.short_id}
               </>
             ) : (
-              "Select a ticket"
+              "Ticket"
             )}
           </h1>
           {ticket && (
@@ -258,125 +316,167 @@ function WorkHeader({
   );
 }
 
-function TicketDrawer({
-  open,
-  onClose,
+/**
+ * The full ticket board — the dashboard "Tickets" table rendered as the whole
+ * /work page. Rows route to the chat view via from=tickets so the chat's back
+ * button reads "All tickets".
+ */
+function TicketList({
   role,
   tickets,
   isLoading,
   error,
-  selectedId,
+  openCount,
+  openByAsset,
   onSelect,
 }: {
-  open: boolean;
-  onClose: () => void;
   role: Role;
   tickets: Ticket[];
   isLoading: boolean;
   error: boolean;
-  selectedId: string | null;
+  openCount: number;
+  openByAsset: Map<number, number>;
   onSelect: (shortId: string | null) => void;
 }) {
   const isDispatch = role === "dispatcher";
-  return (
-    <>
-      {open && <div className="work-drawer-backdrop" onClick={onClose} />}
-      <aside className={`work-drawer${open ? " is-open" : ""}`} aria-hidden={!open}>
-        <div className="work-drawer-head">
-          <span className="work-drawer-title">Tickets</span>
-          <button type="button" className="work-drawer-close" onClick={onClose} aria-label="Close sidebar">
-            ✕
-          </button>
-        </div>
+  const [unitFilter, setUnitFilter] = useState<string>("all");
 
-        {isDispatch && (
-          <div className="work-drawer-toolbar">
-            <Link href="/dispatcher/new" className="work-drawer-new">
-              + New ticket
-            </Link>
-          </div>
-        )}
-
-        <div className="work-drawer-list">
-          {isLoading && (
-            <div className="work-drawer-loading">Loading tickets…</div>
-          )}
-          {error && (
-            <div className="work-drawer-error">
-              <div className="work-drawer-error-title">Backend unreachable</div>
-              <p className="work-drawer-error-body">
-                Make sure the backend is on port 3001.
-              </p>
-            </div>
-          )}
-          {!isLoading && !error && tickets.length === 0 && (
-            <div className="work-drawer-empty">
-              {isDispatch
-                ? "Open a ticket so the tech has context."
-                : "Tickets handed off by dispatch show up here."}
-            </div>
-          )}
-
-          {tickets.map((t) => (
-            <TicketCard
-              key={t.id}
-              ticket={t}
-              active={t.short_id === selectedId}
-              onClick={() => onSelect(t.short_id)}
-            />
-          ))}
-        </div>
-      </aside>
-    </>
+  const units = useMemo(
+    () => Array.from(new Set(tickets.map((t) => unitLabel(t.asset)))).sort(),
+    [tickets],
   );
-}
+  const visible = useMemo(
+    () =>
+      unitFilter === "all"
+        ? tickets
+        : tickets.filter((t) => unitLabel(t.asset) === unitFilter),
+    [tickets, unitFilter],
+  );
 
-function TicketCard({
-  ticket,
-  active,
-  onClick,
-}: {
-  ticket: Ticket;
-  active: boolean;
-  onClick: () => void;
-}) {
   return (
-    <button type="button" onClick={onClick} className="work-ticket" data-active={active}>
+    <section className="dash-card" style={{ padding: "22px 28px" }}>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
-          gap: "var(--s2)",
+          alignItems: "flex-start",
+          gap: 16,
+          marginBottom: 8,
         }}
       >
-        <span className="work-ticket-title">
-          {ticket.title || `${ticket.asset.reporting_mark} ${ticket.asset.road_number}`}
-        </span>
-        <span className="work-status">
-          <span
-            className="work-status-dot"
-            style={{ background: statusDotColor(ticket.status as TicketStatus) }}
-          />
-          {statusLabel(ticket.status as TicketStatus)}
-        </span>
+        <p className="dash-section-sub" style={{ marginTop: 0 }}>
+          {tickets.length} total · {openCount} open
+        </p>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {isDispatch && (
+            <Link href="/dispatcher/new" className="work-drawer-new">
+              + New ticket
+            </Link>
+          )}
+          <select
+            className="dash-filter"
+            value={unitFilter}
+            onChange={(e) => setUnitFilter(e.target.value)}
+            aria-label="Filter by locomotive"
+          >
+            <option value="all">Locomotive</option>
+            {units.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
-      <div
-        className="dash-mono"
-        style={{
-          color: "var(--dash-muted)",
-          fontSize: 12,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {ticket.short_id} · {ticket.asset.reporting_mark} {ticket.asset.road_number} ·{" "}
-        {ticket.asset.unit_model}
+
+      <div className="dash-table">
+        <div className="dash-row dash-wo dash-row--head">
+          <span className="dash-th">Ticket</span>
+          <span className="dash-th">Symptoms / fault</span>
+          <span className="dash-th">Severity</span>
+          <span className="dash-th dash-hide-sm">Status</span>
+          <span className="dash-th dash-hide-sm" style={{ textAlign: "right" }}>
+            Opened
+          </span>
+        </div>
+
+        {isLoading && (
+          <div className="dash-row dash-wo">
+            <span className="dash-sub">Loading tickets…</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="dash-row dash-wo">
+            <span className="dash-sub">
+              Backend unreachable — make sure the backend is on port 3001.
+            </span>
+          </div>
+        )}
+
+        {!isLoading && !error && visible.length === 0 && (
+          <div className="dash-row dash-wo">
+            <span className="dash-sub">
+              {isDispatch
+                ? "No tickets yet. Open one so the tech has context."
+                : "Tickets handed off by dispatch show up here."}
+            </span>
+          </div>
+        )}
+
+        {visible.map((t) => {
+          const count = openByAsset.get(t.asset.id) ?? 0;
+          const symptom = t.title || t.initial_symptoms || "—";
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onSelect(t.short_id)}
+              className="dash-row dash-wo dash-row--click"
+              style={{ textAlign: "left" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span className="dash-id">#{t.short_id || t.id}</span>
+                <span className="dash-unit">
+                  {unitLabel(t.asset)} · {t.asset.unit_model}
+                </span>
+                {count > 0 && (
+                  <span className="dash-count" data-on={count > 1}>
+                    {count}
+                  </span>
+                )}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <p className="dash-cell" style={{ margin: 0 }}>
+                  {symptom}
+                </p>
+                <p className="dash-sub" style={{ margin: "3px 0 0" }}>
+                  {faultLine(t)}
+                </p>
+              </div>
+              <div>
+                <span className={`dash-sev dash-sev-${t.severity}`}>
+                  {t.severity.toUpperCase()}
+                </span>
+              </div>
+              <div className="dash-hide-sm">
+                <span className="dash-status">
+                  <span
+                    className="dash-dot"
+                    style={{ background: STATUS_DOT[t.status] }}
+                  />
+                  {STATUS_LABEL[t.status]}
+                </span>
+              </div>
+              <div className="dash-hide-sm">
+                <span className="dash-sub" style={{ display: "block", textAlign: "right" }}>
+                  {fmtDateTime(t.opened_at)}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
-      <div className="dash-mono" style={{ color: "var(--dash-faint)", fontSize: 11 }}>
-        Opened {formatDate(ticket.opened_at)}
-      </div>
-    </button>
+    </section>
   );
 }

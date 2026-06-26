@@ -48,7 +48,7 @@ export function ResetTicketButton({
         }}
         title="Already in original state"
       >
-        ↺ {label}
+        {label}
       </button>
     );
   }
@@ -65,7 +65,7 @@ export function ResetTicketButton({
         }}
         title="Wipe the chat and restore this ticket's original state"
       >
-        ↺ {label}
+        {label}
       </button>
     );
   }

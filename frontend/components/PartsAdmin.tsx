@@ -131,7 +131,7 @@ export function PartsAdmin() {
             gap: 8,
             marginTop: 24,
             marginBottom: 16,
-            alignItems: "center",
+            alignItems: "flex-start",
             flexWrap: "wrap",
           }}
         >
@@ -163,7 +163,7 @@ export function PartsAdmin() {
           </select>
           <button
             type="button"
-            className="btn btn-sm"
+            className="btn"
             onClick={() => setAdding((v) => !v)}
           >
             {adding ? "Cancel" : "+ Add part"}
@@ -199,8 +199,12 @@ export function PartsAdmin() {
           </div>
         )}
         {data && parts.length === 0 && (
-          <div className="card" style={{ color: "var(--dash-muted)" }}>
-            No parts match.
+          <div className="card" style={{ color: "var(--dash-muted)", textAlign: "center" }}>
+            <span className="micro">
+              {q.trim() || unit
+                ? "No parts match."
+                : "No parts in inventory yet."}
+            </span>
           </div>
         )}
         {data && parts.length > 0 && (

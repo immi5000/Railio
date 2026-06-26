@@ -258,7 +258,7 @@ export function DispatcherIntake() {
                     <div
                       style={{ fontSize: 11, color: "var(--dash-muted)", marginTop: 6 }}
                     >
-                      ⚠ This model has no ingested manual yet — Railio will only
+                      This model has no ingested manual yet — Railio will only
                       have shared 49 CFR to cite for it.
                     </div>
                   )}

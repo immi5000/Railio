@@ -60,7 +60,7 @@ export function CitationDrawer({
                 }
                 style={{ cursor: "default" }}
               >
-                {data.doc_class === "manual" ? "📖 Manual" : "👤 Tribal"}
+                {data.doc_class === "manual" ? "Manual" : "Tribal"}
               </span>
               {data.page != null && (
                 <span className="micro">Page {data.page}</span>

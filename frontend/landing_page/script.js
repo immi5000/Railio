@@ -85,7 +85,7 @@
   var TRANSCRIPT = [
     { who: 'tech', html: "Brake pipe pressure dropping on car six. Won't hold above 75 PSI." },
     { who: 'ai',   html: "Pulling Unit 4423 — last B-end inspection 14 days ago. <b>Most likely cause: a leaking angle-cock gasket on car 6.</b>"
-                       + '<div class="cites">Cited <span class="cite-link">49 CFR §232.103</span> · <span class="cite-link">Senior-tech note — Yard 7</span></div>' },
+                       + '<div class="cites">Cited <span class="cite-link">49 CFR Sec. 232.103</span> · <span class="cite-link">Senior-tech note — Yard 7</span></div>' },
     { who: 'tech', html: "Where's the part?" },
     { who: 'ai',   html: "Gasket <b>P/N 9120-44A</b> — two in stock at Yard 7, I reserved one. Want me to walk you through the swap?"
                        + '<div class="cites">Cited <span class="cite-link">Parts inventory — Yard 7</span></div>' },
@@ -109,7 +109,7 @@
     if (step < TRANSCRIPT.length && TRANSCRIPT[step].who === 'ai') {
       html += '<div class="ph-msg ai"><div class="bub">'
             +   '<div class="role">Railio</div>'
-            +   '<div class="tool-note">🔧 Checking the manual… <span class="typing"><i></i><i></i><i></i></span></div>'
+            +   '<div class="tool-note">Checking the manual… <span class="typing"><i></i><i></i><i></i></span></div>'
             + '</div></div>';
     }
     transcriptEl.innerHTML = html;
@@ -132,7 +132,7 @@
       panel: { kind: 'kv', left: 'DIAGNOSIS', right: '92% confidence', rows: [
         ['Symptom',      'Brake pipe < 75 PSI'],
         ['Likely cause', 'Angle cock gasket, B-end'],
-        ['Manual ref',   'AAR §4.2.7 · pg 412'],
+        ['Manual ref',   'AAR Sec. 4.2.7 · pg 412'],
         ['Part',         'P/N 9120-44A · Yard 7']
       ]}
     },
@@ -140,7 +140,7 @@
       num: '02', k: 'Guide',
       title: 'Walk through the repair, hands-free.',
       sub: 'Step by step from the actual maintenance manual. Move at the tech\'s pace; torque values appear when needed.',
-      panel: { kind: 'checks', left: 'PROCEDURE', right: 'AAR §4.2.7', items: [
+      panel: { kind: 'checks', left: 'PROCEDURE', right: 'AAR Sec. 4.2.7', items: [
         { done: true,  label: 'Isolate angle cocks, both ends' },
         { done: true,  label: 'Bleed reservoir to 0 PSI' },
         { done: true,  label: 'Remove old gasket P/N 9120-44A' },
@@ -152,7 +152,7 @@
       num: '03', k: 'Capture',
       title: 'Capture what you learn.',
       sub: 'Tech logs the trick that worked. Railio writes it to tribal notes — searchable and cite-able for the next tech who hits the same fault.',
-      panel: { kind: 'kv', left: 'TRIBAL NOTE', right: 'SAVED ✓', rows: [
+      panel: { kind: 'kv', left: 'TRIBAL NOTE', right: 'SAVED', rows: [
         ['Lesson',       'Check fuel rail transducer voltage before swapping injectors on ES44DC'],
         ['From',         'Tech JM · 32 yrs on the floor'],
         ['Saved to',     'Tribal notes · ES44DC family'],

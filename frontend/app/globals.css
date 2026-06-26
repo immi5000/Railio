@@ -324,6 +324,17 @@ button {
   color: #000;
   transition: border-color 0.12s, box-shadow 0.12s;
 }
+/* Replace the inconsistent native dropdown arrow with the shared stroke
+   chevron, vertically centered and inset from the right edge. */
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: var(--dash-chevron-icon);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 10px 6px;
+  padding-right: 34px;
+}
 /* iOS Safari zooms on focus when input font-size < 16px. Bump to 16px on
    touchscreen-width breakpoints. */
 @media (max-width: 760px) {
@@ -901,6 +912,13 @@ button {
   font-family: "IBM Plex Mono", monospace;
   font-size: 12px;
   color: #000;
+}
+
+/* Desktop admin tables: top-align cells so multi-line rows read from the top
+   rather than floating to the vertical middle. */
+.resp-table th,
+.resp-table td {
+  vertical-align: top;
 }
 
 /* === Responsive data tables ===
@@ -2402,7 +2420,7 @@ button {
   width: 150px;
   max-width: 42%;
   flex: none;
-  border-radius: 10px;
+  border-radius: 0;
   background: #fff246;
 }
 
@@ -2439,7 +2457,7 @@ button {
 }
 .dash-stat-toprow {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
@@ -2482,17 +2500,34 @@ button {
   padding-inline: 28px;
 }
 .dash-row {
+  position: relative;
   display: grid;
   gap: 16px;
-  align-items: center;
+  align-items: start;
   padding: 13px 0;
-  border-top: 1px solid var(--dash-line);
+}
+/* Divider drawn as an inset line so it carries the card's side padding instead
+   of bleeding edge-to-edge, while the row background still fills full width. */
+.dash-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--dash-line);
+}
+.dash-card > .dash-table .dash-row::before {
+  left: 28px;
+  right: 28px;
 }
 .dash-row > * {
   min-width: 0;
 }
+.dash-row--head::before {
+  display: none;
+}
 .dash-row--head {
-  border-top: none;
   padding: 6px 0 10px;
 }
 .dash-row--head .dash-th {
@@ -2511,6 +2546,14 @@ button {
   color: inherit;
   text-decoration: none;
 }
+/* Works for both <a> rows (dashboard) and <button> rows (all-tickets page);
+   strip native button chrome (the row divider is the .dash-row::before line). */
+button.dash-row--click {
+  border: none;
+  background: none;
+  font: inherit;
+  appearance: none;
+}
 .dash-row--click:hover {
   background: var(--dash-bg);
 }
@@ -2521,12 +2564,27 @@ button {
   grid-template-columns: 1.3fr 0.8fr 0.9fr 1fr 0.9fr 0.5fr;
 }
 @media (max-width: 760px) {
+  /* Stack each table row into a single left-aligned column: a 2-col grid
+     orphaned the 3rd visible cell (severity pill / open badge) onto its own
+     row. Hide the column headers — they no longer line up once stacked. */
   .dash-wo,
   .dash-fleet {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .dash-row--head.dash-wo,
+  .dash-row--head.dash-fleet {
+    display: none;
   }
   .dash-hide-sm {
     display: none;
+  }
+  /* Cells the desktop layout right-aligned via inline styles (e.g. the fleet
+     open-count badge) read left-aligned once stacked. !important is needed to
+     beat the inline text-align. */
+  .dash-wo > *,
+  .dash-fleet > * {
+    text-align: left !important;
   }
 }
 
@@ -2588,8 +2646,8 @@ button {
   font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
   letter-spacing: 0.03em;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
 }
 .dash-sev-critical {
   background: #000;
@@ -2665,8 +2723,18 @@ button {
   flex-direction: column;
   height: 100%;
 }
+/* Equal-height bottom cards keep their footers bottom-aligned via margin-top:
+   auto. Where a card has a data table (Fleets), also let the table absorb the
+   slack and its last row grow — so a hovered last row's highlight reaches the
+   footer divider instead of leaving a gap above it. */
 .dash-bottom > .dash-card > .dash-foot {
   margin-top: auto;
+}
+.dash-bottom > .dash-card > .dash-table {
+  flex: 1;
+}
+.dash-bottom > .dash-card > .dash-table > .dash-row:last-child {
+  flex: 1;
 }
 @media (max-width: 980px) {
   .dash-bottom {
@@ -2680,7 +2748,9 @@ button {
   gap: 12px;
   border-top: 1px solid var(--dash-line);
   padding-top: 16px;
-  margin-top: 4px;
+  /* No top margin: the last table row's hover highlight must butt flush against
+     this divider rather than leaving a gap above it. */
+  margin-top: 0;
 }
 
 /* Team rows */
