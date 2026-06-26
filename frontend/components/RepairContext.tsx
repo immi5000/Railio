@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getTicket, listAllParts, fileUrl } from "@/lib/api";
 import type { Citation, ParsedFault, Part, Severity, TicketDetail } from "@/lib/contract";
 import { formatDateOnly } from "@/lib/format";
+import { mostUrgent, oosDays, STATE_COLOR } from "@/lib/inspections";
 import { CitationDrawer } from "./CitationDrawer";
 import { ContextPanel, Empty } from "./ContextPanel";
 
@@ -171,8 +172,25 @@ function UnitIntakeCard({
             <span className="wc-meta-value">{formatDateOnly(a.in_service_date)}</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span className="wc-meta-label">LAST INSP.</span>
-            <span className="wc-meta-value">{formatDateOnly(a.last_inspection_at)}</span>
+            <span className="wc-meta-label">NEXT DUE</span>
+            {(() => {
+              const down = oosDays(a);
+              if (down !== null) {
+                return (
+                  <span className="wc-meta-value" style={{ color: "var(--dash-danger)" }}>
+                    OOS · down {down}d
+                  </span>
+                );
+              }
+              const urgent = mostUrgent(a);
+              return (
+                <span className="wc-meta-value" style={{ color: STATE_COLOR[urgent.state] }}>
+                  {urgent.nextDue
+                    ? `${urgent.label} · ${formatDateOnly(urgent.nextDue)}`
+                    : "—"}
+                </span>
+              );
+            })()}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
             <span className="wc-meta-label">ERROR CODE</span>

@@ -34,7 +34,8 @@ async def get_asset(asset_id: int, org_id: Optional[int] = None) -> Optional[Ass
                 text(
                     f"""
                     SELECT id, org_id, reporting_mark, road_number, unit_model,
-                           in_service_date, last_inspection_at
+                           in_service_date, last_92_day_at, last_368_day_at,
+                           last_1104_day_at, out_of_service, oos_since
                     FROM assets WHERE {where}
                     """
                 ),

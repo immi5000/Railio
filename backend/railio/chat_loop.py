@@ -7,15 +7,23 @@ from __future__ import annotations
 
 import base64
 import json
+from datetime import date, timedelta
 from typing import Any, Callable
 
-from .contract import Attachment, Citation, Message, ToolCall
+from .contract import (
+    INSPECTION_INTERVALS,
+    Attachment,
+    Citation,
+    Message,
+    ToolCall,
+)
 from .messages_repo import insert_message, list_messages
 from .openai_client import chat_model, get_openai
 from .storage import STORAGE_URL_PREFIX, download_bytes
 from .system_prompt import SYSTEM_PROMPT
 from .tickets_repo import get_ticket_detail
 from .tools import TOOL_DEFS, execute_tool
+from .tools.set_ticket_status import set_ticket_status
 
 MAX_TOOL_ROUNDS = 8
 
@@ -58,6 +66,36 @@ async def _to_openai_messages(history: list[Message]) -> list[dict[str, Any]]:
     return out
 
 
+def _inspection_summary(a) -> str:
+    """One readable line of FRA periodic-inspection status + OOS for the asset."""
+    today = date.today()
+    parts: list[str] = []
+    for field, (label, interval) in INSPECTION_INTERVALS.items():
+        last = getattr(a, field, None)
+        if not last:
+            parts.append(f"{label}: no record")
+            continue
+        try:
+            last_d = date.fromisoformat(last[:10])
+        except ValueError:
+            parts.append(f"{label}: last {last}")
+            continue
+        due = last_d + timedelta(days=interval)
+        flag = " (OVERDUE)" if due < today else ""
+        parts.append(f"{label}: last {last_d.isoformat()}, next due {due.isoformat()}{flag}")
+    summary = "FRA inspections — " + "; ".join(parts) + "."
+    if a.out_of_service:
+        since = ""
+        if a.oos_since:
+            try:
+                down = (today - date.fromisoformat(a.oos_since[:10])).days
+                since = f" since {a.oos_since[:10]} ({down} days)"
+            except ValueError:
+                since = f" since {a.oos_since}"
+        summary += f" OUT OF SERVICE{since}."
+    return summary
+
+
 async def _build_ticket_context(ticket_id: int, org_id: int) -> str | None:
     t = await get_ticket_detail(ticket_id, org_id)
     if not t:
@@ -71,10 +109,10 @@ async def _build_ticket_context(ticket_id: int, org_id: int) -> str | None:
     )
     a = t.asset
     in_svc = f", in service since {a.in_service_date}" if a.in_service_date else ""
-    last_insp = f", last inspected {a.last_inspection_at}" if a.last_inspection_at else ""
     lines.append(
-        f"Asset: {a.reporting_mark} {a.road_number} — {a.unit_model}{in_svc}{last_insp}."
+        f"Asset: {a.reporting_mark} {a.road_number} — {a.unit_model}{in_svc}."
     )
+    lines.append(_inspection_summary(a))
     if t.initial_symptoms:
         lines.append(f"Initial symptoms: {t.initial_symptoms}")
     if t.initial_error_codes:
@@ -96,15 +134,21 @@ async def _build_ticket_context(ticket_id: int, org_id: int) -> str | None:
 
 
 async def _build_corpus_scope(ticket_id: int, org_id: int) -> dict[str, Any]:
-    """Bind the corpus + parts search scope from the ticket's org and asset.
+    """Bind the runtime scope from the ticket's org and asset.
 
     Returned dict is passed to execute_tool so search_corpus and the parts tools
-    are scoped to this tenant + unit — the model never chooses scope.
+    are scoped to this tenant + unit, and so the ticket-mutating tools target this
+    ticket — the model never chooses scope (and never sees the numeric ticket_id).
     """
     t = await get_ticket_detail(ticket_id, org_id)
     if not t or not t.asset:
-        return {"org_id": org_id, "unit_model": None, "asset_id": None}
-    return {"org_id": org_id, "unit_model": t.asset.unit_model, "asset_id": t.asset.id}
+        return {"org_id": org_id, "unit_model": None, "asset_id": None, "ticket_id": ticket_id}
+    return {
+        "org_id": org_id,
+        "unit_model": t.asset.unit_model,
+        "asset_id": t.asset.id,
+        "ticket_id": ticket_id,
+    }
 
 
 async def run_chat(
@@ -123,6 +167,21 @@ async def run_chat(
         attachments=attachments if attachments else None,
     )
     emit({"type": "user_message_persisted", "message": user_msg.model_dump(by_alias=True)})
+
+    # The tech engaging the ticket starts the work. set_ticket_status enforces the legal
+    # table, so this is a no-op unless the ticket is currently AWAITING_TECH (i.e. fires
+    # exactly once, on the tech's first message).
+    if user_role == "tech":
+        status_result = await set_ticket_status(ticket_id, "IN_PROGRESS")
+        if status_result.get("ok"):
+            call_id = f"auto_status_{user_msg.id}"
+            emit({
+                "type": "tool_call_started",
+                "name": "set_ticket_status",
+                "input": {"status": "IN_PROGRESS"},
+                "call_id": call_id,
+            })
+            emit({"type": "tool_call_completed", "call_id": call_id, "output": status_result})
 
     client = get_openai()
     scope = await _build_corpus_scope(ticket_id, org_id)

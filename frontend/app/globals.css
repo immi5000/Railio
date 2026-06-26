@@ -37,6 +37,10 @@
   --dash-link: #2683eb;
   --dash-card-border: #ecedef;
   --dash-yellow: #fff246;
+  /* Semantic status colors for inspection due/overdue + OOS badges. Promotes the
+     #c0392b already used ad-hoc for error text to a named token. */
+  --dash-warn: #b7791f;
+  --dash-danger: #c0392b;
   --dash-chevron-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23000' fill='none' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
@@ -840,17 +844,72 @@ button {
 }
 
 /* === Admin two-column (units list + detail) collapses on phones === */
-.admin-split {
+/* === Fleet: off-canvas units drawer + unit detail ===
+   The unit list, filters and add-unit live in the off-canvas drawer (reusing
+   the .work-drawer idiom from the tickets workspace); the selected unit's
+   detail fills the main page. Unit cards reuse .work-ticket so the two drawers
+   read the same. */
+.fleet-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fleet-group + .fleet-group {
+  margin-top: 6px;
+}
+.fleet-group-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dash-faint);
+  padding: 0 2px;
+}
+.fleet-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex: none;
+  display: inline-block;
+}
+/* Selected-unit workspace: identity + inspection summary in a left rail that
+   stays pinned while the unit's history scrolls beside it. */
+.fleet-detail-layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
-@media (max-width: 760px) {
-  .admin-split {
+.fleet-detail-main {
+  position: sticky;
+  top: 24px;
+}
+@media (max-width: 980px) {
+  .fleet-detail-layout {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: 16px;
   }
+  .fleet-detail-main {
+    position: static;
+  }
+}
+.fleet-insp {
+  margin-top: 16px;
+  border-top: 1px solid var(--dash-line);
+}
+.fleet-insp-row {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--dash-line);
+  font-size: 13px;
+}
+.fleet-insp-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: #000;
 }
 
 /* === Responsive data tables ===
@@ -2429,7 +2488,7 @@ button {
   grid-template-columns: 1.6fr 2fr 0.9fr 1.1fr 1fr;
 }
 .dash-fleet {
-  grid-template-columns: 1.4fr 0.8fr 1fr 1fr 0.5fr;
+  grid-template-columns: 1.3fr 0.8fr 0.9fr 1fr 0.9fr 0.5fr;
 }
 @media (max-width: 760px) {
   .dash-wo,

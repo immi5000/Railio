@@ -26,7 +26,8 @@ async def list_assets(org_id: Optional[int] = None) -> list[Asset]:
                 text(
                     f"""
                     SELECT id, org_id, reporting_mark, road_number, unit_model,
-                           in_service_date, last_inspection_at
+                           in_service_date, last_92_day_at, last_368_day_at,
+                           last_1104_day_at, out_of_service, oos_since
                     FROM assets{where} ORDER BY reporting_mark, road_number
                     """
                 ),
@@ -53,7 +54,8 @@ async def find_asset(
                 text(
                     f"""
                     SELECT id, org_id, reporting_mark, road_number, unit_model,
-                           in_service_date, last_inspection_at
+                           in_service_date, last_92_day_at, last_368_day_at,
+                           last_1104_day_at, out_of_service, oos_since
                     FROM assets WHERE {where}
                     """
                 ),
@@ -70,7 +72,11 @@ async def create_asset(
     road_number: str,
     unit_model: str,
     in_service_date: Optional[str] = None,
-    last_inspection_at: Optional[str] = None,
+    last_92_day_at: Optional[str] = None,
+    last_368_day_at: Optional[str] = None,
+    last_1104_day_at: Optional[str] = None,
+    out_of_service: bool = False,
+    oos_since: Optional[str] = None,
 ) -> Asset:
     # Idempotent on (org_id, reporting_mark, road_number) — re-adding returns the
     # existing row rather than duplicating. Road numbers can collide across orgs,
@@ -84,10 +90,12 @@ async def create_asset(
                 text(
                     """
                     INSERT INTO assets (org_id, reporting_mark, road_number, unit_model,
-                                        in_service_date, last_inspection_at)
-                    VALUES (:org, :rm, :rn, :um, :in_svc, :last)
+                                        in_service_date, last_92_day_at, last_368_day_at,
+                                        last_1104_day_at, out_of_service, oos_since)
+                    VALUES (:org, :rm, :rn, :um, :in_svc, :l92, :l368, :l1104, :oos, :oos_since)
                     RETURNING id, org_id, reporting_mark, road_number, unit_model,
-                              in_service_date, last_inspection_at
+                              in_service_date, last_92_day_at, last_368_day_at,
+                              last_1104_day_at, out_of_service, oos_since
                     """
                 ),
                 {
@@ -96,7 +104,11 @@ async def create_asset(
                     "rn": road_number,
                     "um": unit_model,
                     "in_svc": in_service_date,
-                    "last": last_inspection_at,
+                    "l92": last_92_day_at,
+                    "l368": last_368_day_at,
+                    "l1104": last_1104_day_at,
+                    "oos": out_of_service,
+                    "oos_since": oos_since,
                 },
             )
         ).mappings().first()
@@ -111,7 +123,11 @@ async def update_asset(
     road_number: str,
     unit_model: str,
     in_service_date: Optional[str] = None,
-    last_inspection_at: Optional[str] = None,
+    last_92_day_at: Optional[str] = None,
+    last_368_day_at: Optional[str] = None,
+    last_1104_day_at: Optional[str] = None,
+    out_of_service: bool = False,
+    oos_since: Optional[str] = None,
 ) -> Optional[Asset]:
     # Org-scoped: a cross-org asset_id matches no row and returns None (404 at
     # the router), so a tenant can never edit another org's unit.
@@ -122,10 +138,13 @@ async def update_asset(
                     """
                     UPDATE assets
                     SET reporting_mark = :rm, road_number = :rn, unit_model = :um,
-                        in_service_date = :in_svc, last_inspection_at = :last
+                        in_service_date = :in_svc, last_92_day_at = :l92,
+                        last_368_day_at = :l368, last_1104_day_at = :l1104,
+                        out_of_service = :oos, oos_since = :oos_since
                     WHERE id = :id AND org_id = :org
                     RETURNING id, org_id, reporting_mark, road_number, unit_model,
-                              in_service_date, last_inspection_at
+                              in_service_date, last_92_day_at, last_368_day_at,
+                              last_1104_day_at, out_of_service, oos_since
                     """
                 ),
                 {
@@ -135,7 +154,11 @@ async def update_asset(
                     "rn": road_number,
                     "um": unit_model,
                     "in_svc": in_service_date,
-                    "last": last_inspection_at,
+                    "l92": last_92_day_at,
+                    "l368": last_368_day_at,
+                    "l1104": last_1104_day_at,
+                    "oos": out_of_service,
+                    "oos_since": oos_since,
                 },
             )
         ).mappings().first()

@@ -14,6 +14,14 @@ Role = Literal["dispatcher", "tech", "assistant", "system", "tool"]
 DocClass = Literal["manual", "tribal_knowledge"]
 Severity = Literal["minor", "major", "critical"]
 
+# 49 CFR §229.23 periodic inspection intervals (days).
+# Keep in sync with INSPECTION_INTERVALS in frontend/lib/inspections.ts.
+INSPECTION_INTERVALS = {
+    "last_92_day_at": ("92-Day", 92),
+    "last_368_day_at": ("368-Day", 368),
+    "last_1104_day_at": ("1104-Day", 1104),
+}
+
 
 # === Domain ===
 
@@ -54,7 +62,11 @@ class Asset(BaseModel):
     road_number: str
     unit_model: UnitModel
     in_service_date: Optional[str] = None
-    last_inspection_at: Optional[str] = None
+    last_92_day_at: Optional[str] = None
+    last_368_day_at: Optional[str] = None
+    last_1104_day_at: Optional[str] = None
+    out_of_service: bool = False
+    oos_since: Optional[str] = None
 
 
 class HistoricalTest(BaseModel):
@@ -238,7 +250,11 @@ class CreateAssetBody(BaseModel):
     road_number: str
     unit_model: str
     in_service_date: Optional[str] = None
-    last_inspection_at: Optional[str] = None
+    last_92_day_at: Optional[str] = None
+    last_368_day_at: Optional[str] = None
+    last_1104_day_at: Optional[str] = None
+    out_of_service: bool = False
+    oos_since: Optional[str] = None
 
 
 class PatchAssetBody(BaseModel):
@@ -246,7 +262,11 @@ class PatchAssetBody(BaseModel):
     road_number: str
     unit_model: str
     in_service_date: Optional[str] = None
-    last_inspection_at: Optional[str] = None
+    last_92_day_at: Optional[str] = None
+    last_368_day_at: Optional[str] = None
+    last_1104_day_at: Optional[str] = None
+    out_of_service: Optional[bool] = None
+    oos_since: Optional[str] = None
 
 
 class WrapUpDraft(BaseModel):

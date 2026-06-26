@@ -37,7 +37,11 @@ export type CreateAssetBody = {
   road_number: string;
   unit_model: string;
   in_service_date?: string;
-  last_inspection_at?: string;
+  last_92_day_at?: string;
+  last_368_day_at?: string;
+  last_1104_day_at?: string;
+  out_of_service?: boolean;
+  oos_since?: string;
 };
 
 export type PatchAssetBody = {
@@ -45,7 +49,11 @@ export type PatchAssetBody = {
   road_number: string;
   unit_model: string;
   in_service_date?: string | null;
-  last_inspection_at?: string | null;
+  last_92_day_at?: string | null;
+  last_368_day_at?: string | null;
+  last_1104_day_at?: string | null;
+  out_of_service?: boolean;
+  oos_since?: string | null;
 };
 
 export type WrapUpDraft = {
@@ -135,7 +143,11 @@ export type Asset = {
   road_number: string;
   unit_model: UnitModel;
   in_service_date: string | null;
-  last_inspection_at: string | null;
+  last_92_day_at: string | null;
+  last_368_day_at: string | null;
+  last_1104_day_at: string | null;
+  out_of_service: boolean;
+  oos_since: string | null;
 };
 
 export type HistoricalTest = {

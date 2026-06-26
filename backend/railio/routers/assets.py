@@ -48,7 +48,11 @@ async def post_asset(
         road_number=body.road_number,
         unit_model=body.unit_model,
         in_service_date=body.in_service_date,
-        last_inspection_at=body.last_inspection_at,
+        last_92_day_at=body.last_92_day_at,
+        last_368_day_at=body.last_368_day_at,
+        last_1104_day_at=body.last_1104_day_at,
+        out_of_service=bool(body.out_of_service),
+        oos_since=body.oos_since,
     )
     return JSONResponse(asset.model_dump())
 
@@ -67,7 +71,11 @@ async def patch_asset(
         road_number=body.road_number,
         unit_model=body.unit_model,
         in_service_date=body.in_service_date,
-        last_inspection_at=body.last_inspection_at,
+        last_92_day_at=body.last_92_day_at,
+        last_368_day_at=body.last_368_day_at,
+        last_1104_day_at=body.last_1104_day_at,
+        out_of_service=bool(body.out_of_service),
+        oos_since=body.oos_since,
     )
     if asset is None:
         raise HTTPException(status_code=404, detail="asset not found")

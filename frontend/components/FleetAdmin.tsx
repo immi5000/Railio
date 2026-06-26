@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   createAsset,
   createHistoricalRecord,
@@ -11,11 +11,53 @@ import {
   updateHistoricalRecord,
 } from "@/lib/api";
 import type { Asset, HistoricalRecord, HistoricalTest } from "@/lib/contract";
+import {
+  inspectionStatuses,
+  mostUrgent,
+  oosDays,
+  STATE_COLOR,
+} from "@/lib/inspections";
 
 function fmtDate(d: string | null): string {
   if (!d) return "—";
   // Records store plain "YYYY-MM-DD" or ISO; show the date portion.
   return d.length > 10 ? d.slice(0, 10) : d;
+}
+
+const STATUS_FACETS = ["overdue", "due_soon", "oos", "in_service"] as const;
+const STATUS_LABELS: Record<string, string> = {
+  overdue: "Overdue",
+  due_soon: "Due soon",
+  oos: "Out of service",
+  in_service: "In service",
+};
+
+// Sidebar status dot: OOS units read danger; otherwise the most-urgent
+// inspection's state drives the color (overdue/due-soon/ok).
+function unitDotColor(a: Asset): string {
+  if (a.out_of_service) return "var(--dash-danger)";
+  return STATE_COLOR[mostUrgent(a).state];
+}
+
+// The set of status facets an asset matches, for the multi-select filter.
+function assetStatusKeys(a: Asset): Set<string> {
+  const keys = new Set<string>();
+  keys.add(a.out_of_service ? "oos" : "in_service");
+  const urgent = mostUrgent(a);
+  if (urgent.state === "overdue") keys.add("overdue");
+  if (urgent.state === "due_soon") keys.add("due_soon");
+  return keys;
+}
+
+function toggleInSet(
+  set: Set<string>,
+  setter: (s: Set<string>) => void,
+  value: string,
+) {
+  const next = new Set(set);
+  if (next.has(value)) next.delete(value);
+  else next.add(value);
+  setter(next);
 }
 
 export function FleetAdmin() {
@@ -25,85 +67,330 @@ export function FleetAdmin() {
   });
 
   const [selected, setSelected] = useState<number | null>(null);
+  // Off-canvas units drawer, mirroring the tickets workspace: open until a unit
+  // is picked, reopened via the "Open units" toggle.
+  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [selMarks, setSelMarks] = useState<Set<string>>(new Set());
+  const [selModels, setSelModels] = useState<Set<string>>(new Set());
+  const [selStatuses, setSelStatuses] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (selected == null && assets && assets.length > 0) {
-      setSelected(assets[0].id);
-    }
-  }, [assets, selected]);
+  function select(id: number) {
+    setSelected(id);
+    setDrawerOpen(false);
+  }
 
-  const selectedAsset = assets?.find((a) => a.id === selected) ?? null;
+  const allAssets = assets ?? [];
+  const selectedAsset = allAssets.find((a) => a.id === selected) ?? null;
   const unitModels = Array.from(
-    new Set((assets || []).map((a) => a.unit_model)),
+    new Set(allAssets.map((a) => a.unit_model)),
   ).sort();
+  const allMarks = Array.from(
+    new Set(allAssets.map((a) => a.reporting_mark)),
+  ).sort();
+
+  // Multi-select facets are OR within a facet, AND across facets; empty = all.
+  const visibleAssets = allAssets.filter(
+    (a) =>
+      (selMarks.size === 0 || selMarks.has(a.reporting_mark)) &&
+      (selModels.size === 0 || selModels.has(a.unit_model)) &&
+      (selStatuses.size === 0 ||
+        [...selStatuses].some((s) => assetStatusKeys(a).has(s))),
+  );
+
+  // Group the visible fleet by railroad (reporting mark) for sectioned display.
+  const groups = new Map<string, Asset[]>();
+  for (const a of visibleAssets) {
+    const arr = groups.get(a.reporting_mark) ?? [];
+    arr.push(a);
+    groups.set(a.reporting_mark, arr);
+  }
+  const groupEntries = Array.from(groups.entries()).sort((x, y) =>
+    x[0].localeCompare(y[0]),
+  );
 
   return (
     <div className="dash">
       <div className="dash-inner" style={{ paddingBottom: 64, gap: 0 }}>
-        <span className="sect-eyebrow">Admin · Fleet</span>
+        <button
+          type="button"
+          className="work-toggle dash-link"
+          onClick={() => setDrawerOpen(true)}
+        >
+          ← Open units
+        </button>
+        <span className="sect-eyebrow" style={{ marginTop: 10 }}>
+          Admin · Fleet
+        </span>
         <h1 className="h2" style={{ marginTop: 12 }}>
-          Fleet &amp; historical records
+          {selectedAsset
+            ? `${selectedAsset.reporting_mark} ${selectedAsset.road_number}`
+            : "Fleet & historical records"}
         </h1>
 
-        <div className="admin-split" style={{ marginTop: 24 }}>
-          <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              gap: 12,
-              marginBottom: 12,
-            }}
-          >
-            <h2 className="h4">Units</h2>
-            <span className="micro" style={{ color: "var(--dash-muted)" }}>
-              {(assets ?? []).length} unit
-              {(assets ?? []).length === 1 ? "" : "s"}
-            </span>
-          </div>
-          <AddUnitForm
-            unitModels={unitModels}
-            onAdded={(a) => setSelected(a.id)}
-          />
-          <div
-            style={{
-              border: "1px solid var(--dash-card-border)",
-              borderRadius: 14,
-              overflow: "hidden",
-              boxShadow: "0 1px 2px rgba(16, 24, 40, 0.04)",
-              background: "#fff",
-            }}
-          >
-            {assetsLoading && (
-              <div className="micro" style={{ padding: 12, color: "var(--dash-muted)" }}>
-                Loading fleet…
-              </div>
-            )}
-            {assets && assets.length === 0 && (
-              <div className="micro" style={{ padding: 12, color: "var(--dash-muted)" }}>
-                No units in this org.
-              </div>
-            )}
-            {(assets ?? []).map((a) => (
-              <UnitButton
-                key={a.id}
-                asset={a}
-                unitModels={unitModels}
-                active={a.id === selected}
-                onClick={() => setSelected(a.id)}
-              />
-            ))}
-          </div>
-          </div>
-
+        <div style={{ marginTop: 24 }}>
           {selectedAsset ? (
-            <HistoryTable asset={selectedAsset} />
+            <UnitDetail
+              key={selectedAsset.id}
+              asset={selectedAsset}
+              unitModels={unitModels}
+            />
           ) : (
-            <div className="card" style={{ color: "var(--dash-muted)" }}>
-              Select a unit.
+            <div className="dash-card work-placeholder">
+              Select a unit from the drawer to view details.
             </div>
           )}
         </div>
+      </div>
+
+      <FleetDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        unitModels={unitModels}
+        allMarks={allMarks}
+        selMarks={selMarks}
+        selModels={selModels}
+        selStatuses={selStatuses}
+        onToggleMark={(v) => toggleInSet(selMarks, setSelMarks, v)}
+        onToggleModel={(v) => toggleInSet(selModels, setSelModels, v)}
+        onToggleStatus={(v) => toggleInSet(selStatuses, setSelStatuses, v)}
+        assetsLoading={assetsLoading}
+        hasAssets={!!assets && allAssets.length > 0}
+        allCount={allAssets.length}
+        visibleCount={visibleAssets.length}
+        groupEntries={groupEntries}
+        selected={selected}
+        onSelect={select}
+        onAdded={(a) => select(a.id)}
+      />
+    </div>
+  );
+}
+
+function FleetDrawer({
+  open,
+  onClose,
+  unitModels,
+  allMarks,
+  selMarks,
+  selModels,
+  selStatuses,
+  onToggleMark,
+  onToggleModel,
+  onToggleStatus,
+  assetsLoading,
+  hasAssets,
+  allCount,
+  visibleCount,
+  groupEntries,
+  selected,
+  onSelect,
+  onAdded,
+}: {
+  open: boolean;
+  onClose: () => void;
+  unitModels: string[];
+  allMarks: string[];
+  selMarks: Set<string>;
+  selModels: Set<string>;
+  selStatuses: Set<string>;
+  onToggleMark: (v: string) => void;
+  onToggleModel: (v: string) => void;
+  onToggleStatus: (v: string) => void;
+  assetsLoading: boolean;
+  hasAssets: boolean;
+  allCount: number;
+  visibleCount: number;
+  groupEntries: [string, Asset[]][];
+  selected: number | null;
+  onSelect: (id: number) => void;
+  onAdded: (a: Asset) => void;
+}) {
+  return (
+    <>
+      {open && <div className="work-drawer-backdrop" onClick={onClose} />}
+      <aside className={`work-drawer${open ? " is-open" : ""}`} aria-hidden={!open}>
+        <div className="work-drawer-head">
+          <span className="work-drawer-title">
+            Units{" "}
+            <span style={{ color: "var(--dash-muted)" }}>
+              ·{" "}
+              {visibleCount === allCount
+                ? `${allCount}`
+                : `${visibleCount} of ${allCount}`}
+            </span>
+          </span>
+          <button
+            type="button"
+            className="work-drawer-close"
+            onClick={onClose}
+            aria-label="Close units drawer"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="work-drawer-list">
+          <AddUnitForm unitModels={unitModels} onAdded={onAdded} />
+          <FleetFilterBar
+            allMarks={allMarks}
+            allModels={unitModels}
+            selMarks={selMarks}
+            selModels={selModels}
+            selStatuses={selStatuses}
+            onToggleMark={onToggleMark}
+            onToggleModel={onToggleModel}
+            onToggleStatus={onToggleStatus}
+          />
+
+          {assetsLoading && (
+            <div className="work-drawer-loading">Loading fleet…</div>
+          )}
+          {!assetsLoading && !hasAssets && (
+            <div className="work-drawer-empty">No units in this org.</div>
+          )}
+          {!assetsLoading && hasAssets && visibleCount === 0 && (
+            <div className="work-drawer-empty">No units match the filters.</div>
+          )}
+          {groupEntries.map(([mark, units]) => (
+            <div key={mark} className="fleet-group">
+              <div className="fleet-group-label">
+                {mark} · {units.length}
+              </div>
+              {units.map((a) => (
+                <UnitButton
+                  key={a.id}
+                  asset={a}
+                  active={a.id === selected}
+                  onClick={() => onSelect(a.id)}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </aside>
+    </>
+  );
+}
+
+function FleetFilterBar({
+  allMarks,
+  allModels,
+  selMarks,
+  selModels,
+  selStatuses,
+  onToggleMark,
+  onToggleModel,
+  onToggleStatus,
+}: {
+  allMarks: string[];
+  allModels: string[];
+  selMarks: Set<string>;
+  selModels: Set<string>;
+  selStatuses: Set<string>;
+  onToggleMark: (v: string) => void;
+  onToggleModel: (v: string) => void;
+  onToggleStatus: (v: string) => void;
+}) {
+  // Only worth showing a facet when there's more than one thing to pick.
+  const showMarks = allMarks.length > 1;
+  const showModels = allModels.length > 1;
+  if (!showMarks && !showModels) {
+    return (
+      <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+        <FacetGroup
+          title="Status"
+          options={[...STATUS_FACETS]}
+          labels={STATUS_LABELS}
+          selected={selStatuses}
+          onToggle={onToggleStatus}
+        />
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+      {showMarks && (
+        <FacetGroup
+          title="Railroad"
+          options={allMarks}
+          selected={selMarks}
+          onToggle={onToggleMark}
+        />
+      )}
+      {showModels && (
+        <FacetGroup
+          title="Model"
+          options={allModels}
+          selected={selModels}
+          onToggle={onToggleModel}
+        />
+      )}
+      <FacetGroup
+        title="Status"
+        options={[...STATUS_FACETS]}
+        labels={STATUS_LABELS}
+        selected={selStatuses}
+        onToggle={onToggleStatus}
+      />
+    </div>
+  );
+}
+
+function FacetGroup({
+  title,
+  options,
+  selected,
+  onToggle,
+  labels,
+}: {
+  title: string;
+  options: string[];
+  selected: Set<string>;
+  onToggle: (v: string) => void;
+  labels?: Record<string, string>;
+}) {
+  if (options.length === 0) return null;
+  return (
+    <div>
+      <div
+        className="micro"
+        style={{
+          color: "var(--dash-faint)",
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+          marginBottom: 6,
+          fontFamily: '"IBM Plex Mono", monospace',
+        }}
+      >
+        {title}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {options.map((opt) => {
+          const on = selected.has(opt);
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onToggle(opt)}
+              className="micro"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "3px 9px",
+                borderRadius: 999,
+                cursor: "pointer",
+                border: `1px solid ${on ? "var(--dash-link)" : "var(--dash-border)"}`,
+                background: on ? "rgba(38, 131, 235, 0.08)" : "#fff",
+                color: on ? "var(--dash-link)" : "var(--dash-muted)",
+                fontFamily: '"IBM Plex Mono", monospace',
+              }}
+            >
+              <span style={{ width: 9, textAlign: "center" }}>{on ? "✓" : ""}</span>
+              {labels?.[opt] ?? opt}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -111,66 +398,232 @@ export function FleetAdmin() {
 
 function UnitButton({
   asset,
-  unitModels,
   active,
   onClick,
 }: {
   asset: Asset;
-  unitModels: string[];
   active: boolean;
   onClick: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-
-  if (editing) {
-    return (
-      <UnitEditForm
-        asset={asset}
-        unitModels={unitModels}
-        onDone={() => setEditing(false)}
-      />
-    );
-  }
-
   return (
-    <div
-      style={{
-        position: "relative",
-        borderBottom: "1px solid var(--dash-line)",
-        background: active ? "var(--dash-bg)" : "#fff",
-      }}
+    <button
+      type="button"
+      onClick={onClick}
+      className="work-ticket"
+      data-active={active}
     >
-      <button
-        type="button"
-        onClick={onClick}
+      <div
         style={{
-          display: "block",
-          width: "100%",
-          textAlign: "left",
-          padding: "12px 14px",
-          paddingRight: 52,
-          border: "none",
-          background: "transparent",
-          cursor: "pointer",
-          font: "inherit",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 8,
         }}
       >
-        <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 700, fontSize: 16 }}>
-          {asset.reporting_mark} {asset.road_number}
+        <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <span
+            className="fleet-dot"
+            style={{ background: unitDotColor(asset) }}
+            aria-hidden="true"
+          />
+          <span
+            style={{
+              fontFamily: '"IBM Plex Mono", monospace',
+              fontWeight: 700,
+              fontSize: 15,
+              color: "#000",
+            }}
+          >
+            {asset.reporting_mark} {asset.road_number}
+          </span>
+        </span>
+        {asset.out_of_service && (
+          <span
+            className="micro"
+            style={{
+              color: "var(--dash-danger)",
+              fontWeight: 600,
+              fontFamily: '"IBM Plex Mono", monospace',
+            }}
+          >
+            OOS
+          </span>
+        )}
+      </div>
+      <div className="dash-mono" style={{ color: "var(--dash-muted)", fontSize: 12 }}>
+        {asset.unit_model}
+      </div>
+    </button>
+  );
+}
+
+// Detail panel for the selected unit: identity + edit, the full periodic-
+// inspection breakdown (all three intervals), and the historical-records table.
+function UnitDetail({
+  asset,
+  unitModels,
+}: {
+  asset: Asset;
+  unitModels: string[];
+}) {
+  const [editing, setEditing] = useState(false);
+  const statuses = inspectionStatuses(asset);
+  const down = oosDays(asset);
+
+  return (
+    <div className="fleet-detail-layout">
+      <div className="fleet-detail-main">
+      {editing ? (
+        <UnitEditForm
+          asset={asset}
+          unitModels={unitModels}
+          onDone={() => setEditing(false)}
+        />
+      ) : (
+        <div className="dash-card" style={{ padding: "22px 28px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 16,
+            }}
+          >
+            <div>
+              <h2 className="dash-section-title">
+                {asset.reporting_mark} {asset.road_number}
+              </h2>
+              <p className="dash-section-sub" style={{ marginTop: 4 }}>
+                {asset.unit_model}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setEditing(true)}
+            >
+              Edit unit
+            </button>
+          </div>
+
+          <div
+            className="micro"
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 16,
+              marginTop: 14,
+              color: "var(--dash-muted)",
+            }}
+          >
+            <span>
+              In service:{" "}
+              <span style={{ color: "#000" }}>{fmtDate(asset.in_service_date)}</span>
+            </span>
+            <span>
+              Status:{" "}
+              {down !== null ? (
+                <span style={{ color: "var(--dash-danger)", fontWeight: 600 }}>
+                  Out of service · down {down}d
+                </span>
+              ) : (
+                <span style={{ color: "#000" }}>In service</span>
+              )}
+            </span>
+          </div>
+
+          <div className="fleet-insp">
+            {statuses.map((s) => (
+              <div key={s.key} className="fleet-insp-row">
+                <span className="fleet-insp-label">{s.label}</span>
+                <span style={{ color: STATE_COLOR[s.state] }}>
+                  {s.nextDue ? `Due ${fmtDate(s.nextDue)}` : "No inspection on file"}
+                  {s.state === "overdue"
+                    ? " · overdue"
+                    : s.state === "due_soon"
+                      ? " · due soon"
+                      : ""}
+                </span>
+                <span className="micro" style={{ color: "var(--dash-faint)" }}>
+                  last {fmtDate(s.last)}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="micro" style={{ color: "var(--dash-muted)", marginTop: 2 }}>
-          {asset.unit_model}
-        </div>
-      </button>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        onClick={() => setEditing(true)}
-        style={{ position: "absolute", top: 8, right: 8 }}
-      >
-        Edit
-      </button>
+      )}
+      </div>
+
+      <div className="fleet-detail-history">
+        <HistoryTable asset={asset} />
+      </div>
     </div>
+  );
+}
+
+function InspectionFields({
+  last92,
+  setLast92,
+  last368,
+  setLast368,
+  last1104,
+  setLast1104,
+  oos,
+  setOos,
+  oosSince,
+  setOosSince,
+}: {
+  last92: string;
+  setLast92: (v: string) => void;
+  last368: string;
+  setLast368: (v: string) => void;
+  last1104: string;
+  setLast1104: (v: string) => void;
+  oos: boolean;
+  setOos: (v: boolean) => void;
+  oosSince: string;
+  setOosSince: (v: string) => void;
+}) {
+  return (
+    <>
+      <input
+        className="input"
+        placeholder="Last 92-day inspection (YYYY-MM-DD)"
+        value={last92}
+        onChange={(e) => setLast92(e.target.value)}
+      />
+      <input
+        className="input"
+        placeholder="Last 368-day inspection (YYYY-MM-DD)"
+        value={last368}
+        onChange={(e) => setLast368(e.target.value)}
+      />
+      <input
+        className="input"
+        placeholder="Last 1104-day inspection (YYYY-MM-DD)"
+        value={last1104}
+        onChange={(e) => setLast1104(e.target.value)}
+      />
+      <label
+        className="micro"
+        style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--dash-muted)" }}
+      >
+        <input
+          type="checkbox"
+          checked={oos}
+          onChange={(e) => setOos(e.target.checked)}
+        />
+        Out of service
+      </label>
+      {oos && (
+        <input
+          className="input"
+          placeholder="OOS since (YYYY-MM-DD)"
+          value={oosSince}
+          onChange={(e) => setOosSince(e.target.value)}
+        />
+      )}
+    </>
   );
 }
 
@@ -188,9 +641,11 @@ function UnitEditForm({
   const [roadNumber, setRoadNumber] = useState(asset.road_number);
   const [unitModel, setUnitModel] = useState(asset.unit_model);
   const [inService, setInService] = useState(asset.in_service_date ?? "");
-  const [lastInspection, setLastInspection] = useState(
-    asset.last_inspection_at ?? "",
-  );
+  const [last92, setLast92] = useState(asset.last_92_day_at ?? "");
+  const [last368, setLast368] = useState(asset.last_368_day_at ?? "");
+  const [last1104, setLast1104] = useState(asset.last_1104_day_at ?? "");
+  const [outOfService, setOutOfService] = useState(asset.out_of_service);
+  const [oosSince, setOosSince] = useState(asset.oos_since ?? "");
 
   const mut = useMutation({
     mutationFn: () =>
@@ -199,7 +654,11 @@ function UnitEditForm({
         road_number: roadNumber.trim(),
         unit_model: unitModel.trim(),
         in_service_date: inService.trim() || null,
-        last_inspection_at: lastInspection.trim() || null,
+        last_92_day_at: last92.trim() || null,
+        last_368_day_at: last368.trim() || null,
+        last_1104_day_at: last1104.trim() || null,
+        out_of_service: outOfService,
+        oos_since: outOfService ? oosSince.trim() || null : null,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["assets"] });
@@ -254,11 +713,17 @@ function UnitEditForm({
         value={inService}
         onChange={(e) => setInService(e.target.value)}
       />
-      <input
-        className="input"
-        placeholder="Last inspection (YYYY-MM-DD)"
-        value={lastInspection}
-        onChange={(e) => setLastInspection(e.target.value)}
+      <InspectionFields
+        last92={last92}
+        setLast92={setLast92}
+        last368={last368}
+        setLast368={setLast368}
+        last1104={last1104}
+        setLast1104={setLast1104}
+        oos={outOfService}
+        setOos={setOutOfService}
+        oosSince={oosSince}
+        setOosSince={setOosSince}
       />
       {mut.error && (
         <span className="micro" style={{ color: "#c0392b" }}>
@@ -302,9 +767,7 @@ function HistoryTable({ asset }: { asset: Asset }) {
           marginBottom: 12,
         }}
       >
-        <h2 className="h4">
-          {asset.reporting_mark} {asset.road_number} · {asset.unit_model}
-        </h2>
+        <h2 className="h4">History</h2>
         <span className="micro" style={{ color: "var(--dash-muted)" }}>
           {data?.length ?? 0} record{(data?.length ?? 0) === 1 ? "" : "s"}
         </span>
@@ -603,7 +1066,11 @@ function AddUnitForm({
   const [roadNumber, setRoadNumber] = useState("");
   const [unitModel, setUnitModel] = useState("");
   const [inService, setInService] = useState("");
-  const [lastInspection, setLastInspection] = useState("");
+  const [last92, setLast92] = useState("");
+  const [last368, setLast368] = useState("");
+  const [last1104, setLast1104] = useState("");
+  const [outOfService, setOutOfService] = useState(false);
+  const [oosSince, setOosSince] = useState("");
 
   const mut = useMutation({
     mutationFn: () =>
@@ -612,7 +1079,11 @@ function AddUnitForm({
         road_number: roadNumber.trim(),
         unit_model: unitModel.trim(),
         in_service_date: inService.trim() || undefined,
-        last_inspection_at: lastInspection.trim() || undefined,
+        last_92_day_at: last92.trim() || undefined,
+        last_368_day_at: last368.trim() || undefined,
+        last_1104_day_at: last1104.trim() || undefined,
+        out_of_service: outOfService,
+        oos_since: outOfService ? oosSince.trim() || undefined : undefined,
       }),
     onSuccess: (a) => {
       qc.invalidateQueries({ queryKey: ["assets"] });
@@ -623,7 +1094,11 @@ function AddUnitForm({
       setRoadNumber("");
       setUnitModel("");
       setInService("");
-      setLastInspection("");
+      setLast92("");
+      setLast368("");
+      setLast1104("");
+      setOutOfService(false);
+      setOosSince("");
       setOpen(false);
     },
   });
@@ -679,11 +1154,17 @@ function AddUnitForm({
         value={inService}
         onChange={(e) => setInService(e.target.value)}
       />
-      <input
-        className="input"
-        placeholder="Last inspection (YYYY-MM-DD)"
-        value={lastInspection}
-        onChange={(e) => setLastInspection(e.target.value)}
+      <InspectionFields
+        last92={last92}
+        setLast92={setLast92}
+        last368={last368}
+        setLast368={setLast368}
+        last1104={last1104}
+        setLast1104={setLast1104}
+        oos={outOfService}
+        setOos={setOutOfService}
+        oosSince={oosSince}
+        setOosSince={setOosSince}
       />
       {mut.error && (
         <span className="micro" style={{ color: "#c0392b" }}>

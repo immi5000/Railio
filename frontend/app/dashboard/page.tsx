@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { listTickets, listAssets, getMe, listOrgMembers } from "@/lib/api";
 import type { TicketStatus, Asset, Ticket } from "@/lib/contract";
+import { mostUrgent, oosDays, STATE_COLOR } from "@/lib/inspections";
 
 // Status dot color, mirroring the Figma legend:
 // awaiting tech = amber, in progress = blue, awaiting review = gray, closed = green.
@@ -337,7 +338,8 @@ export default function DashboardPage() {
                 <span className="dash-th">Unit</span>
                 <span className="dash-th">Model</span>
                 <span className="dash-th dash-hide-sm">In service</span>
-                <span className="dash-th dash-hide-sm">Last insp.</span>
+                <span className="dash-th dash-hide-sm">Next due</span>
+                <span className="dash-th dash-hide-sm">Status</span>
                 <span className="dash-th" style={{ textAlign: "right" }}>
                   Open
                 </span>
@@ -351,6 +353,8 @@ export default function DashboardPage() {
 
               {assets.map((a, i) => {
                 const openCount = openByAsset.get(a.id) ?? 0;
+                const urgent = mostUrgent(a);
+                const down = oosDays(a);
                 return (
                   <Link
                     key={a.id}
@@ -366,7 +370,27 @@ export default function DashboardPage() {
                     </span>
                     <span className="dash-data">{a.unit_model}</span>
                     <span className="dash-data dash-hide-sm">{fmtDate(a.in_service_date)}</span>
-                    <span className="dash-data dash-hide-sm">{fmtDate(a.last_inspection_at)}</span>
+                    <span
+                      className="dash-data dash-hide-sm"
+                      style={{ color: STATE_COLOR[urgent.state] }}
+                    >
+                      {urgent.nextDue
+                        ? `${urgent.label}: ${fmtDate(urgent.nextDue)}`
+                        : "—"}
+                    </span>
+                    <span className="dash-data dash-hide-sm">
+                      {down !== null ? (
+                        <span style={{ color: "var(--dash-danger)" }}>
+                          Down {down}d
+                        </span>
+                      ) : urgent.state === "overdue" ? (
+                        <span style={{ color: "var(--dash-danger)" }}>Overdue</span>
+                      ) : urgent.state === "due_soon" ? (
+                        <span style={{ color: "var(--dash-warn)" }}>Due soon</span>
+                      ) : (
+                        "In service"
+                      )}
+                    </span>
                     <span style={{ textAlign: "right" }}>
                       <span className="dash-count" data-on={openCount > 1}>
                         {openCount}

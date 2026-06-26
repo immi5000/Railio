@@ -198,6 +198,21 @@ _STATEMENTS = [
     "ALTER TABLE parts ADD COLUMN IF NOT EXISTS department text",
     "ALTER TABLE parts ADD COLUMN IF NOT EXISTS subsidiary text",
     "ALTER TABLE parts ADD COLUMN IF NOT EXISTS inv_class text",
+    # === Assets: FRA periodic inspections (49 CFR §229.23) + out-of-service ===
+    # The single last_inspection_at date is replaced by the three FRA periodic
+    # intervals; next-due/overdue is computed (not stored). out_of_service +
+    # oos_since track downtime so the fleet shows how long a unit has been down.
+    "ALTER TABLE assets ADD COLUMN IF NOT EXISTS last_92_day_at text",
+    "ALTER TABLE assets ADD COLUMN IF NOT EXISTS last_368_day_at text",
+    "ALTER TABLE assets ADD COLUMN IF NOT EXISTS last_1104_day_at text",
+    "ALTER TABLE assets ADD COLUMN IF NOT EXISTS out_of_service boolean NOT NULL DEFAULT false",
+    "ALTER TABLE assets ADD COLUMN IF NOT EXISTS oos_since text",
+    # Fold the old single inspection date into the 92-day baseline before dropping it.
+    """
+    UPDATE assets SET last_92_day_at = last_inspection_at
+    WHERE last_92_day_at IS NULL AND last_inspection_at IS NOT NULL
+    """,
+    "ALTER TABLE assets DROP COLUMN IF EXISTS last_inspection_at",
     # === Auth (Supabase) ===
     # One membership row per Supabase auth user, keyed on the JWT `sub`. Created
     # at first login by get_or_provision_user (domain-map / allowlist → org). This

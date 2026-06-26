@@ -7,7 +7,9 @@ Folder layout (everything except org.json is optional):
 
     backend/org-data/<slug>/
       org.json              {"name": "...", "slug": "..."}            (required)
-      assets.json           [{reporting_mark, road_number, unit_model, ...}]
+      assets.json           [{reporting_mark, road_number, unit_model,
+                               in_service_date?, last_92_day_at?, last_368_day_at?,
+                               last_1104_day_at?, out_of_service?, oos_since?}]
       parts.json            [{part_number, name, compatible_units, ...}]  (org-exclusive)
       corpus/*.json         each file an array of corpus chunks:
                               {doc_class, doc_id, doc_title, source_label,
@@ -192,8 +194,9 @@ async def main() -> None:
                     text(
                         """
                         INSERT INTO assets (org_id, reporting_mark, road_number, unit_model,
-                                            in_service_date, last_inspection_at)
-                        VALUES (:org, :rm, :rn, :um, :in_svc, :last)
+                                            in_service_date, last_92_day_at, last_368_day_at,
+                                            last_1104_day_at, out_of_service, oos_since)
+                        VALUES (:org, :rm, :rn, :um, :in_svc, :l92, :l368, :l1104, :oos, :oos_since)
                         RETURNING id
                         """
                     ),
@@ -203,7 +206,11 @@ async def main() -> None:
                         "rn": a["road_number"],
                         "um": a["unit_model"],
                         "in_svc": a.get("in_service_date"),
-                        "last": a.get("last_inspection_at"),
+                        "l92": a.get("last_92_day_at"),
+                        "l368": a.get("last_368_day_at"),
+                        "l1104": a.get("last_1104_day_at"),
+                        "oos": bool(a.get("out_of_service", False)),
+                        "oos_since": a.get("oos_since"),
                     },
                 )
             ).scalar_one()

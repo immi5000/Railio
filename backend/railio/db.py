@@ -110,7 +110,11 @@ class Asset(Base):
     road_number = Column(Text, nullable=False)
     unit_model = Column(Text, nullable=False)
     in_service_date = Column(Text)
-    last_inspection_at = Column(Text)
+    last_92_day_at = Column(Text)
+    last_368_day_at = Column(Text)
+    last_1104_day_at = Column(Text)
+    out_of_service = Column(Boolean, nullable=False, server_default="false")
+    oos_since = Column(Text)
 
 
 class Ticket(Base):

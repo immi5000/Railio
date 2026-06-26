@@ -8,7 +8,6 @@ from .lookup_parts import lookup_parts
 from .parse_fault_dump import parse_fault_dump
 from .record_part_used import record_part_used
 from .search_corpus import search_corpus
-from .set_ticket_status import set_ticket_status
 from .show_figure import show_figure
 
 # OpenAI Chat Completions tool definitions (function calling).
@@ -44,15 +43,14 @@ TOOL_DEFS: list[dict[str, Any]] = [
             "description": (
                 "Parse a raw locomotive diagnostic dump into structured "
                 "{code, ts, severity, description}[]. Persists to tickets.fault_dump_parsed. "
-                "Call once on dispatcher intake."
+                "Call once on dispatcher intake. The ticket is bound by the runtime."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "ticket_id": {"type": "number"},
                     "raw_text": {"type": "string"},
                 },
-                "required": ["ticket_id", "raw_text"],
+                "required": ["raw_text"],
             },
         },
     },
@@ -132,34 +130,16 @@ TOOL_DEFS: list[dict[str, Any]] = [
             "name": "record_part_used",
             "description": (
                 "Record a part as used on this repair. Writes to ticket_parts so the "
-                "sidebar and parts history reflect what the tech consumed."
+                "sidebar and parts history reflect what the tech consumed. The ticket is "
+                "bound by the runtime — pass only the part_id (from lookup_parts) and qty."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "ticket_id": {"type": "number"},
                     "part_id": {"type": "number"},
                     "qty": {"type": "number"},
                 },
-                "required": ["ticket_id", "part_id", "qty"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "set_ticket_status",
-            "description": "Update the ticket lifecycle. Limited to legal transitions.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "ticket_id": {"type": "number"},
-                    "status": {
-                        "type": "string",
-                        "enum": ["AWAITING_TECH", "IN_PROGRESS", "AWAITING_REVIEW", "CLOSED"],
-                    },
-                },
-                "required": ["ticket_id", "status"],
+                "required": ["part_id", "qty"],
             },
         },
     },
@@ -188,7 +168,11 @@ async def execute_tool(
             args["asset_id"] = scope.get("asset_id")
         return await search_corpus(**args)
     if name == "parse_fault_dump":
-        return await parse_fault_dump(**inp)
+        # ticket_id is bound by the runtime — the model never picks which ticket.
+        args = {k: v for k, v in inp.items() if k != "ticket_id"}
+        if scope:
+            args["ticket_id"] = scope.get("ticket_id")
+        return await parse_fault_dump(**args)
     if name == "request_photo":
         emit(
             {
@@ -221,12 +205,13 @@ async def execute_tool(
             args["org_id"] = scope.get("org_id")
         return await lookup_parts(**args)
     if name == "record_part_used":
-        args = {k: v for k, v in inp.items() if k != "org_id"}
+        # org_id + ticket_id are bound by the runtime — the model supplies only
+        # part_id and qty (it never sees the numeric ticket_id).
+        args = {k: v for k, v in inp.items() if k not in ("org_id", "ticket_id")}
         if scope:
             args["org_id"] = scope.get("org_id")
+            args["ticket_id"] = scope.get("ticket_id")
         return await record_part_used(emit=emit, **args)
-    if name == "set_ticket_status":
-        return await set_ticket_status(**inp)
     return {"error": f"unknown tool: {name}"}
 
 
