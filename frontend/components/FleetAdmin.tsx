@@ -24,11 +24,40 @@ function fmtDate(d: string | null): string {
   return d.length > 10 ? d.slice(0, 10) : d;
 }
 
+const STATUS_FACETS = ["overdue", "due_soon", "oos", "in_service"] as const;
+const STATUS_LABELS: Record<string, string> = {
+  overdue: "Overdue",
+  due_soon: "Due soon",
+  oos: "Out of service",
+  in_service: "In service",
+};
+
 // Unit-card status dot: OOS units read danger; otherwise the most-urgent
 // inspection's state drives the color (overdue/due-soon/ok).
 function unitDotColor(a: Asset): string {
   if (a.out_of_service) return "var(--dash-danger)";
   return STATE_COLOR[mostUrgent(a).state];
+}
+
+// The set of status facets an asset matches, for the multi-select filter.
+function assetStatusKeys(a: Asset): Set<string> {
+  const keys = new Set<string>();
+  keys.add(a.out_of_service ? "oos" : "in_service");
+  const urgent = mostUrgent(a);
+  if (urgent.state === "overdue") keys.add("overdue");
+  if (urgent.state === "due_soon") keys.add("due_soon");
+  return keys;
+}
+
+function toggleInSet(
+  set: Set<string>,
+  setter: (s: Set<string>) => void,
+  value: string,
+) {
+  const next = new Set(set);
+  if (next.has(value)) next.delete(value);
+  else next.add(value);
+  setter(next);
 }
 
 export function FleetAdmin() {
@@ -38,12 +67,38 @@ export function FleetAdmin() {
   });
 
   const [selected, setSelected] = useState<number | null>(null);
+  const [selMarks, setSelMarks] = useState<Set<string>>(new Set());
+  const [selModels, setSelModels] = useState<Set<string>>(new Set());
+  const [selStatuses, setSelStatuses] = useState<Set<string>>(new Set());
 
   const allAssets = assets ?? [];
   const selectedAsset = allAssets.find((a) => a.id === selected) ?? null;
   const unitModels = Array.from(
     new Set(allAssets.map((a) => a.unit_model)),
   ).sort();
+  const allMarks = Array.from(
+    new Set(allAssets.map((a) => a.reporting_mark)),
+  ).sort();
+
+  // Multi-select facets are OR within a facet, AND across facets; empty = all.
+  const visibleAssets = allAssets.filter(
+    (a) =>
+      (selMarks.size === 0 || selMarks.has(a.reporting_mark)) &&
+      (selModels.size === 0 || selModels.has(a.unit_model)) &&
+      (selStatuses.size === 0 ||
+        [...selStatuses].some((s) => assetStatusKeys(a).has(s))),
+  );
+
+  // Group the visible fleet by railroad (reporting mark) for sectioned display.
+  const groups = new Map<string, Asset[]>();
+  for (const a of visibleAssets) {
+    const arr = groups.get(a.reporting_mark) ?? [];
+    arr.push(a);
+    groups.set(a.reporting_mark, arr);
+  }
+  const groupEntries = Array.from(groups.entries()).sort((x, y) =>
+    x[0].localeCompare(y[0]),
+  );
 
   return (
     <div className="dash">
@@ -53,7 +108,18 @@ export function FleetAdmin() {
           Fleet &amp; historical records
         </h1>
 
-        <div className="admin-split" style={{ marginTop: 24 }}>
+        <FleetFilterBar
+          allMarks={allMarks}
+          allModels={unitModels}
+          selMarks={selMarks}
+          selModels={selModels}
+          selStatuses={selStatuses}
+          onToggleMark={(v) => toggleInSet(selMarks, setSelMarks, v)}
+          onToggleModel={(v) => toggleInSet(selModels, setSelModels, v)}
+          onToggleStatus={(v) => toggleInSet(selStatuses, setSelStatuses, v)}
+        />
+
+        <div className="admin-split" style={{ marginTop: 8 }}>
           <div>
             <div
               style={{
@@ -65,7 +131,9 @@ export function FleetAdmin() {
             >
               <h2 className="h4">Units</h2>
               <span className="micro" style={{ color: "var(--dash-link)" }}>
-                {allAssets.length}
+                {visibleAssets.length === allAssets.length
+                  ? allAssets.length
+                  : `${visibleAssets.length} of ${allAssets.length}`}
               </span>
             </div>
             <AddUnitForm
@@ -83,35 +151,167 @@ export function FleetAdmin() {
                   No units in this org.
                 </div>
               )}
-              {allAssets.map((a) => (
-                <UnitButton
-                  key={a.id}
-                  asset={a}
-                  active={a.id === selected}
-                  onClick={() => setSelected(a.id)}
-                />
+              {assets && allAssets.length > 0 && visibleAssets.length === 0 && (
+                <div className="micro" style={{ padding: 12, color: "var(--dash-muted)" }}>
+                  No units match the filters.
+                </div>
+              )}
+              {groupEntries.map(([mark, units]) => (
+                <div key={mark} className="fleet-group">
+                  <div className="fleet-group-label">
+                    {mark} · {units.length}
+                  </div>
+                  {units.map((a) => (
+                    <UnitButton
+                      key={a.id}
+                      asset={a}
+                      active={a.id === selected}
+                      onClick={() => setSelected(a.id)}
+                    />
+                  ))}
+                </div>
               ))}
             </div>
           </div>
 
-          {selectedAsset ? (
-            <UnitDetail
-              key={selectedAsset.id}
-              asset={selectedAsset}
-              unitModels={unitModels}
-            />
-          ) : (
-            // Offset by the left column's "Units" header height (.h4 ~22px +
-            // 12px margin) so the placeholder's top edge lines up with the
-            // "+ Add unit" button rather than the section header.
-            <div
-              className="dash-card work-placeholder"
-              style={{ marginTop: 34 }}
-            >
-              Select a unit to view details.
-            </div>
-          )}
+          {/* Offset by the left column's "Units" header height (.h4 ~22px +
+              12px margin) so the right column's top edge lines up with the
+              "+ Add unit" button rather than the section header — whether a
+              unit is selected (detail) or not (placeholder). */}
+          <div style={{ marginTop: 34 }}>
+            {selectedAsset ? (
+              <UnitDetail
+                key={selectedAsset.id}
+                asset={selectedAsset}
+                unitModels={unitModels}
+              />
+            ) : (
+              <div className="dash-card work-placeholder">
+                Select a unit to view details.
+              </div>
+            )}
+          </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Full-width filter bar above the units list + detail. Facet groups sit side
+// by side and wrap; each facet is only shown when there's more than one option
+// to pick (Railroad/Model), Status always shows.
+function FleetFilterBar({
+  allMarks,
+  allModels,
+  selMarks,
+  selModels,
+  selStatuses,
+  onToggleMark,
+  onToggleModel,
+  onToggleStatus,
+}: {
+  allMarks: string[];
+  allModels: string[];
+  selMarks: Set<string>;
+  selModels: Set<string>;
+  selStatuses: Set<string>;
+  onToggleMark: (v: string) => void;
+  onToggleModel: (v: string) => void;
+  onToggleStatus: (v: string) => void;
+}) {
+  const showMarks = allMarks.length > 1;
+  const showModels = allModels.length > 1;
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "12px 32px",
+        marginTop: 20,
+      }}
+    >
+      {showMarks && (
+        <FacetGroup
+          title="Railroad"
+          options={allMarks}
+          selected={selMarks}
+          onToggle={onToggleMark}
+        />
+      )}
+      {showModels && (
+        <FacetGroup
+          title="Model"
+          options={allModels}
+          selected={selModels}
+          onToggle={onToggleModel}
+        />
+      )}
+      <FacetGroup
+        title="Status"
+        options={[...STATUS_FACETS]}
+        labels={STATUS_LABELS}
+        selected={selStatuses}
+        onToggle={onToggleStatus}
+      />
+    </div>
+  );
+}
+
+function FacetGroup({
+  title,
+  options,
+  selected,
+  onToggle,
+  labels,
+}: {
+  title: string;
+  options: string[];
+  selected: Set<string>;
+  onToggle: (v: string) => void;
+  labels?: Record<string, string>;
+}) {
+  if (options.length === 0) return null;
+  return (
+    <div>
+      <div
+        className="micro"
+        style={{
+          color: "var(--dash-faint)",
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+          marginBottom: 6,
+          fontFamily: '"IBM Plex Mono", monospace',
+        }}
+      >
+        {title}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {options.map((opt) => {
+          const on = selected.has(opt);
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onToggle(opt)}
+              className="micro"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "3px 9px",
+                borderRadius: 999,
+                cursor: "pointer",
+                border: `1px solid ${on ? "var(--dash-link)" : "var(--dash-border)"}`,
+                background: on ? "rgba(38, 131, 235, 0.08)" : "#fff",
+                color: on ? "var(--dash-link)" : "var(--dash-muted)",
+                fontFamily: '"IBM Plex Mono", monospace',
+              }}
+            >
+              <span style={{ width: 9, textAlign: "center" }}>{on ? "✓" : ""}</span>
+              {labels?.[opt] ?? opt}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
