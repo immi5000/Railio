@@ -117,7 +117,9 @@ export function ChatPane({
 
     setError(null);
     setStreaming(true);
-    setLive({ text: "", citations: [], toolCalls: [], requestPhoto: null, figures: [], suggestions: [] });
+    // The "Railio is thinking" live bubble is deferred until the user's own
+    // message is persisted (see handleEvent → user_message_persisted) so it
+    // appears below the user bubble, not before it.
 
     const body = {
       role,
@@ -194,18 +196,36 @@ export function ChatPane({
     }
   }
 
+  // Write a persisted message straight into the cache (deduped by id) instead of
+  // refetching. The event already carries the authoritative Message (citations +
+  // tool_calls), so this closes the gap that otherwise let a message vanish
+  // between setLive(null) and the refetch landing.
+  function appendMessage(m: Message) {
+    qc.setQueryData<TicketDetail>(["ticket", ticketId], (old) =>
+      old && !old.messages.some((x) => x.id === m.id)
+        ? { ...old, messages: [...old.messages, m] }
+        : old,
+    );
+  }
+
   function handleEvent(ev: StreamEvent) {
     switch (ev.type) {
       case "user_message_persisted":
+        // Append the user bubble and reveal the thinking bubble in the same
+        // batched render, so "Railio is thinking" shows directly below the
+        // user's message rather than ahead of it.
+        appendMessage(ev.message);
+        setLive({ text: "", citations: [], toolCalls: [], requestPhoto: null, figures: [], suggestions: [] });
+        break;
       case "assistant_message_persisted":
-        // Invalidate so every observer (status pill, Start/Close buttons,
-        // queue badges) picks up authoritative server state — citations,
-        // hash, tool_calls, status, pre-arrival summary, etc.
-        qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
-        if (ev.type === "assistant_message_persisted") {
-          qc.invalidateQueries({ queryKey: ["tickets"] });
-          setLive(null);
-        }
+        // Swap the live streaming bubble for the persisted one in a single
+        // batched render — no frame where the response is absent. The cache now
+        // holds the authoritative message, so no ["ticket"] refetch is needed
+        // (set_ticket_status invalidates ["ticket"] from its own branch when the
+        // status actually changes). Still refresh the inbox list/status pills.
+        appendMessage(ev.message);
+        setLive(null);
+        qc.invalidateQueries({ queryKey: ["tickets"] });
         break;
       case "assistant_token":
         setLive((prev) =>
@@ -487,7 +507,7 @@ export function ChatPane({
             setDraft(e.target.value);
           }}
           onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               send();
             }
