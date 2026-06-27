@@ -81,28 +81,29 @@ function SignInInner() {
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 8,
-            fontWeight: 800,
-            fontSize: 22,
-            marginBottom: 8,
+            gap: 10,
+            fontFamily: '"Inter", "Helvetica Neue", Arial, sans-serif',
+            fontWeight: 700,
+            fontSize: 34,
+            letterSpacing: "-0.06em",
+            textTransform: "none",
+            color: "#000",
+            marginBottom: 28,
           }}
         >
-          <span className="mk">
+          <span
+            className="mk"
+            style={
+              {
+                "--mark-size": "28px",
+                "--mark-stroke": "4.4px",
+              } as React.CSSProperties
+            }
+          >
             <i />
           </span>
           Railio
         </a>
-        <h1
-          style={{
-            fontFamily: '"Inter", sans-serif',
-            fontSize: 24,
-            fontWeight: 400,
-            letterSpacing: "-0.02em",
-            margin: "16px 0 6px",
-          }}
-        >
-          {isSignup ? "Create your account" : "Log in"}
-        </h1>
         <p
           style={{
             fontFamily: '"Source Serif 4", serif',

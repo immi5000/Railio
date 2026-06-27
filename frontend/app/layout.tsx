@@ -4,7 +4,7 @@ import { Providers } from "@/components/Providers";
 import { TopNav } from "@/components/TopNav";
 
 export const metadata: Metadata = {
-  title: "Railio — AI co-pilot for rail maintenance",
+  title: "Railio",
   description: "Voice-first diagnostics, repair guidance, and FRA paperwork.",
 };
 
