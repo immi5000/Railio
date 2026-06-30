@@ -2276,7 +2276,7 @@ button {
   font-size: clamp(18px, 2.4vw, 30px);
   line-height: 1.2;
   color: #6c6c6c;
-  margin: -3px 0 0;
+  margin: 2px 0 0;
 }
 /* Extra breathing room between the greeting and the first stats row, on top of
    the tight 14px .dash-inner gap used between the bento cards. */
