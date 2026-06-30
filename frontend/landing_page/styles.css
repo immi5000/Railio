@@ -45,7 +45,7 @@ button{font-family:inherit}
 @media (max-width:720px){ .wrap{padding:0 20px} }
 
 /* ── Type scale (Inter / Source Serif 4 / IBM Plex Mono), sentence case ── */
-.display{font-size:clamp(40px,6vw,76px);font-weight:400;line-height:0.88;letter-spacing:-0.03em;margin:0}
+.display{font-size:clamp(40px,6vw,76px);font-weight:400;line-height:1.05;letter-spacing:-0.03em;margin:0}
 .h1{font-size:clamp(32px,4vw,48px);font-weight:400;line-height:1.05;letter-spacing:-0.02em;margin:0}
 .h2{font-size:36px;font-weight:400;line-height:1.05;letter-spacing:-0.02em;margin:0}
 .h3{font-size:28px;font-weight:400;line-height:1.1;letter-spacing:-0.02em;margin:0}
@@ -349,7 +349,7 @@ footer{position:relative}
     radial-gradient(42% 68% at 18% 44%,rgba(244,245,247,.54) 0%,rgba(244,245,247,.2) 58%,rgba(244,245,247,0) 100%);
   filter:blur(34px);
 }
-.hero h1{margin:0 0 16px}
+.hero h1{margin:0 0 8px}
 .hero h1 .blue{background:none;padding:0}
 .hero .lede{margin:0 0 24px;max-width:54ch;font-size:clamp(18px,2.15vw,26px);line-height:1.25;color:#25292f;text-shadow:0 1px 12px rgba(244,245,247,.82)}
 
