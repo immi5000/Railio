@@ -1,3 +1,12 @@
-first_name,last_name,company,email,phone_number1,phone_number2linkedin_url
-Karun,Natarajan,test,karunnatarajan@gmail.com
-Jack,Black,jacktest,jackblackbean123@gmail.com
+first_name,last_name,company,email,peronal_email,phone_number1,phone_number2,linkedin_url
+Toby,Friend,Arkansas & Missouri Railroad,tobyf@amrailroad.com,,+1 417-312-0716,,https://www.linkedin.com/in/toby-friend-587324155/
+Patrick,O'Donnell,NY Susquehanna & Western,podonnell@nysw.com,,,,https://www.linkedin.com/in/patrick-o-donnell-898b84113/
+Alan,Held,NY Susquehanna & Western,aheld@nysw.com,,+1 845-741-5780,,https://www.linkedin.com/in/alan-held-4b16a88b/
+Ashton,Stasko,Iowa Interstate Railroad,astasko@iaisrr.com,,+1 404-545-0431,,https://www.linkedin.com/in/ashton-stasko-a212a1232/
+Chad,Lambi,Iowa Interstate Railroad,clambi@iaisrr.com,,+1 319-533-1862,,https://www.linkedin.com/in/chad-lambi-pe-6102074/
+David,Prindle,"Livonia, Avon & Lakeville",david.prindle@lalrr.com,,+1 585-624-4500,,https://www.linkedin.com/in/david-prindle/
+William,Strasser,"Livonia, Avon & Lakeville",william.strasser@lalrr.com,,+1 716-374-2820,,https://www.linkedin.com/in/williamstrasser/
+Spencer,Upchurch,Florida East Coast Railway,spencer.upchurch@fecrwy.com,,+1 313-870-7872,,https://www.linkedin.com/in/spencer-upchurch-ab60321b/
+Edward,Benton,Florida East Coast Railway,edward.benton@fecrwy.com,,+1 904-451-7134,+1 305-889-5641,https://www.linkedin.com/in/edward-benton-a21709143/
+Michael,Ladson,Indiana Rail Road Company,michael.ladson@inrd.com,,,,https://www.linkedin.com/in/michael-ladson-669943b8/
+Frank,Graves,Western New York & Pennsylvania Railroad,graves@wnyprr.com,,+1 207-350-5871,+1 207-319-7463,https://www.linkedin.com/in/frank-graves-0722948b/

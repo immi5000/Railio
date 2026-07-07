@@ -6,6 +6,7 @@ import type { Severity } from "@/lib/contract";
 import { formatDate } from "@/lib/format";
 import { ContextPanel, Empty } from "./ContextPanel";
 import { DeleteTicketButton } from "./DeleteTicketButton";
+import { ResetTicketButton } from "./ResetTicketButton";
 
 const SEV_ABBR: Record<Severity, string> = {
   critical: "crit",
@@ -43,6 +44,8 @@ export function IntakeContext({
     .map((c) => c.trim())
     .filter(Boolean);
   const faults = ticket.fault_dump_parsed || [];
+  const isPristine =
+    ticket.status === "AWAITING_TECH" && ticket.messages.length === 0;
 
   return (
     <>
@@ -109,7 +112,8 @@ export function IntakeContext({
         )}
       </ContextPanel>
 
-      <div className="wc-card">
+      <div className="wc-card" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <ResetTicketButton ticketId={ticketId} disabled={isPristine} block />
         <DeleteTicketButton ticketId={ticketId} onDeleted={onHandedOff} block />
       </div>
     </>

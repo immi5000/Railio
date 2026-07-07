@@ -5,21 +5,20 @@ import { useState } from "react";
 import { resetTicket } from "@/lib/api";
 
 /**
- * Two-step demo button: click once to arm ("Reset"), click "Yes, reset" to
- * fire `POST /api/tickets/:id/reset`. Wipes the chat and restores the ticket's
- * original state. Disabled (grayed out) when the ticket is already pristine.
+ * Two-step reset button (sibling of DeleteTicketButton): click once to arm
+ * ("Reset ticket"), click "Yes, reset" to fire `POST /api/tickets/:id/reset`.
+ * Wipes the chat and restores the ticket's original AWAITING_TECH state.
+ * Disabled (grayed out) when the ticket is already pristine.
  */
 export function ResetTicketButton({
   ticketId,
   disabled = false,
-  size = "sm",
-  variant = "ghost",
-  label = "Reset",
+  block = false,
+  label = "Reset ticket",
 }: {
   ticketId: string;
   disabled?: boolean;
-  size?: "sm" | "md";
-  variant?: "ghost" | "primary";
+  block?: boolean;
   label?: string;
 }) {
   const qc = useQueryClient();
@@ -34,13 +33,13 @@ export function ResetTicketButton({
     },
   });
 
-  const baseClass = `btn btn-${variant}${size === "sm" ? " btn-sm" : ""}`;
+  const blockClass = block ? " dash-danger-btn--block" : "";
 
   if (disabled) {
     return (
       <button
         type="button"
-        className={baseClass}
+        className={`dash-danger-btn${blockClass}`}
         disabled
         onClick={(e) => {
           e.preventDefault();
@@ -57,7 +56,7 @@ export function ResetTicketButton({
     return (
       <button
         type="button"
-        className={baseClass}
+        className={`dash-danger-btn${blockClass}`}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -71,13 +70,11 @@ export function ResetTicketButton({
   }
 
   return (
-    <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-      <span className="micro" style={{ color: "var(--muted)" }}>
-        Reset chat?
-      </span>
+    <div className="dash-delete-confirm">
+      <span className="dash-delete-confirm-text">Reset chat?</span>
       <button
         type="button"
-        className={`btn btn-super${size === "sm" ? " btn-sm" : ""}`}
+        className={`dash-danger-btn dash-danger-btn--confirm${blockClass}`}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -89,7 +86,7 @@ export function ResetTicketButton({
       </button>
       <button
         type="button"
-        className={`btn btn-ghost${size === "sm" ? " btn-sm" : ""}`}
+        className="dash-danger-btn dash-danger-btn--cancel"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -100,10 +97,10 @@ export function ResetTicketButton({
         Cancel
       </button>
       {mut.error && (
-        <span style={{ color: "#8a1f15", fontSize: 11 }}>
+        <span style={{ color: "#8a1f15", fontSize: 12, width: "100%" }}>
           {(mut.error as Error).message}
         </span>
       )}
-    </span>
+    </div>
   );
 }
