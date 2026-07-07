@@ -60,7 +60,7 @@ export function ChatPane({
     queryFn: () => getTicket(ticketId),
   });
 
-  const messages: Message[] = data?.messages || [];
+  const messages: Message[] = useMemo(() => data?.messages || [], [data?.messages]);
 
   const [draft, setDraft] = useState("");
   const [interim, setInterim] = useState("");
@@ -80,13 +80,38 @@ export function ChatPane({
   const listRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Whether the user is scrolled to (near) the bottom of the chat. We only
+  // auto-scroll when this is true, so scrolling up to read history — or the
+  // composer growing/shrinking as you type — never yanks the view around.
+  const atBottomRef = useRef(true);
 
-  // Auto-scroll on new content
+  // Track whether the view is pinned to the bottom. A small threshold treats
+  // "close enough" as bottom so streaming text and rounding don't unstick it.
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages.length, live?.text]);
+    const onScroll = () => {
+      atBottomRef.current =
+        el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Auto-scroll to the latest content whenever the conversation grows: a new
+  // message is sent/received or the live "thinking" bubble streams text/tool
+  // calls/figures. Only pin to the bottom when the user is already there, so
+  // reading history is never interrupted. rAF defers the scroll until after the
+  // browser has laid out the freshly rendered content so scrollHeight is
+  // accurate (images/figures can render taller than the initial commit).
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || !atBottomRef.current) return;
+    const id = requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [messages, live, pending.length, streaming]);
 
   // Toast auto-dismiss
   useEffect(() => {
@@ -397,8 +422,27 @@ export function ChatPane({
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
+    const prev = el.style.height;
+    // Measure the content height. Resetting to "auto" lets scrollHeight shrink
+    // back down when text is deleted; we restore the prior height immediately
+    // if it turns out unchanged so no reflow is committed.
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    const next = `${Math.min(el.scrollHeight, 120)}px`;
+    if (next === prev) {
+      // Same height as before — typing within the current line count. Restore
+      // and bail without touching layout, so the message bubbles above don't
+      // jump on every keystroke.
+      el.style.height = prev;
+      return;
+    }
+    el.style.height = next;
+    // The composer's height actually changed, which resizes the message list.
+    // If the user was reading the latest message, re-pin to the bottom so the
+    // content above the input doesn't appear to jump.
+    const list = listRef.current;
+    if (list && atBottomRef.current) {
+      list.scrollTop = list.scrollHeight;
+    }
   }, [composerValue]);
 
   return (
