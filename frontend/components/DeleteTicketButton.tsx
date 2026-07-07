@@ -54,7 +54,6 @@ export function DeleteTicketButton({
 
   return (
     <div className="dash-delete-confirm">
-      <span className="dash-delete-confirm-text">Delete this ticket forever?</span>
       <button
         type="button"
         className={`dash-danger-btn dash-danger-btn--confirm${blockClass}`}
@@ -65,7 +64,7 @@ export function DeleteTicketButton({
         }}
         disabled={mut.isPending}
       >
-        {mut.isPending ? "Deleting…" : "Yes, delete"}
+        {mut.isPending ? "Deleting…" : "Confirm Delete"}
       </button>
       <button
         type="button"

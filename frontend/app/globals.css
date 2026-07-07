@@ -2489,12 +2489,6 @@ button {
   gap: 8px;
   width: 100%;
 }
-.dash-delete-confirm-text {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
-  color: #8a1f15;
-  width: 100%;
-}
 
 /* Summary stat row */
 .dash-stats {

@@ -71,7 +71,6 @@ export function ResetTicketButton({
 
   return (
     <div className="dash-delete-confirm">
-      <span className="dash-delete-confirm-text">Reset chat?</span>
       <button
         type="button"
         className={`dash-danger-btn dash-danger-btn--confirm${blockClass}`}
@@ -82,7 +81,7 @@ export function ResetTicketButton({
         }}
         disabled={mut.isPending}
       >
-        {mut.isPending ? "Resetting…" : "Yes, reset"}
+        {mut.isPending ? "Resetting…" : "Confirm Reset"}
       </button>
       <button
         type="button"
