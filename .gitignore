@@ -28,6 +28,9 @@ node_modules/
 package-lock.json
 !frontend/package-lock.json
 
+# outreach script — kept local, not part of the app
+outreach/email_outreach.py
+
 # isolated admin ingestion tool — secrets + heavy outputs (the code is tracked,
 # but it must never enter the backend/frontend deploy contexts)
 railio-ingest/.env
@@ -35,3 +38,6 @@ railio-ingest/.env.*
 !railio-ingest/.env.example
 railio-ingest/out/
 railio-ingest/.venv/
+
+
+
