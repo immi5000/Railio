@@ -56,18 +56,6 @@ export function DeleteTicketButton({
     <div className="dash-delete-confirm">
       <button
         type="button"
-        className={`dash-danger-btn dash-danger-btn--confirm${blockClass}`}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          mut.mutate();
-        }}
-        disabled={mut.isPending}
-      >
-        {mut.isPending ? "Deleting…" : "Confirm Delete"}
-      </button>
-      <button
-        type="button"
         className="dash-danger-btn dash-danger-btn--cancel"
         onClick={(e) => {
           e.preventDefault();
@@ -77,6 +65,18 @@ export function DeleteTicketButton({
         disabled={mut.isPending}
       >
         Cancel
+      </button>
+      <button
+        type="button"
+        className="dash-danger-btn dash-danger-btn--confirm"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          mut.mutate();
+        }}
+        disabled={mut.isPending}
+      >
+        {mut.isPending ? "Deleting…" : "Confirm Delete"}
       </button>
       {mut.error && (
         <span style={{ color: "#8a1f15", fontSize: 12, width: "100%" }}>

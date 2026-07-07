@@ -6,9 +6,10 @@ import { resetTicket } from "@/lib/api";
 
 /**
  * Two-step reset button (sibling of DeleteTicketButton): click once to arm
- * ("Reset ticket"), click "Yes, reset" to fire `POST /api/tickets/:id/reset`.
- * Wipes the chat and restores the ticket's original AWAITING_TECH state.
- * Disabled (grayed out) when the ticket is already pristine.
+ * ("Reset ticket"), then Cancel (left) / Confirm Reset (right). Fires
+ * `POST /api/tickets/:id/reset`, wiping the chat and restoring the ticket to the
+ * state it was in when the dispatcher created it. Neutral (non-destructive)
+ * styling. Disabled (grayed out) when the ticket is already pristine.
  */
 export function ResetTicketButton({
   ticketId,
@@ -33,13 +34,13 @@ export function ResetTicketButton({
     },
   });
 
-  const blockClass = block ? " dash-danger-btn--block" : "";
+  const blockClass = block ? " dash-neutral-btn--block" : "";
 
   if (disabled) {
     return (
       <button
         type="button"
-        className={`dash-danger-btn${blockClass}`}
+        className={`dash-neutral-btn${blockClass}`}
         disabled
         onClick={(e) => {
           e.preventDefault();
@@ -56,13 +57,13 @@ export function ResetTicketButton({
     return (
       <button
         type="button"
-        className={`dash-danger-btn${blockClass}`}
+        className={`dash-neutral-btn${blockClass}`}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           setConfirming(true);
         }}
-        title="Wipe the chat and restore this ticket's original state"
+        title="Restore this ticket to the state it was in when it was created"
       >
         {label}
       </button>
@@ -73,19 +74,7 @@ export function ResetTicketButton({
     <div className="dash-delete-confirm">
       <button
         type="button"
-        className={`dash-danger-btn dash-danger-btn--confirm${blockClass}`}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          mut.mutate();
-        }}
-        disabled={mut.isPending}
-      >
-        {mut.isPending ? "Resetting…" : "Confirm Reset"}
-      </button>
-      <button
-        type="button"
-        className="dash-danger-btn dash-danger-btn--cancel"
+        className="dash-neutral-btn dash-neutral-btn--cancel"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -94,6 +83,18 @@ export function ResetTicketButton({
         disabled={mut.isPending}
       >
         Cancel
+      </button>
+      <button
+        type="button"
+        className="dash-neutral-btn dash-neutral-btn--confirm"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          mut.mutate();
+        }}
+        disabled={mut.isPending}
+      >
+        {mut.isPending ? "Resetting…" : "Confirm Reset"}
       </button>
       {mut.error && (
         <span style={{ color: "#8a1f15", fontSize: 12, width: "100%" }}>

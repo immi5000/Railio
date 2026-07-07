@@ -2482,12 +2482,61 @@ button {
   background: var(--dash-bg);
   color: #000;
 }
+/* Neutral action — mirrors .dash-danger-btn geometry with neutral coloring, for
+   the non-destructive Reset control that sits above Delete. */
+.dash-neutral-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #000;
+  background: #fff;
+  border: 1px solid var(--dash-border);
+  border-radius: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s, color 0.1s;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.dash-neutral-btn:hover:not(:disabled) {
+  border-color: #000;
+  background: var(--dash-bg);
+}
+.dash-neutral-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.dash-neutral-btn--block {
+  width: 100%;
+}
+.dash-neutral-btn--confirm {
+  font-weight: 700;
+  background: #f1f1f1;
+  border-color: #000;
+}
+.dash-neutral-btn--cancel {
+  color: var(--dash-muted);
+  background: #fff;
+}
+.dash-neutral-btn--cancel:hover:not(:disabled) {
+  border-color: #000;
+  background: var(--dash-bg);
+  color: #000;
+}
 .dash-delete-confirm {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   width: 100%;
+}
+/* Two-step confirm: Cancel (left) + Confirm (right) split the row evenly. */
+.dash-delete-confirm > button {
+  flex: 1;
 }
 
 /* Summary stat row */
