@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { getMe } from "@/lib/api";
@@ -141,7 +141,7 @@ function ProfileMenu({
   );
 }
 
-export function TopNav() {
+function TopNavInner() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -265,5 +265,24 @@ export function TopNav() {
         </div>
       </div>
     </header>
+  );
+}
+
+// The ticket-detail chat view (/work?ticket=…) is a focused, full-height screen
+// with no global nav. Reading the query param requires a Suspense boundary
+// (Next 16 CSR bail-out rule) — same pattern as PageViewTracker in
+// PostHogProvider — so the param read lives in this small gate.
+function TopNavGate() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  if (pathname === "/work" && searchParams.has("ticket")) return null;
+  return <TopNavInner />;
+}
+
+export function TopNav() {
+  return (
+    <Suspense fallback={null}>
+      <TopNavGate />
+    </Suspense>
   );
 }

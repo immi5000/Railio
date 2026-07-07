@@ -421,7 +421,7 @@ export function ChatPane({
         style={{
           flex: 1,
           minHeight: 0,
-          padding: bare ? "8px 28px 16px" : 24,
+          padding: bare ? "24px 28px 16px" : 24,
           display: "flex",
           flexDirection: "column",
           gap: 16,
@@ -538,14 +538,23 @@ export function ChatPane({
             />
           </div>
           <button
-            className="rc-send"
+            className="rc-send rc-pill"
             onClick={() => send()}
             aria-label="Send"
             disabled={
               streaming || inCooldown || (!draft.trim() && pending.length === 0)
             }
           >
-            {streaming ? "…" : inCooldown ? cooldownLeft : <span aria-hidden className="ico-arr" />}
+            {streaming ? (
+              "…"
+            ) : inCooldown ? (
+              cooldownLeft
+            ) : (
+              <>
+                <span aria-hidden className="ico-arr-up rc-pill-ico" />
+                <span className="rc-pill-label">Send</span>
+              </>
+            )}
           </button>
         </div>
       </div>

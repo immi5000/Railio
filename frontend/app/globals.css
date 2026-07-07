@@ -192,6 +192,7 @@ button {
 }
 .ico-arr,
 .ico-arr-back,
+.ico-arr-up,
 .ico-arr-ext {
   display: inline-block;
   width: 1em;
@@ -204,6 +205,9 @@ button {
 }
 .ico-arr-back {
   transform: scaleX(-1);
+}
+.ico-arr-up {
+  transform: rotate(-90deg);
 }
 .ico-arr-ext {
   -webkit-mask-image: var(--ico-arrow-ext);
@@ -998,6 +1002,7 @@ button {
 .work {
   /* Pull grey behind the sticky nav so scroll-top is one continuous surface.
      Add the safe-area inset so content clears the notch-padded nav. */
+  --work-pad: 32px;
   margin-top: calc(-1 * var(--fig-nav-zone));
   padding-top: calc(var(--fig-nav-zone) + env(safe-area-inset-top, 0px));
   height: 100vh;
@@ -1006,14 +1011,22 @@ button {
   display: flex;
   flex-direction: column;
   background: var(--dash-bg);
-  padding-left: 32px;
-  padding-right: 32px;
+  padding-left: var(--work-pad);
+  padding-right: var(--work-pad);
   padding-bottom: 24px;
+}
+/* Ticket-detail view: TopNav is hidden, so drop the nav-zone offset and let the
+   chat own the full viewport height (just the safe-area inset up top). */
+.work--full {
+  margin-top: 0;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.work--full .work-inner {
+  padding-top: 12px;
 }
 @media (max-width: 760px) {
   .work {
-    padding-left: 16px;
-    padding-right: 16px;
+    --work-pad: 16px;
     padding-bottom: 16px;
     height: 100dvh;
     max-height: 100dvh;
@@ -1036,59 +1049,34 @@ button {
     padding-top: 20px;
   }
 }
-
-/* Header */
-.work-head {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex-shrink: 0;
-}
-.work-toggle {
-  align-self: flex-start;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-.work-head-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-.work-head-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-.work-title {
-  font-family: "Inter", "Archivo", sans-serif;
-  font-size: clamp(24px, 3vw, 32px);
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1.05;
-  color: #000;
-  margin: 0;
+/* Ticket-detail view on desktop: tighten the gap between the top action row
+   and the chat/sidebar (the mobile Chat|Details tabs live in this gap on
+   phones, so only shrink it above the mobile breakpoint). */
+@media (min-width: 761px) {
+  .work--full .work-inner {
+    gap: 12px;
+  }
 }
 
-/* Body: copilot + context */
+/* Body: a flex row [left drawer][chat]. The drawer is in-flow and pushes the
+   chat narrower when open; collapsed it goes to width 0 and the chat is full
+   width. position:relative anchors the collapsed top-left floating cluster. */
 .work-body {
-  display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 24px;
-  align-items: stretch;
+  position: relative;
+  display: flex;
   flex: 1;
   min-height: 0;
+  gap: 0;
 }
-@media (max-width: 980px) {
-  .work-body {
-    grid-template-columns: 1fr;
-    overflow-y: auto;
-  }
+/* Chat + drawer/collapsed-bar read as one box: the drawer/bar always sits on
+   the left, so square the chat's left corners and drop its left border; the
+   left piece supplies the seam + left rounding. */
+.work-body > .work-copilot {
+  flex: 1;
+  min-width: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: none;
 }
 .work-copilot {
   display: flex;
@@ -1112,19 +1100,6 @@ button {
   min-height: 0;
   overflow-y: auto;
 }
-.work-copilot-head {
-  flex-shrink: 0;
-  padding: 20px 28px 0;
-}
-.work-copilot-title {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 14px;
-  font-weight: 400;
-  color: #000;
-  margin: 0;
-  padding-bottom: 14px;
-  border-bottom: 1px solid #eeeff1;
-}
 .work-context {
   display: flex;
   flex-direction: column;
@@ -1139,7 +1114,149 @@ button {
   flex-shrink: 0;
 }
 
-/* Header: Figma yellow CTA pill + white status pill with a colored dot. */
+/* Slim always-on row above the chat: back link (left) + role action (right).
+   Top-align the two so the action button's top lines up with the back link
+   rather than the taller button straddling it. */
+.work-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  min-height: 34px;
+}
+.work-topbar-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.work-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Right in-flow context drawer — collapsed by default, drag-resizable. In-flow
+   so opening it pushes the chat narrower; collapsed it shrinks to width 0. */
+.work-ctx-drawer {
+  position: relative;
+  flex: none;
+  align-self: stretch;
+  background: #fff;
+  border: 1px solid var(--dash-card-border);
+  border-right: 1px solid var(--dash-line);
+  border-radius: 14px 0 0 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  transition: width 0.18s ease;
+}
+.work-ctx-drawer[data-open="false"] {
+  display: none;
+}
+.work-ctx-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+  z-index: 6;
+}
+.work-ctx-resize:hover {
+  background: linear-gradient(270deg, transparent, rgba(0, 0, 0, 0.06));
+}
+.work-ctx-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--dash-line);
+}
+.work-ctx-title {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px;
+  color: #000;
+  white-space: nowrap;
+  margin-right: auto;
+}
+.work-ctx-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--dash-muted);
+  transition: color 0.12s;
+}
+.work-ctx-close:hover {
+  color: #000;
+}
+/* The context stack fills the drawer and scrolls on its own; it keeps the
+   .work-context class so the existing panel styling applies unchanged. */
+.work-ctx-body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 18px 20px;
+}
+/* Severity + status pills relocated from the old top bar into the drawer. */
+.work-ctx-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+/* Match the two pills to one height here: .dash-sev is unbordered with 4px
+   padding, .work-status is bordered with 5px — left alone they differ by a few
+   px. A shared fixed height + vertical padding reset lines them up. */
+.work-ctx-meta .dash-sev,
+.work-ctx-meta .work-status {
+  height: 26px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Collapsed sidebar: a skinny full-height left column joined to the chat as
+   one box (shares the chat card's border; a right hairline is the seam). An
+   expand arrow up top over a divider, empty below. */
+.work-ctx-open {
+  flex: none;
+  align-self: stretch;
+  width: 44px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: #fff;
+  border: 1px solid var(--dash-card-border);
+  border-right: 1px solid var(--dash-line);
+  border-radius: 14px 0 0 14px;
+  cursor: pointer;
+  color: var(--dash-muted);
+  font-size: 15px;
+  transition: color 0.12s;
+}
+.work-ctx-open:hover {
+  color: #000;
+}
+.work-ctx-open .work-ctx-open-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 0 12px;
+  border-bottom: 1px solid var(--dash-line);
+}
+
+/* Figma yellow CTA pill + white status pill with a colored dot. */
 .work-cta {
   display: inline-flex;
   align-items: center;
@@ -1513,7 +1630,7 @@ button {
   align-items: center;
   gap: 8px;
 }
-/* Square white chrome box shared by the mic + "+" buttons. */
+/* White chrome box shared by the mic + attach buttons. */
 .rc-box {
   display: inline-flex;
   align-items: center;
@@ -1535,18 +1652,13 @@ button {
   color: var(--dash-yellow);
 }
 .rc-mic {
-  width: 46px;
   position: relative;
 }
 .rc-imgbtn {
-  width: 46px;
   font-family: "Inter", sans-serif;
-  font-size: 22px;
-  font-weight: 400;
-  line-height: 1;
   color: #3a3a3e;
 }
-/* Yellow arrow Send — square, icon-only. */
+/* Yellow arrow Send. */
 .rc-send {
   display: inline-flex;
   align-items: center;
@@ -1569,6 +1681,25 @@ button {
   opacity: 0.5;
   cursor: not-allowed;
 }
+/* Pill modifier: shorter, auto-width, rounded button with an icon + text label
+   (chat composer bottom row — Attach / Voice / Send). Overrides the square
+   .rc-box / .rc-send box so both share one compact pill shape. */
+.rc-pill {
+  height: 38px;
+  width: auto;
+  gap: 7px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+.rc-pill .rc-pill-ico {
+  font-size: 15px;
+}
+.rc-pill .rc-pill-label {
+  white-space: nowrap;
+}
 .rc-pending {
   display: flex;
   gap: 8px;
@@ -1581,14 +1712,9 @@ button {
     padding: 8px 10px;
     gap: 8px;
   }
-  .rc-box,
-  .rc-send {
-    height: 40px;
-  }
-  .rc-mic,
-  .rc-imgbtn,
-  .rc-send {
-    width: 40px;
+  .rc-pill {
+    height: 36px;
+    padding: 0 12px;
   }
 }
 
@@ -2880,23 +3006,49 @@ button.dash-row--click {
     border-radius: 12px;
     padding: 4px;
   }
-  /* One panel at a time in a single full-height row; the body itself does not
-     scroll — the visible panel's own scroller handles overflow (kills the
-     double-scroll crush from the base ≤980 overflow-y:auto). */
+  /* One panel at a time in a single full-height column; the body itself does
+     not scroll — the visible panel's own scroller handles overflow. The
+     desktop push-drawer reverts to a normal full-width stacked panel that the
+     "Details" tab reveals (drag/collapse/float are desktop-only). Visibility
+     is driven by the tab, not by ctxOpen. */
   .work-body {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
+    gap: 0;
   }
-  .work-body[data-mobile-view="chat"] .work-context {
+  /* Mobile stacks the panels full-width, so undo the desktop "joined box"
+     seam: both revert to normal standalone cards. */
+  .work-body > .work-copilot {
+    border-radius: 14px;
+    border-left: 1px solid var(--dash-border);
+  }
+  .work-ctx-drawer {
+    position: relative;
+    width: auto !important;
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+    pointer-events: auto;
+    box-shadow: none;
+    border: 1px solid var(--dash-card-border);
+    border-radius: 14px;
+  }
+  .work-ctx-drawer[data-open="false"] {
+    display: flex;
+    width: auto !important;
+    border: 1px solid var(--dash-card-border);
+  }
+  .work-ctx-resize,
+  .work-ctx-open,
+  .work-ctx-close {
+    display: none;
+  }
+  .work-body[data-mobile-view="chat"] .work-ctx-drawer {
     display: none;
   }
   .work-body[data-mobile-view="details"] .work-copilot {
     display: none;
-  }
-  .work-body .work-context {
-    height: 100%;
-    min-height: 0;
   }
 }
 
@@ -2916,28 +3068,6 @@ button.dash-row--click {
   .work-inner {
     gap: 10px;
   }
-  /* Compact header: one slim line of meta + a right-aligned action. */
-  .work-head {
-    gap: 6px;
-  }
-  .work-toggle {
-    font-size: 12px;
-  }
-  .work-title {
-    font-size: 18px;
-    line-height: 1.1;
-  }
-  .work-title-prefix {
-    display: none;          /* show just "#id" on phones */
-  }
-  .work-head-row {
-    gap: 8px;
-    align-items: center;
-  }
-  .work-head-left {
-    gap: 8px;
-    align-items: center;
-  }
   .dash-sev,
   .work-status {
     font-size: 10.5px;
@@ -2946,15 +3076,6 @@ button.dash-row--click {
   .work-cta {
     font-size: 12px;
     padding: 8px 14px;
-  }
-  /* Keep the action wrapper pinned right even when a longer label wraps. */
-  .work-head-row > :last-child {
-    margin-left: auto;
-  }
-  /* The "Copilot" card label is redundant on a phone (the whole screen is the
-     copilot) — drop it and its padding so the message list starts at the top. */
-  .work-copilot-head {
-    display: none;
   }
   .rc-input {
     font-size: 16px;

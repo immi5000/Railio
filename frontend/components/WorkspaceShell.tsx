@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getTicket, listTickets, patchTicket } from "@/lib/api";
 import { statusLabel } from "@/lib/format";
@@ -67,6 +67,18 @@ import { ChatPane } from "./ChatPane";
 import { RepairContext } from "./RepairContext";
 import { IntakeContext } from "./IntakeContext";
 
+// Context drawer sizing. Collapsed by default so the chat owns the page; the
+// tech drags the left edge to resize and the width/open state persists to
+// localStorage (mirrors the resizable-column pattern in PartsAdmin).
+const SIDEBAR_MIN = 300;
+const SIDEBAR_MAX = 620;
+const SIDEBAR_DEFAULT = 400;
+const SIDEBAR_KEY = "railio_work_sidebar";
+
+function clampWidth(w: number): number {
+  return Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Math.round(w)));
+}
+
 /**
  * Work-order page (Figma redesign): with no ticket selected it shows the full
  * ticket list — the same dashboard-styled table as the dashboard "Tickets"
@@ -89,6 +101,57 @@ export function WorkspaceShell() {
 
   // On phones the body shows one panel at a time; always land on the chat.
   const [mobileView, setMobileView] = useState<"chat" | "details">("chat");
+
+  // Desktop context drawer: open by default on every load. Only the width is
+  // persisted — the open/collapsed state intentionally resets to open so the
+  // details are always visible when the chat page loads.
+  const [ctxOpen, setCtxOpen] = useState(true);
+  const [ctxWidth, setCtxWidth] = useState(SIDEBAR_DEFAULT);
+  const dragStartX = useRef(0);
+  const dragStartW = useRef(0);
+
+  // Hydrate the persisted width after mount (client-only; keeps first paint
+  // deterministic so there is no hydration mismatch).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SIDEBAR_KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (typeof s.width === "number") setCtxWidth(clampWidth(s.width));
+      }
+    } catch {
+      // ignore malformed storage
+    }
+  }, []);
+
+  // Write-through the width only (not open/collapsed — that always starts open).
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_KEY, JSON.stringify({ width: ctxWidth }));
+    } catch {
+      // ignore quota/availability errors
+    }
+  }, [ctxWidth]);
+
+  // Drag the drawer's right edge: dragging right (larger clientX) widens it.
+  function onResizeDown(e: React.PointerEvent) {
+    e.preventDefault();
+    dragStartX.current = e.clientX;
+    dragStartW.current = ctxWidth;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+    function onMove(ev: PointerEvent) {
+      setCtxWidth(clampWidth(dragStartW.current + (ev.clientX - dragStartX.current)));
+    }
+    function onUp() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["tickets", "workspace"],
@@ -164,25 +227,59 @@ export function WorkspaceShell() {
     );
   }
 
+  const back =
+    from === "dashboard"
+      ? { href: "/dashboard", label: "Dashboard" }
+      : { href: "/work", label: "All tickets" };
+  const isTech = role === "tech";
+
   return (
-    <div className="work">
+    <div className="work work--full">
       <div className="work-inner">
-        <WorkHeader
-          ticket={ticket}
-          role={role}
-          back={
-            from === "dashboard"
-              ? { href: "/dashboard", label: "Dashboard" }
-              : { href: "/work", label: "All tickets" }
-          }
-          onStart={() => startMut.mutate()}
-          starting={startMut.isPending}
-          onHandoff={() => handoffMut.mutate()}
-          handingOff={handoffMut.isPending}
-          onWrapUp={() =>
-            router.push(`/tech/ticket/${selectedId}/wrap-up`)
-          }
-        />
+        {/* Slim always-on row above the chat: back link (left) + the role
+            action (right). Kept out of the drawer so the action is reachable
+            even while the drawer is collapsed. */}
+        <div className="work-topbar">
+          <Link href={back.href} className="work-topbar-back dash-link">
+            <span className="ico-arr-back" aria-hidden="true" /> {back.label}
+          </Link>
+          {ticket && (
+            <div className="work-topbar-actions">
+              {isTech && ticket.status === "AWAITING_TECH" && (
+                <button
+                  className="work-cta"
+                  onClick={() => startMut.mutate()}
+                  disabled={startMut.isPending}
+                >
+                  {startMut.isPending ? "Starting…" : "Start Work"}
+                </button>
+              )}
+              {isTech && ticket.status === "IN_PROGRESS" && (
+                <button
+                  className="work-cta"
+                  onClick={() => router.push(`/tech/ticket/${selectedId}/wrap-up`)}
+                >
+                  Complete &amp; wrap up
+                </button>
+              )}
+              {!isTech && ticket.status === "AWAITING_TECH" && (
+                <button
+                  className="work-cta"
+                  onClick={() => handoffMut.mutate()}
+                  disabled={handoffMut.isPending}
+                >
+                  {handoffMut.isPending ? (
+                    "Handing off…"
+                  ) : (
+                    <>
+                      Hand off to tech <span className="ico-arr" aria-hidden="true" />
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="work-tabs" role="tablist">
           <button
@@ -205,11 +302,79 @@ export function WorkspaceShell() {
           </button>
         </div>
 
-        <div className="work-body" data-mobile-view={mobileView}>
-          <section className="dash-card work-copilot">
-            <div className="work-copilot-head">
-              <h2 className="work-copilot-title">Copilot</h2>
+        <div className="work-body" data-mobile-view={mobileView} data-ctx-open={ctxOpen}>
+          {/* Left in-flow drawer: collapsed by default, drag-resizable, pushes
+              the chat narrower when open. On mobile it becomes the "Details"
+              tab panel. */}
+          <aside
+            className="work-ctx-drawer"
+            data-open={ctxOpen}
+            style={{ width: ctxOpen ? ctxWidth : 0 }}
+            aria-hidden={!ctxOpen}
+          >
+            <div className="work-ctx-head">
+              {ticket && <span className="work-ctx-title">#{ticket.short_id}</span>}
+              <button
+                type="button"
+                className="work-ctx-close"
+                onClick={() => setCtxOpen(false)}
+                aria-label="Collapse details"
+              >
+                <span className="ico-arr-back" aria-hidden="true" />
+              </button>
             </div>
+
+            <div className="work-context work-ctx-body">
+              {ticket && (
+                <div className="work-ctx-meta">
+                  <span className={`dash-sev dash-sev-${ticket.severity}`}>
+                    {ticket.severity.toUpperCase()}
+                  </span>
+                  <span className="work-status">
+                    <span
+                      className="work-status-dot"
+                      style={{ background: statusDotColor(ticket.status as TicketStatus) }}
+                    />
+                    {statusLabel(ticket.status as TicketStatus)}
+                  </span>
+                </div>
+              )}
+
+              {isDispatch ? (
+                <IntakeContext
+                  ticketId={selectedId}
+                  onHandedOff={() => select(null)}
+                />
+              ) : (
+                <RepairContext ticketId={selectedId} />
+              )}
+            </div>
+
+            {/* Resize handle on the drawer's right edge (the seam with the chat). */}
+            <div
+              className="work-ctx-resize"
+              onPointerDown={onResizeDown}
+              aria-label="Drag to resize"
+            />
+          </aside>
+
+          {/* Collapsed-only: a thin vertical bar standing in for the drawer —
+              an expand arrow up top with a divider under it, empty below.
+              Clicking pulls the details out. */}
+          {!ctxOpen && (
+            <button
+              type="button"
+              className="work-ctx-open"
+              onClick={() => setCtxOpen(true)}
+              aria-label="Show details"
+            >
+              <span className="work-ctx-open-head">
+                <span className="ico-arr" aria-hidden="true" />
+              </span>
+            </button>
+          )}
+
+          <section className="dash-card work-copilot">
             <div className="work-copilot-body">
               <ChatPane
                 ticketId={selectedId}
@@ -223,96 +388,9 @@ export function WorkspaceShell() {
               />
             </div>
           </section>
-
-          <aside className="work-context">
-            {isDispatch ? (
-              <IntakeContext
-                ticketId={selectedId}
-                onHandedOff={() => select(null)}
-              />
-            ) : (
-              <RepairContext ticketId={selectedId} />
-            )}
-          </aside>
         </div>
       </div>
     </div>
-  );
-}
-
-function WorkHeader({
-  ticket,
-  role,
-  back,
-  onStart,
-  starting,
-  onHandoff,
-  handingOff,
-  onWrapUp,
-}: {
-  ticket: Ticket | undefined;
-  role: Role;
-  back: { href: string; label: string };
-  onStart: () => void;
-  starting: boolean;
-  onHandoff: () => void;
-  handingOff: boolean;
-  onWrapUp: () => void;
-}) {
-  const isTech = role === "tech";
-  return (
-    <header className="work-head">
-      <Link href={back.href} className="work-toggle dash-link">
-        <span className="ico-arr-back" aria-hidden="true" /> {back.label}
-      </Link>
-      <div className="work-head-row">
-        <div className="work-head-left">
-          <h1 className="work-title">
-            {ticket ? (
-              <>
-                <span className="work-title-prefix">Ticket </span>#
-                {ticket.short_id}
-              </>
-            ) : (
-              "Ticket"
-            )}
-          </h1>
-          {ticket && (
-            <>
-              <span className={`dash-sev dash-sev-${ticket.severity}`}>
-                {ticket.severity.toUpperCase()}
-              </span>
-              <span className="work-status">
-                <span
-                  className="work-status-dot"
-                  style={{ background: statusDotColor(ticket.status as TicketStatus) }}
-                />
-                {statusLabel(ticket.status as TicketStatus)}
-              </span>
-            </>
-          )}
-        </div>
-        {ticket && (
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            {isTech && ticket.status === "AWAITING_TECH" && (
-              <button className="work-cta" onClick={onStart} disabled={starting}>
-                {starting ? "Starting…" : "Start Work"}
-              </button>
-            )}
-            {isTech && ticket.status === "IN_PROGRESS" && (
-              <button className="work-cta" onClick={onWrapUp}>
-                Complete &amp; wrap up
-              </button>
-            )}
-            {!isTech && ticket.status === "AWAITING_TECH" && (
-              <button className="work-cta" onClick={onHandoff} disabled={handingOff}>
-                {handingOff ? "Handing off…" : <>Hand off to tech <span className="ico-arr" aria-hidden="true" /></>}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </header>
   );
 }
 

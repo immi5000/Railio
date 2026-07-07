@@ -166,7 +166,7 @@ export function MicButton({
   return (
     <button
       type="button"
-      className="rc-box rc-mic"
+      className="rc-box rc-pill rc-mic"
       data-active={active}
       title={
         error
@@ -179,8 +179,9 @@ export function MicButton({
       onClick={() => (active ? stop() : start())}
     >
       <svg
-        width="16"
-        height="16"
+        className="rc-pill-ico"
+        width="15"
+        height="15"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -192,6 +193,7 @@ export function MicButton({
         <path d="M5 10v2a7 7 0 0 0 14 0v-2" />
         <line x1="12" y1="19" x2="12" y2="22" />
       </svg>
+      <span className="rc-pill-label">{active ? "Listening…" : "Voice"}</span>
       {active && (
         <span
           aria-hidden
