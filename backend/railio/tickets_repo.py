@@ -8,6 +8,7 @@ from typing import Optional
 
 from sqlalchemy import text
 
+from .assets_repo import _periods_for
 from .contract import (
     Asset,
     Severity,
@@ -42,7 +43,10 @@ async def get_asset(asset_id: int, org_id: Optional[int] = None) -> Optional[Ass
                 params,
             )
         ).mappings().first()
-    return Asset(**row) if row else None
+        if not row:
+            return None
+        periods = await _periods_for(session, [row["id"]])
+    return Asset(**row, oos_periods=periods.get(row["id"], []))
 
 
 # short_id alphabet: lowercase + digits, minus look-alikes (o/0, i/1/l) for

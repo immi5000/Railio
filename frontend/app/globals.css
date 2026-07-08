@@ -2590,7 +2590,9 @@ button {
   max-width: 42%;
   flex: none;
   border-radius: 0;
-  background: #fff246;
+  /* Fill is set inline — reflects the most severe open ticket
+     (black critical / yellow major / grey minor). */
+  background: #d9dadd;
 }
 
 /* Card 2 — Fleet availability: text column + snowflake/trend side column. */

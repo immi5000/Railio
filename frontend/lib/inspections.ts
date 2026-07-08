@@ -5,7 +5,7 @@
 // The contract module is type-only (never bundled — it lives outside the Next.js
 // root and is consumed via `import type`), so this runtime constant lives here.
 // Keep in sync with INSPECTION_INTERVALS in backend/railio/contract.py.
-import type { Asset } from "@/lib/contract";
+import type { Asset, OosPeriod } from "@/lib/contract";
 
 type InspectionField = "last_92_day_at" | "last_368_day_at" | "last_1104_day_at";
 
@@ -28,12 +28,17 @@ export type InspectionStatus = {
   label: string;
   field: InspectionField;
   last: string | null;
-  nextDue: string | null; // YYYY-MM-DD
+  nextDue: string | null; // YYYY-MM-DD (adjusted for OOS credit)
   state: InspectionState;
+  oosCredit: number; // days added to the due date for out-of-service time (0 = none)
 };
 
 const DUE_SOON_DAYS = 14;
 const DAY_MS = 86_400_000;
+// An outage must EXCEED this to pause the inspection clock (49 CFR out-of-service
+// credit). Once it does, ALL of its qualifying days count — the threshold only
+// gates whether the outage counts, not how much.
+const OOS_MIN_DAYS = 30;
 
 function parseDay(d: string | null): Date | null {
   if (!d) return null;
@@ -44,6 +49,46 @@ function parseDay(d: string | null): Date | null {
 function todayMidnight(): Date {
   const t = new Date();
   return new Date(t.getFullYear(), t.getMonth(), t.getDate());
+}
+
+// Full outage length in days (open period => ends today). Used ONLY for the
+// >30-day gate — it looks at the raw outage, not the inspection window.
+function periodDurationDays(p: OosPeriod, today: Date): number {
+  const start = parseDay(p.started_at);
+  if (!start) return 0;
+  const end = p.ended_at ? parseDay(p.ended_at) : today;
+  if (!end) return 0;
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / DAY_MS));
+}
+
+// Days of an outage that fall inside [windowStart, today] — the portion clipped
+// to the current inspection cycle. Open period => ends today.
+function overlapDays(p: OosPeriod, windowStart: Date, today: Date): number {
+  const start = parseDay(p.started_at);
+  if (!start) return 0;
+  const end = p.ended_at ? parseDay(p.ended_at) : today;
+  if (!end) return 0;
+  const lo = Math.max(start.getTime(), windowStart.getTime());
+  const hi = Math.min(end.getTime(), today.getTime());
+  if (hi <= lo) return 0;
+  return Math.round((hi - lo) / DAY_MS);
+}
+
+// Total OOS days to add to a due date whose inspection window opened at
+// `windowStart`. Gate (>30) uses the FULL outage; the amount added uses the
+// CLIPPED overlap, so an outage before the last inspection contributes nothing.
+export function qualifyingOosDays(
+  asset: Asset,
+  windowStart: Date,
+  today: Date,
+): number {
+  let total = 0;
+  for (const p of asset.oos_periods ?? []) {
+    if (periodDurationDays(p, today) > OOS_MIN_DAYS) {
+      total += overlapDays(p, windowStart, today);
+    }
+  }
+  return total;
 }
 
 export function inspectionStatuses(asset: Asset): InspectionStatus[] {
@@ -59,9 +104,14 @@ export function inspectionStatuses(asset: Asset): InspectionStatus[] {
         last,
         nextDue: null,
         state: "unknown" as const,
+        oosCredit: 0,
       };
     }
-    const due = new Date(lastDt.getTime() + interval.days * DAY_MS);
+    // Push the due date out by the qualifying OOS days that fall within this
+    // interval's window (last inspection → today), so idle time doesn't count.
+    const oosCredit = qualifyingOosDays(asset, lastDt, today);
+    const baselineDue = lastDt.getTime() + interval.days * DAY_MS;
+    const due = new Date(baselineDue + oosCredit * DAY_MS);
     const daysLeft = Math.round((due.getTime() - today.getTime()) / DAY_MS);
     const state: InspectionState =
       daysLeft < 0 ? "overdue" : daysLeft <= DUE_SOON_DAYS ? "due_soon" : "ok";
@@ -72,6 +122,7 @@ export function inspectionStatuses(asset: Asset): InspectionStatus[] {
       last,
       nextDue: due.toISOString().slice(0, 10),
       state,
+      oosCredit,
     };
   });
 }

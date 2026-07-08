@@ -117,6 +117,17 @@ class Asset(Base):
     oos_since = Column(Text)
 
 
+class OosPeriod(Base):
+    __tablename__ = "oos_periods"
+    __table_args__ = (Index("idx_oos_periods_asset", "org_id", "asset_id"),)
+
+    id = Column(Integer, primary_key=True)
+    org_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False)
+    started_at = Column(Text, nullable=False)  # YYYY-MM-DD, matches oos_since
+    ended_at = Column(Text)  # YYYY-MM-DD, NULL while ongoing
+
+
 class Ticket(Base):
     __tablename__ = "tickets"
 

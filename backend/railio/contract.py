@@ -55,6 +55,13 @@ class OrgMember(BaseModel):
     is_self: bool
 
 
+class OosPeriod(BaseModel):
+    id: int
+    asset_id: int
+    started_at: str  # YYYY-MM-DD, matches oos_since
+    ended_at: Optional[str] = None  # NULL while ongoing
+
+
 class Asset(BaseModel):
     id: int
     org_id: int
@@ -67,6 +74,7 @@ class Asset(BaseModel):
     last_1104_day_at: Optional[str] = None
     out_of_service: bool = False
     oos_since: Optional[str] = None
+    oos_periods: list[OosPeriod] = Field(default_factory=list)
 
 
 class HistoricalTest(BaseModel):

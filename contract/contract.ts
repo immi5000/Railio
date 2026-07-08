@@ -136,6 +136,16 @@ export type OrgMember = {
   is_self: boolean;
 };
 
+// One out-of-service outage. Outages longer than 30 days pause the inspection
+// clock; ended_at is null while the unit is still down. Derived server-side from
+// the out_of_service/oos_since toggle — clients never send these.
+export type OosPeriod = {
+  id: number;
+  asset_id: number;
+  started_at: string; // YYYY-MM-DD
+  ended_at: string | null;
+};
+
 export type Asset = {
   id: number;
   org_id: number;
@@ -148,6 +158,7 @@ export type Asset = {
   last_1104_day_at: string | null;
   out_of_service: boolean;
   oos_since: string | null;
+  oos_periods: OosPeriod[];
 };
 
 export type HistoricalTest = {

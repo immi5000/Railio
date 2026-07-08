@@ -478,6 +478,11 @@ function UnitDetail({
                     : s.state === "due_soon"
                       ? " · due soon"
                       : ""}
+                  {s.oosCredit > 0 && (
+                    <span className="micro" style={{ color: "var(--dash-muted)" }}>
+                      {" · "}adjusted +{s.oosCredit}d for OOS
+                    </span>
+                  )}
                 </span>
                 <span className="micro" style={{ color: "var(--dash-faint)" }}>
                   last {fmtDate(s.last)}

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { listTickets, listAssets, getMe, listOrgMembers } from "@/lib/api";
-import type { TicketStatus, Asset, Ticket } from "@/lib/contract";
+import type { TicketStatus, Asset, Ticket, Severity } from "@/lib/contract";
 import { mostUrgent, oosDays, STATE_COLOR } from "@/lib/inspections";
 
 // Status dot color, mirroring the Figma legend:
@@ -123,6 +123,22 @@ export default function DashboardPage() {
   const alert = open.find((t) => t.severity === "critical") ?? null;
   const criticalCount = open.filter((t) => t.severity === "critical").length;
 
+  // The Open-tickets block reflects the most severe open ticket:
+  // black = critical, yellow = major, grey = minor (and the none-open case).
+  const topSeverity: Severity | null = open.some((t) => t.severity === "critical")
+    ? "critical"
+    : open.some((t) => t.severity === "major")
+      ? "major"
+      : open.some((t) => t.severity === "minor")
+        ? "minor"
+        : null;
+  const SEV_BLOCK: Record<Severity, string> = {
+    critical: "#000",
+    major: "#fff246",
+    minor: "#d9dadd",
+  };
+  const blockColor = topSeverity ? SEV_BLOCK[topSeverity] : "#d9dadd";
+
   // Fleet availability = (total units − units with an OPEN critical ticket) / total.
   // Iterate assets (not the id-set) so `down` can never exceed `total`.
   const criticalAssetIds = useMemo(() => {
@@ -179,7 +195,7 @@ export default function DashboardPage() {
                 {String(open.length).padStart(2, "0")}
               </span>
             </div>
-            <span className="dash-stat-block" />
+            <span className="dash-stat-block" style={{ background: blockColor }} />
           </div>
 
           {/* Fleet availability */}

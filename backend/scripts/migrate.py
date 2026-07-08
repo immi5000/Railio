@@ -207,10 +207,20 @@ _STATEMENTS = [
     "ALTER TABLE assets ADD COLUMN IF NOT EXISTS last_1104_day_at text",
     "ALTER TABLE assets ADD COLUMN IF NOT EXISTS out_of_service boolean NOT NULL DEFAULT false",
     "ALTER TABLE assets ADD COLUMN IF NOT EXISTS oos_since text",
-    # Fold the old single inspection date into the 92-day baseline before dropping it.
+    # Fold the old single inspection date into the 92-day baseline before dropping
+    # it. Guarded on the column still existing so re-runs after the DROP below
+    # don't fail with "column last_inspection_at does not exist" (idempotency).
     """
-    UPDATE assets SET last_92_day_at = last_inspection_at
-    WHERE last_92_day_at IS NULL AND last_inspection_at IS NOT NULL
+    DO $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'assets' AND column_name = 'last_inspection_at'
+        ) THEN
+            UPDATE assets SET last_92_day_at = last_inspection_at
+            WHERE last_92_day_at IS NULL AND last_inspection_at IS NOT NULL;
+        END IF;
+    END $$
     """,
     "ALTER TABLE assets DROP COLUMN IF EXISTS last_inspection_at",
     # === Auth (Supabase) ===
@@ -367,6 +377,35 @@ _STATEMENTS = [
     "ALTER TABLE ticket_parts ADD CONSTRAINT ticket_parts_part_id_parts_id_fk FOREIGN KEY (part_id) REFERENCES parts(id) ON DELETE CASCADE",
     "ALTER TABLE tribal_capture DROP CONSTRAINT IF EXISTS tribal_capture_ticket_id_tickets_id_fk",
     "ALTER TABLE tribal_capture ADD CONSTRAINT tribal_capture_ticket_id_tickets_id_fk FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE",
+    # === Out-of-service periods (inspection-clock pause) ===
+    # An outage longer than 30 days pauses the FRA periodic-inspection clock: the
+    # qualifying OOS days are credited back onto the due date. assets.oos_since is
+    # only a current snapshot, so we log each outage here to sum credit across the
+    # current inspection window. One row per outage; ended_at NULL while ongoing.
+    """
+    CREATE TABLE IF NOT EXISTS oos_periods (
+        id serial PRIMARY KEY,
+        org_id integer NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        asset_id integer NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+        started_at text NOT NULL,
+        ended_at text
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_oos_periods_asset ON oos_periods (org_id, asset_id)",
+    # Backfill an open period for units already marked out-of-service (they have
+    # oos_since but no period row yet). Idempotent via the NOT EXISTS guard.
+    # Closed historical outages aren't recoverable from the old schema and are
+    # intentionally not backfilled — only the current open cycle affects due-dates.
+    """
+    INSERT INTO oos_periods (org_id, asset_id, started_at, ended_at)
+    SELECT a.org_id, a.id, COALESCE(a.oos_since, now()::date::text), NULL
+    FROM assets a
+    WHERE a.out_of_service = true
+      AND a.org_id IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM oos_periods p WHERE p.asset_id = a.id AND p.ended_at IS NULL
+      )
+    """,
 ]
 
 
