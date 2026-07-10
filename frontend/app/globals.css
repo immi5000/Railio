@@ -575,6 +575,15 @@ button {
   padding: 12px 14px;
   color: #fff;
 }
+/* Role label above a bubble ("RAILIO" / "TECH"): a tiny mono micro-label
+   (DESIGN.md §3) — machine/identifier text is IBM Plex Mono, not the body font.
+   Interactive/brand blue is the design-system link blue, never the old --mta navy. */
+.chat-message-role {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--dash-link);
+}
 .chat-message-user .chat-message-role {
   color: rgba(255, 255, 255, 0.75);
 }
@@ -620,18 +629,18 @@ button {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--mta);
+  background: var(--dash-link);
   animation: dot 1.6s infinite;
 }
 @keyframes dot {
   0% {
-    box-shadow: 0 0 0 0 rgba(0, 57, 166, 0.7);
+    box-shadow: 0 0 0 0 rgba(38, 131, 235, 0.7);
   }
   70% {
-    box-shadow: 0 0 0 10px rgba(0, 57, 166, 0);
+    box-shadow: 0 0 0 10px rgba(38, 131, 235, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 57, 166, 0);
+    box-shadow: 0 0 0 0 rgba(38, 131, 235, 0);
   }
 }
 
@@ -1555,11 +1564,13 @@ button {
   margin-top: 10px;
 }
 .rc-quickreply-label {
+  /* Tiny mono micro-label (DESIGN.md §3) — was falling back to the body font. */
+  font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
+  letter-spacing: 0.04em;
+  color: var(--dash-muted);
   margin-bottom: 6px;
 }
 .rc-quickreply-row {

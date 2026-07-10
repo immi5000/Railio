@@ -745,10 +745,7 @@ function MessageBubble({
           className="chat-message-role"
           style={{
             fontSize: 11,
-            fontWeight: 700,
             textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            color: isUser ? undefined : "var(--muted)",
             marginBottom: 6,
           }}
         >
@@ -1068,12 +1065,10 @@ function LiveBubble({
         style={{ maxWidth: "min(80%, 640px)" }}
       >
         <div
+          className="chat-message-role"
           style={{
             fontSize: 11,
-            fontWeight: 700,
             textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            color: "var(--mta)",
             marginBottom: 6,
             display: "inline-flex",
             alignItems: "center",
@@ -1185,17 +1180,15 @@ function RequestPhotoBlock({
         marginTop: 12,
         padding: 12,
         background: "var(--mta-soft)",
-        border: "1px solid var(--mta)",
+        border: "1px solid var(--dash-link)",
         borderRadius: 14,
       }}
     >
       <div
+        className="chat-message-role"
         style={{
           fontSize: 11,
-          fontWeight: 700,
           textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "var(--mta)",
           marginBottom: 6,
         }}
       >
