@@ -187,6 +187,7 @@ async def wrap_up_finalize_route(
         notes=body.notes,
         author=body.author,
         org_id=org.id,
+        parts=body.parts,
     )
     if chunk_id is None:
         raise HTTPException(status_code=404, detail="ticket not found")

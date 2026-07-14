@@ -16,6 +16,7 @@ from .contract import (
     TicketDetail,
     TicketPart,
     TicketStatus,
+    WrapUpPartEntry,
 )
 from .corpus_repo import insert_corpus_chunk
 from .db import session_scope
@@ -296,6 +297,59 @@ async def reset_ticket(ticket_id: int, org_id: Optional[int] = None) -> bool:
     return True
 
 
+async def _record_manual_parts(
+    ticket_id: int,
+    parts: list["WrapUpPartEntry"],
+    org_id: Optional[int],
+) -> None:
+    """Insert tech-entered wrap-up parts and draw them down from inventory.
+
+    Each entry becomes a `tech_manual` ticket_parts row and decrements the
+    part's qty_on_hand (clamped at 0 so stock never goes negative). Parts are
+    validated against the caller's org so a tenant can't touch another's
+    inventory; unknown/cross-org part ids are skipped.
+    """
+    now = _iso_now()
+    async with session_scope() as session:
+        for entry in parts:
+            qty = int(entry.qty)
+            if qty <= 0:
+                continue
+            # Scope the part to the org (when known) before mutating stock.
+            where = "id = :pid" + (" AND org_id = :org" if org_id is not None else "")
+            params: dict[str, object] = {"pid": entry.part_id}
+            if org_id is not None:
+                params["org"] = org_id
+            exists = (
+                await session.execute(
+                    text(f"SELECT id FROM parts WHERE {where}"), params
+                )
+            ).scalar_one_or_none()
+            if exists is None:
+                continue
+            await session.execute(
+                text(
+                    """
+                    INSERT INTO ticket_parts (ticket_id, part_id, qty, added_via, added_at)
+                    VALUES (:tid, :pid, :qty, 'tech_manual', :now)
+                    """
+                ),
+                {"tid": ticket_id, "pid": entry.part_id, "qty": qty, "now": now},
+            )
+            # GREATEST clamps at 0; last_used_at stamps the draw-down.
+            await session.execute(
+                text(
+                    """
+                    UPDATE parts
+                    SET qty_on_hand = GREATEST(0, qty_on_hand - :qty),
+                        last_used_at = :now
+                    WHERE id = :pid
+                    """
+                ),
+                {"qty": qty, "now": now, "pid": entry.part_id},
+            )
+
+
 async def finalize_wrap_up(
     ticket_id: int,
     *,
@@ -303,17 +357,25 @@ async def finalize_wrap_up(
     notes: Optional[str],
     author: Optional[str] = None,
     org_id: Optional[int] = None,
+    parts: Optional[list["WrapUpPartEntry"]] = None,
 ) -> Optional[int]:
     """File a closed ticket's repair record into the unit's corpus.
 
     Writes a tribal_knowledge chunk scoped to the org + asset (so it surfaces in
     that unit's future chats and never leaks to another tenant), records the
     capture in tribal_capture, and closes the ticket. Returns the new chunk id.
+
+    Any `parts` the tech entered by hand are inserted as tech_manual
+    ticket_parts and drawn down from inventory before the corpus record is
+    built, so they appear in the filed repair record.
     """
     t = await get_ticket_detail(ticket_id, org_id)
     if not t:
         return None
     a = t.asset
+
+    if parts:
+        await _record_manual_parts(ticket_id, parts, org_id)
 
     parts_lines = []
     async with session_scope() as session:

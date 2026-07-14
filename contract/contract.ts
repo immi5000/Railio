@@ -61,10 +61,21 @@ export type WrapUpDraft = {
   notes: string | null;
 };
 
+// A part the tech recorded by hand in the wrap-up form. Filing the ticket
+// inserts these as tech_manual ticket_parts and decrements the part's
+// qty_on_hand in inventory.
+export type WrapUpPartEntry = {
+  part_id: number;
+  qty: number;
+};
+
 export type FinalizeWrapUpBody = {
   summary: string;
   notes?: string;
   author?: string;
+  // Parts the tech entered manually at wrap-up (in addition to any the AI
+  // already recorded on the ticket). Each decrements inventory when filed.
+  parts?: WrapUpPartEntry[];
 };
 
 export type AttachDocumentBody = {

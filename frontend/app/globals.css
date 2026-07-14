@@ -1087,6 +1087,14 @@ button {
   border-bottom-left-radius: 0;
   border-left: none;
 }
+/* When the wrap-up drawer is open on the right, join it to the chat the same way
+   the left context drawer joins: square the chat's right corners and drop its
+   right border so the wrap-up's left edge supplies the single seam. */
+.work-body:has(.work-wrapup[data-open="true"]) > .work-copilot {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
 .work-copilot {
   display: flex;
   flex-direction: column;
@@ -1289,6 +1297,112 @@ button {
 .work-cta:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+/* Secondary variant ("Continue working" while the wrap-up drawer is open): a
+   neutral outlined pill, distinct from the yellow primary CTA. */
+.work-cta-secondary {
+  background: #fff;
+  border: 1px solid var(--dash-border);
+  color: var(--dash-muted);
+}
+.work-cta-secondary:hover:not(:disabled) {
+  filter: none;
+  color: #000;
+  border-color: var(--dash-muted);
+}
+/* === Wrap-up: formatted Tech notes (live WYSIWYG editor) ===
+   A single contentEditable region that shows real section headings + bullet
+   lists as the tech types — no raw "##"/"-" markers. The tech edits the
+   formatted view directly and the DOM is serialized back to a notes string. */
+.wrapup-notes-preview {
+  border: 1px solid var(--dash-border);
+  border-radius: 12px;
+  background: #fff;
+  padding: 16px 18px;
+  cursor: text;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+/* The caret lives on the inner editor, so key the container off focus-within. */
+.wrapup-notes-preview:hover,
+.wrapup-notes-preview:focus-within {
+  border-color: var(--dash-link);
+}
+.wrapup-notes-preview:focus-within {
+  box-shadow: 0 0 0 1px var(--dash-link);
+}
+.wrapup-notes-editor {
+  min-height: 200px;
+  outline: none;
+}
+/* Placeholder for the empty editor — contentEditable has no native one. */
+.wrapup-notes-editor[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: var(--dash-muted);
+  pointer-events: none;
+}
+/* Space consecutive blocks; a heading gets extra room above it (but not the
+   first one) so sections read as sections. */
+.wrapup-notes > * {
+  margin: 0;
+}
+.wrapup-notes > * + * {
+  margin-top: 8px;
+}
+.wrapup-notes > .wrapup-notes-heading + * {
+  margin-top: 8px;
+}
+.wrapup-notes-heading {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dash-faint);
+}
+.wrapup-notes > * + .wrapup-notes-heading {
+  margin-top: 18px;
+}
+.wrapup-notes-prose {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1a1a1e;
+}
+.wrapup-notes-list {
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wrapup-notes-list li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #1a1a1e;
+}
+.wrapup-notes-list li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--dash-link);
+}
+.wrapup-notes strong {
+  font-weight: 600;
+  color: #000;
+}
+
+/* File-record CTA: match the chat Send button's type + arrow scale (13px label,
+   15px arrow) rather than the smaller default .work-cta sizing. */
+.work-cta-file {
+  font-size: 13px;
+}
+.work-cta-file .work-cta-file-arr {
+  font-size: 15px;
 }
 .work-status {
   display: inline-flex;
@@ -3052,6 +3166,88 @@ button.dash-row--click {
   box-shadow: none;
 }
 
+/* Wrap-up side panel. In-flow (a flex sibling right of the chat) so opening it
+   compresses the chat rather than covering it — the tech can keep chatting while
+   writing the record. Closed by default; the "Complete & wrap up" button flips
+   data-open on desktop. On mobile it becomes the full-width "Wrap up" tab panel
+   (driven by data-mobile-view in the media query below). */
+/* In-flow side column: a flex sibling to the right of the chat, so opening it
+   compresses the chat (the tech can keep chatting while writing the record).
+   Drag-resizable on the left edge. Closed = width 0 / hidden. On mobile it
+   becomes the full-width "Wrap up" tab panel (media query below). */
+.work-wrapup {
+  position: relative;
+  flex: none;
+  align-self: stretch;
+  min-height: 0;
+  background: #fff;
+  border: 1px solid var(--dash-card-border);
+  border-left: 1px solid var(--dash-line);
+  border-radius: 0 14px 14px 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.18s ease;
+}
+.work-wrapup[data-open="false"] {
+  display: none;
+}
+/* Mirror of .work-ctx-resize: the panel sits on the right, so its drag seam is
+   on the LEFT edge (the boundary with the chat). */
+.work-wrapup-resize {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+  z-index: 6;
+}
+.work-wrapup-resize:hover {
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.06));
+}
+/* Header row matches the left context drawer's exactly — same padding, same
+   mono title (.work-ctx-title), with a muted control that collapses the drawer
+   ("Continue working ×"). */
+.work-wrapup-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--dash-line);
+}
+/* Matches the left details drawer's collapse control: a muted, non-bold label
+   collapse control — a muted icon button that darkens on hover. */
+.work-wrapup-continue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--dash-muted);
+  transition: color 0.12s;
+}
+.work-wrapup-continue:hover {
+  color: #000;
+}
+.work-wrapup-continue-x {
+  font-size: 22px;
+  line-height: 1;
+}
+.work-wrapup-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 18px;
+}
+
 @media (max-width: 980px) {
   .work-tabs {
     display: flex;
@@ -3097,7 +3293,8 @@ button.dash-row--click {
   }
   .work-ctx-resize,
   .work-ctx-open,
-  .work-ctx-close {
+  .work-ctx-close,
+  .work-wrapup-resize {
     display: none;
   }
   .work-body[data-mobile-view="chat"] .work-ctx-drawer {
@@ -3105,6 +3302,27 @@ button.dash-row--click {
   }
   .work-body[data-mobile-view="details"] .work-copilot {
     display: none;
+  }
+  /* Wrap-up is a full-width stacked panel on mobile, driven by the tab — the
+     desktop in-flow width/data-open behavior is overridden here. */
+  .work-wrapup {
+    width: auto !important;
+    flex: 1 1 auto;
+    border: 1px solid var(--dash-card-border);
+    border-radius: 14px;
+  }
+  .work-body[data-mobile-view="wrapup"] .work-wrapup {
+    display: flex !important;
+  }
+  .work-body[data-mobile-view="wrapup"] .work-copilot,
+  .work-body[data-mobile-view="wrapup"] .work-ctx-drawer {
+    display: none;
+  }
+  /* Three panels now share the body, so keep wrap-up out of the other views
+     (overrides the desktop data-open="true" case). */
+  .work-body[data-mobile-view="chat"] .work-wrapup,
+  .work-body[data-mobile-view="details"] .work-wrapup {
+    display: none !important;
   }
 }
 

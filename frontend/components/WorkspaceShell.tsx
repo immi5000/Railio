@@ -66,6 +66,7 @@ function faultLine(t: Ticket): string {
 import { ChatPane } from "./ChatPane";
 import { RepairContext } from "./RepairContext";
 import { IntakeContext } from "./IntakeContext";
+import { WrapUpForm } from "./WrapUpForm";
 
 // Context drawer sizing. Collapsed by default so the chat owns the page; the
 // tech drags the left edge to resize and the width/open state persists to
@@ -74,6 +75,7 @@ const SIDEBAR_MIN = 300;
 const SIDEBAR_MAX = 620;
 const SIDEBAR_DEFAULT = 400;
 const SIDEBAR_KEY = "railio_work_sidebar";
+const WRAPUP_KEY = "railio_work_wrapup";
 
 function clampWidth(w: number): number {
   return Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Math.round(w)));
@@ -100,7 +102,13 @@ export function WorkspaceShell() {
   const { role } = useRole();
 
   // On phones the body shows one panel at a time; always land on the chat.
-  const [mobileView, setMobileView] = useState<"chat" | "details">("chat");
+  const [mobileView, setMobileView] = useState<"chat" | "details" | "wrapup">("chat");
+
+  // Desktop: the wrap-up record form opens as an in-flow right-side drawer that
+  // compresses the chat (chat stays interactive). Drag-resizable like the left
+  // context drawer, its width persisted. On mobile it's a third "Wrap up" tab.
+  const [wrapOpen, setWrapOpen] = useState(false);
+  const [wrapWidth, setWrapWidth] = useState(SIDEBAR_DEFAULT);
 
   // Desktop context drawer: open by default on every load. Only the width is
   // persisted — the open/collapsed state intentionally resets to open so the
@@ -110,7 +118,7 @@ export function WorkspaceShell() {
   const dragStartX = useRef(0);
   const dragStartW = useRef(0);
 
-  // Hydrate the persisted width after mount (client-only; keeps first paint
+  // Hydrate the persisted widths after mount (client-only; keeps first paint
   // deterministic so there is no hydration mismatch).
   useEffect(() => {
     try {
@@ -119,12 +127,17 @@ export function WorkspaceShell() {
         const s = JSON.parse(raw);
         if (typeof s.width === "number") setCtxWidth(clampWidth(s.width));
       }
+      const wr = localStorage.getItem(WRAPUP_KEY);
+      if (wr) {
+        const s = JSON.parse(wr);
+        if (typeof s.width === "number") setWrapWidth(clampWidth(s.width));
+      }
     } catch {
       // ignore malformed storage
     }
   }, []);
 
-  // Write-through the width only (not open/collapsed — that always starts open).
+  // Write-through the widths only (not open/collapsed — those always reset).
   useEffect(() => {
     try {
       localStorage.setItem(SIDEBAR_KEY, JSON.stringify({ width: ctxWidth }));
@@ -132,6 +145,18 @@ export function WorkspaceShell() {
       // ignore quota/availability errors
     }
   }, [ctxWidth]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(WRAPUP_KEY, JSON.stringify({ width: wrapWidth }));
+    } catch {
+      // ignore quota/availability errors
+    }
+  }, [wrapWidth]);
+
+  // Switching tickets closes any open wrap-up drawer (mirrors why ctxOpen resets).
+  useEffect(() => {
+    setWrapOpen(false);
+  }, [selectedId]);
 
   // Drag the drawer's right edge: dragging right (larger clientX) widens it.
   function onResizeDown(e: React.PointerEvent) {
@@ -142,6 +167,27 @@ export function WorkspaceShell() {
     document.body.style.cursor = "col-resize";
     function onMove(ev: PointerEvent) {
       setCtxWidth(clampWidth(dragStartW.current + (ev.clientX - dragStartX.current)));
+    }
+    function onUp() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
+  // Drag the wrap-up drawer's left edge: it sits on the right, so dragging left
+  // (smaller clientX) widens it — the inverse of the left context drawer.
+  function onWrapResizeDown(e: React.PointerEvent) {
+    e.preventDefault();
+    dragStartX.current = e.clientX;
+    dragStartW.current = wrapWidth;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+    function onMove(ev: PointerEvent) {
+      setWrapWidth(clampWidth(dragStartW.current - (ev.clientX - dragStartX.current)));
     }
     function onUp() {
       window.removeEventListener("pointermove", onMove);
@@ -164,6 +210,15 @@ export function WorkspaceShell() {
     queryFn: () => getTicket(selectedId as string),
     enabled: selectedId != null,
   });
+
+  // The mobile "Wrap up" tab only exists for a tech on an in-progress ticket;
+  // if that stops being true (e.g. the ticket just got filed/closed) while the
+  // tab is active, fall back to the chat so the view isn't stranded.
+  useEffect(() => {
+    if (mobileView === "wrapup" && !(role === "tech" && ticket?.status === "IN_PROGRESS")) {
+      setMobileView("chat");
+    }
+  }, [mobileView, role, ticket?.status]);
 
   // Tech sees only actionable tickets; dispatcher sees the whole board.
   const filter = role === "tech" ? ["AWAITING_TECH", "IN_PROGRESS"] : null;
@@ -255,12 +310,30 @@ export function WorkspaceShell() {
                 </button>
               )}
               {isTech && ticket.status === "IN_PROGRESS" && (
-                <button
-                  className="work-cta"
-                  onClick={() => router.push(`/tech/ticket/${selectedId}/wrap-up`)}
-                >
-                  Complete &amp; wrap up
-                </button>
+                (wrapOpen || mobileView === "wrapup") ? (
+                  <button
+                    type="button"
+                    className="work-cta work-cta-secondary"
+                    onClick={() => {
+                      setWrapOpen(false);
+                      setMobileView("chat");
+                    }}
+                  >
+                    Continue working
+                  </button>
+                ) : (
+                  <button
+                    className="work-cta"
+                    onClick={() => {
+                      // Desktop opens the drawer; mobile switches to the tab.
+                      // Setting both is safe — each layout reads only its own.
+                      setWrapOpen(true);
+                      setMobileView("wrapup");
+                    }}
+                  >
+                    Complete &amp; wrap up
+                  </button>
+                )
               )}
               {!isTech && ticket.status === "AWAITING_TECH" && (
                 <button
@@ -300,6 +373,17 @@ export function WorkspaceShell() {
           >
             Details
           </button>
+          {isTech && ticket?.status === "IN_PROGRESS" && (
+            <button
+              type="button"
+              className="work-tab"
+              data-active={mobileView === "wrapup"}
+              aria-selected={mobileView === "wrapup"}
+              onClick={() => setMobileView("wrapup")}
+            >
+              Wrap up
+            </button>
+          )}
         </div>
 
         <div className="work-body" data-mobile-view={mobileView} data-ctx-open={ctxOpen}>
@@ -388,6 +472,45 @@ export function WorkspaceShell() {
               />
             </div>
           </section>
+
+          {/* Wrap-up panel: an in-flow right-side column, so opening it
+              compresses the chat rather than covering it — the tech can keep
+              chatting while writing the record. On desktop it's toggled by the
+              "Complete & wrap up" button (wrapOpen); on mobile it's the third
+              "Wrap up" tab. */}
+          {isTech && ticket && ticket.status === "IN_PROGRESS" && (
+            <aside
+              className="work-wrapup"
+              data-open={wrapOpen}
+              style={{ width: wrapWidth }}
+              role="region"
+              aria-label="Wrap up"
+            >
+              {/* Resize handle on the left edge (the seam with the chat). */}
+              <div
+                className="work-wrapup-resize"
+                onPointerDown={onWrapResizeDown}
+                aria-label="Drag to resize"
+              />
+              <div className="work-wrapup-head">
+                <span className="work-ctx-title">Wrap up</span>
+                <button
+                  type="button"
+                  className="work-wrapup-continue"
+                  onClick={() => {
+                    setWrapOpen(false);
+                    setMobileView("chat");
+                  }}
+                  aria-label="Continue working"
+                >
+                  <span className="work-wrapup-continue-x" aria-hidden="true">×</span>
+                </button>
+              </div>
+              <div className="work-wrapup-body">
+                <WrapUpForm ticketId={selectedId} />
+              </div>
+            </aside>
+          )}
         </div>
       </div>
     </div>

@@ -282,10 +282,18 @@ class WrapUpDraft(BaseModel):
     notes: Optional[str] = None
 
 
+class WrapUpPartEntry(BaseModel):
+    part_id: int
+    qty: int
+
+
 class FinalizeWrapUpBody(BaseModel):
     summary: str
     notes: Optional[str] = None
     author: Optional[str] = None
+    # Parts the tech entered manually at wrap-up. Filed as tech_manual
+    # ticket_parts and decremented from inventory (qty_on_hand).
+    parts: Optional[list[WrapUpPartEntry]] = None
 
 
 class CreateHistoricalRecordBody(BaseModel):
