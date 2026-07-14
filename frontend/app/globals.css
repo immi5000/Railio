@@ -2551,6 +2551,34 @@ button {
   font-size: 12px;
   color: var(--dash-muted);
   margin: 8px 0 0;
+  white-space: nowrap;
+}
+.dash-tickets-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.dash-tickets-controls {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+/* On narrow screens keep the controls on the heading's line by letting them
+   shrink to fit instead of overflowing the card. */
+@media (max-width: 560px) {
+  .dash-tickets-head {
+    gap: 10px;
+  }
+  .dash-tickets-controls .dash-filter {
+    min-width: 0;
+    flex: 1 1 0;
+    padding-left: 10px;
+    padding-right: 24px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
 }
 .dash-link {
   font-family: "Inter", sans-serif;

@@ -277,30 +277,22 @@ export default function DashboardPage() {
 
         {/* Tickets */}
         <section className="dash-card" style={{ padding: "22px 28px" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: 16,
-              marginBottom: 8,
-            }}
-          >
+          <div className="dash-tickets-head">
             <div>
               <h2 className="dash-section-title">Tickets</h2>
               <p className="dash-section-sub">
                 {tickets.length} total · {open.length} open
               </p>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="dash-tickets-controls">
               <select
                 className="dash-filter"
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as SortMode)}
                 aria-label="Sort tickets"
               >
-                <option value="priority">Sort: Priority</option>
-                <option value="locomotive">Sort: Locomotive</option>
+                <option value="priority">Priority</option>
+                <option value="locomotive">Locomotive</option>
               </select>
               <select
                 className="dash-filter"
