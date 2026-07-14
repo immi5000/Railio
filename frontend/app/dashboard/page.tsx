@@ -36,12 +36,25 @@ function initials(name: string | null | undefined): string {
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "—";
 }
 
-// Faint decorative snowflake in the fleet-availability card (matches Figma).
-function SnowflakeIcon() {
+// Faint decorative steam locomotive (side profile), drawn in the same stroke
+// style as the Figma line icons.
+function TrainIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <path d="M12 2v20M2 12h20M4.5 4.5l15 15M19.5 4.5l-15 15" />
-      <path d="M12 5l-2.2-2.2M12 5l2.2-2.2M12 19l-2.2 2.2M12 19l2.2 2.2M5 12l-2.2-2.2M5 12l-2.2 2.2M19 12l2.2-2.2M19 12l2.2 2.2" />
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      {/* mirrored horizontally so the locomotive faces the other way */}
+      <g transform="scale(-1,1) translate(-24,0)">
+        {/* boiler + cab body, sitting on the running board */}
+        <path d="M3 16V9h9l3 3h5v4" />
+        {/* cab roof */}
+        <path d="M15 9V6h4v6" />
+        {/* smokestack */}
+        <path d="M6 9V6h2v3" />
+        {/* running board / footplate */}
+        <path d="M3 16h18" />
+        {/* wheels */}
+        <circle cx="7" cy="18" r="2" />
+        <circle cx="17" cy="18" r="2" />
+      </g>
     </svg>
   );
 }
@@ -80,11 +93,17 @@ function fmtDateTime(iso: string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? "—" : DATETIME_FMT.format(d);
 }
 
+// Priority rank for sorting — lower number sorts first (most urgent on top).
+const SEV_RANK: Record<Severity, number> = { critical: 0, major: 1, minor: 2 };
+
+type SortMode = "priority" | "locomotive";
+
 export default function DashboardPage() {
+  const [sortMode, setSortMode] = useState<SortMode>("priority");
   const [unitFilter, setUnitFilter] = useState<string>("all");
 
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: getMe, retry: false });
-  const { data: tickets = [] } = useQuery({
+  const { data: tickets = [], isLoading: ticketsLoading } = useQuery({
     queryKey: ["tickets", "dashboard"],
     queryFn: () => listTickets(),
     refetchInterval: 15000,
@@ -112,13 +131,31 @@ export default function DashboardPage() {
     () => Array.from(new Set(tickets.map((t) => unitLabel(t.asset)))).sort(),
     [tickets],
   );
-  const visibleWorkOrders = useMemo(
-    () =>
+  const visibleWorkOrders = useMemo(() => {
+    const filtered =
       unitFilter === "all"
         ? tickets
-        : tickets.filter((t) => unitLabel(t.asset) === unitFilter),
-    [tickets, unitFilter],
-  );
+        : tickets.filter((t) => unitLabel(t.asset) === unitFilter);
+
+    // Sort by severity (critical → major → minor), most recent first as a
+    // tie-break; or group alphabetically by locomotive unit.
+    const sorted = [...filtered];
+    if (sortMode === "locomotive") {
+      sorted.sort(
+        (a, b) =>
+          unitLabel(a.asset).localeCompare(unitLabel(b.asset)) ||
+          SEV_RANK[a.severity] - SEV_RANK[b.severity],
+      );
+    } else {
+      sorted.sort(
+        (a, b) =>
+          SEV_RANK[a.severity] - SEV_RANK[b.severity] ||
+          new Date(b.opened_at ?? 0).getTime() -
+            new Date(a.opened_at ?? 0).getTime(),
+      );
+    }
+    return sorted;
+  }, [tickets, unitFilter, sortMode]);
 
   const alert = open.find((t) => t.severity === "critical") ?? null;
   const criticalCount = open.filter((t) => t.severity === "critical").length;
@@ -206,7 +243,7 @@ export default function DashboardPage() {
             </div>
             <div className="dash-stat-side">
               <span className="dash-stat-flake" aria-hidden="true">
-                <SnowflakeIcon />
+                <TrainIcon />
               </span>
             </div>
           </div>
@@ -255,19 +292,30 @@ export default function DashboardPage() {
                 {tickets.length} total · {open.length} open
               </p>
             </div>
-            <select
-              className="dash-filter"
-              value={unitFilter}
-              onChange={(e) => setUnitFilter(e.target.value)}
-              aria-label="Filter by locomotive"
-            >
-              <option value="all">Locomotive</option>
-              {units.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-            </select>
+            <div style={{ display: "flex", gap: 8 }}>
+              <select
+                className="dash-filter"
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as SortMode)}
+                aria-label="Sort tickets"
+              >
+                <option value="priority">Sort: Priority</option>
+                <option value="locomotive">Sort: Locomotive</option>
+              </select>
+              <select
+                className="dash-filter"
+                value={unitFilter}
+                onChange={(e) => setUnitFilter(e.target.value)}
+                aria-label="Filter by locomotive"
+              >
+                <option value="all">All locomotives</option>
+                {units.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="dash-table">
@@ -281,7 +329,13 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            {visibleWorkOrders.length === 0 && (
+            {ticketsLoading && (
+              <div className="dash-row dash-wo">
+                <span className="dash-sub">Loading tickets…</span>
+              </div>
+            )}
+
+            {!ticketsLoading && visibleWorkOrders.length === 0 && (
               <div className="dash-row dash-wo">
                 <span className="dash-sub">No tickets.</span>
               </div>
