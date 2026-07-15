@@ -72,7 +72,6 @@ export function ChatPane({
   // Map tool-call call_id → tool name so `tool_call_completed` (which only
   // carries call_id) can dispatch on the original tool name.
   const callIdToName = useRef<Map<string, string>>(new Map());
-  const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Timestamp (ms) until which sending is blocked after a 429. null = no cooldown.
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
@@ -113,12 +112,6 @@ export function ChatPane({
     return () => cancelAnimationFrame(id);
   }, [messages, live, pending.length, streaming]);
 
-  // Toast auto-dismiss
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 1800);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   // Tick once a second while a cooldown is active so the countdown updates and
   // the composer re-enables when the window passes.
@@ -303,11 +296,6 @@ export function ChatPane({
           // re-renders with the fresh ticket.
           qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
           qc.invalidateQueries({ queryKey: ["tickets"] });
-          const newStatus = (ev.output as { status?: string } | undefined)
-            ?.status;
-          setToast(
-            newStatus ? `Status → ${newStatus.replace(/_/g, " ")}` : "Status changed",
-          );
         }
         callIdToName.current.delete(ev.call_id);
         break;
@@ -613,8 +601,6 @@ export function ChatPane({
           onClose={() => setPreviewFigure(null)}
         />
       )}
-
-      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
