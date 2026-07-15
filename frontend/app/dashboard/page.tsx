@@ -275,7 +275,9 @@ export default function DashboardPage() {
               <p className="dash-sub" style={{ marginTop: 8 }}>
                 {alert
                   ? `${unitLabel(alert.asset)} · ${alert.asset.unit_model} · ${faultLine(alert)}`
-                  : "No units have a critical fault right now."}
+                  : open.length
+                    ? `${open.length} open ticket${open.length > 1 ? "s" : ""} to work through — none urgent.`
+                    : "No open tickets. Fleet fully operational."}
               </p>
             </div>
           </div>
