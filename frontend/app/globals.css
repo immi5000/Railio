@@ -2692,6 +2692,95 @@ button {
   flex: 1;
 }
 
+/* Card 3 (alt) — Active-company switcher. Shares the .dash-stat shell with the
+   other two summary cards: mono top-row label + a Switch control, over the
+   active company's identity. Its popover reuses the .fig-profile-* option
+   styling so this and the profile-menu switcher read as one system. */
+.dash-stat--company {
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  /* Base .dash-stat clips overflow (for the card 1 colour block); the switcher
+     popover must escape the card, so allow it to overflow here. */
+  overflow: visible;
+}
+.dash-company-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: #000;
+  background: var(--dash-bg);
+  border: 1px solid var(--dash-border);
+  border-radius: 40px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s;
+}
+.dash-company-switch:hover {
+  border-color: #000;
+}
+.dash-company-chevron.is-open {
+  transform: rotate(180deg);
+}
+.dash-company-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+/* Name + hint reuse the old Critical-alert card's typography: the title in
+   Inter (.dash-alert-title) over a mono, muted subline (.dash-sub). */
+.dash-company-name {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.15;
+  color: #000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash-company-hint {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--dash-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash-company-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 24px;
+  min-width: 260px;
+  max-width: calc(100vw - 32px);
+  background: #fff;
+  border: 1px solid var(--dash-border);
+  border-radius: 14px;
+  padding: 12px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+@media (max-width: 560px) {
+  .dash-company-menu {
+    left: 16px;
+    right: 16px;
+  }
+}
+/* Once the stat row stacks into a single column, lift the company switcher to
+   the top of the stack — you pick who you're working with before scanning the
+   fleet numbers. (Grid order only takes effect after the columns collapse.) */
+@media (max-width: 980px) {
+  .dash-stat--company {
+    order: -1;
+  }
+}
+
 /* Summary stat row */
 .dash-stats {
   display: grid;

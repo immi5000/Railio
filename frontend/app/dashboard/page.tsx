@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listTickets, listAssets, getMe, listOrgMembers } from "@/lib/api";
 import type { TicketStatus, Asset, Ticket, Severity } from "@/lib/contract";
 import { mostUrgent, oosDays, STATE_COLOR } from "@/lib/inspections";
+import { CompanySwitcher } from "@/components/CompanySwitcher";
 
 // Status dot color, mirroring the Figma legend:
 // awaiting tech = amber, in progress = blue, awaiting review = gray, closed = green.
@@ -157,9 +158,6 @@ export default function DashboardPage() {
     return sorted;
   }, [tickets, unitFilter, sortMode]);
 
-  const alert = open.find((t) => t.severity === "critical") ?? null;
-  const criticalCount = open.filter((t) => t.severity === "critical").length;
-
   // The Open-tickets block reflects the most severe open ticket:
   // black = critical, yellow = major, grey = minor (and the none-open case).
   const topSeverity: Severity | null = open.some((t) => t.severity === "critical")
@@ -254,33 +252,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Critical alert */}
-          <div className="dash-card dash-stat dash-stat--alert">
-            <div className="dash-stat-toprow">
-              <span className="dash-alert-badge" data-clear={!alert}>
-                {alert ? "CRITICAL" : "NONE"}
-              </span>
-              {alert && (
-                <Link href={`/work?ticket=${alert.id}&from=dashboard`} className="dash-link">
-                  View <span className="ico-arr" aria-hidden="true" />
-                </Link>
-              )}
-            </div>
-            <div>
-              <p className="dash-alert-title">
-                {alert
-                  ? `${criticalCount} unit${criticalCount > 1 ? "s" : ""} need${criticalCount > 1 ? "" : "s"} immediate attention`
-                  : "Critical alerts"}
-              </p>
-              <p className="dash-sub" style={{ marginTop: 8 }}>
-                {alert
-                  ? `${unitLabel(alert.asset)} · ${alert.asset.unit_model} · ${faultLine(alert)}`
-                  : open.length
-                    ? `${open.length} open ticket${open.length > 1 ? "s" : ""} to work through — none urgent.`
-                    : "No open tickets. Fleet fully operational."}
-              </p>
-            </div>
-          </div>
+          {/* Active client company — the rail operator this crew is maintaining
+              right now. A contractor can switch between the companies they service. */}
+          <CompanySwitcher />
         </section>
 
         {/* Tickets */}
