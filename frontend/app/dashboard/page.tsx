@@ -176,20 +176,26 @@ export default function DashboardPage() {
   };
   const blockColor = topSeverity ? SEV_BLOCK[topSeverity] : "#d9dadd";
 
-  // Fleet availability = (total units − units with an OPEN critical ticket) / total.
+  // Fleet availability = (total units − down units) / total. A unit is "down"
+  // if it is marked out-of-service OR has an OPEN critical/major ticket.
   // Iterate assets (not the id-set) so `down` can never exceed `total`.
-  const criticalAssetIds = useMemo(() => {
+  const downAssetIds = useMemo(() => {
     const s = new Set<number>();
-    for (const t of open) if (t.severity === "critical") s.add(t.asset.id);
+    for (const t of open) {
+      if (t.severity === "critical" || t.severity === "major") s.add(t.asset.id);
+    }
     return s;
   }, [open]);
   const downCount = useMemo(
-    () => assets.filter((a) => criticalAssetIds.has(a.id)).length,
-    [assets, criticalAssetIds],
+    () => assets.filter((a) => a.out_of_service || downAssetIds.has(a.id)).length,
+    [assets, downAssetIds],
   );
-  const availLabel = assets.length
-    ? `${(((assets.length - downCount) / assets.length) * 100).toFixed(1)}%`
-    : "—";
+  // Don't show a confident number until both feeds have loaded — otherwise the
+  // brief assets-loaded-but-tickets-pending window renders a false 100.0%.
+  const availLabel =
+    ticketsLoading || !assets.length
+      ? "—"
+      : `${(((assets.length - downCount) / assets.length) * 100).toFixed(1)}%`;
 
   const firstName = me?.name?.split(/\s+/)[0] || "there";
 
