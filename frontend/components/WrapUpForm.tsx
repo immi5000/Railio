@@ -1,9 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   finalizeWrapUp,
   getTicket,
@@ -205,10 +203,12 @@ export function WrapUpForm({
   onFiled,
 }: {
   ticketId: string;
+  // Called after the record is filed. The parent handles navigating the tech
+  // back to wherever they opened the ticket from — done there (not here) so the
+  // redirect survives this form unmounting when the ticket flips to CLOSED.
   onFiled?: () => void;
 }) {
   const qc = useQueryClient();
-  const router = useRouter();
 
   const { data: ticket } = useQuery({
     queryKey: ["ticket", ticketId],
@@ -267,14 +267,6 @@ export function WrapUpForm({
     },
   });
 
-  // Once filed, show the "Record filed" confirmation briefly, then return the
-  // tech to the dashboard so the closed ticket drops off their view.
-  useEffect(() => {
-    if (!filed) return;
-    const t = setTimeout(() => router.push("/dashboard"), 1500);
-    return () => clearTimeout(t);
-  }, [filed, router]);
-
   // Catalog entries not already picked, filtered by the search box. Capped so a
   // large inventory doesn't render thousands of rows.
   const pickedIds = new Set(manualParts.map((p) => p.part_id));
@@ -316,11 +308,6 @@ export function WrapUpForm({
             {ticket?.asset.reporting_mark} {ticket?.asset.road_number}&rsquo;s
             history and will surface in future chats for this unit.
           </p>
-          <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center" }}>
-            <Link href="/dashboard" className="btn btn-primary btn-sm">
-              Back to dashboard
-            </Link>
-          </div>
         </div>
       ) : (
         <div style={{ display: "grid", gap: 20 }}>

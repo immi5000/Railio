@@ -507,7 +507,16 @@ export function WorkspaceShell() {
                 </button>
               </div>
               <div className="work-wrapup-body">
-                <WrapUpForm ticketId={selectedId} />
+                <WrapUpForm
+                  ticketId={selectedId}
+                  onFiled={() => {
+                    // Show the "Record filed" note briefly, then return the tech
+                    // to wherever they opened the ticket from. Driven here (not
+                    // in WrapUpForm) so it survives the form unmounting when the
+                    // ticket flips to CLOSED on mobile.
+                    setTimeout(() => router.push(back.href), 1500);
+                  }}
+                />
               </div>
             </aside>
           )}
