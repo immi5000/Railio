@@ -2797,11 +2797,6 @@ button {
   border-radius: 20px;
   padding: 5px 14px;
 }
-.dash-alert-badge[data-clear="true"] {
-  /* Neutral grey, not green — no critical alerts is informational, not "all
-     done" (major/minor tickets may still be open). */
-  background: var(--dash-muted);
-}
 .dash-alert-title {
   font-family: "Inter", sans-serif;
   font-weight: 400;
