@@ -258,7 +258,7 @@ export default function DashboardPage() {
           <div className="dash-card dash-stat dash-stat--alert">
             <div className="dash-stat-toprow">
               <span className="dash-alert-badge" data-clear={!alert}>
-                {alert ? "CRITICAL" : "ALL CLEAR"}
+                {alert ? "CRITICAL" : "NONE"}
               </span>
               {alert && (
                 <Link href={`/work?ticket=${alert.id}&from=dashboard`} className="dash-link">
