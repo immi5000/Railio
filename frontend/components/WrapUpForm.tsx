@@ -22,15 +22,40 @@ function cleanLine(raw: string): string {
 
 /**
  * Turn the AI-drafted summary + notes into a single formatted notes string:
- * a "## SUMMARY" section (prose) and a "## NEXT TIME" section (bullet list),
+ * a "## SUMMARY" section (prose) and a "## NOTES" section (bullet list),
  * dropping the noise lines. This string is what the tech edits and what gets
  * filed — the preview below just renders it.
+ *
+ * The backend prompt asks the model to split the two sections with a "---"
+ * line, but the model often ignores it and returns one blob with literal
+ * "SUMMARY:" / "NOTES:" labels inside `draft.summary`. So rather than trust
+ * the server-side split, we re-parse: join whatever we got, then carve on the
+ * SUMMARY:/NOTES: markers ourselves. This is resilient to either shape.
  */
 function draftToNotes(draft?: WrapUpDraft): string {
   if (!draft) return "";
+
+  // Normal path: the backend split the draft into summary + notes. But the
+  // model often ignores the "---" separator and returns the whole thing in
+  // `summary` with a literal "NOTES:" label mid-text — carve that out here so
+  // the labels never leak into the rendered notes. Everything up to the first
+  // "NOTES:" is summary; the remainder becomes the notes bullets.
+  let summaryRaw = draft.summary || "";
+  let notesRaw = draft.notes || "";
+
+  const embedded = summaryRaw.search(/\bnotes\s*:/i);
+  if (!notesRaw && embedded >= 0) {
+    notesRaw = summaryRaw.slice(embedded);
+    summaryRaw = summaryRaw.slice(0, embedded);
+  }
+
+  // Strip the leading labels the model leaves in ("SUMMARY:", "NOTES:").
+  summaryRaw = summaryRaw.replace(/^\s*summary\s*:\s*/i, "");
+  notesRaw = notesRaw.replace(/^\s*notes\s*:\s*/i, "");
+
   const blocks: string[] = [];
 
-  const summary = (draft.summary || "")
+  const summary = summaryRaw
     .split("\n")
     .map(cleanLine)
     .filter((t) => t && !NOISE.test(t));
@@ -38,7 +63,7 @@ function draftToNotes(draft?: WrapUpDraft): string {
     blocks.push("## SUMMARY\n" + summary.join(" "));
   }
 
-  const notes = (draft.notes || "")
+  const notes = notesRaw
     .split("\n")
     .map(cleanLine)
     .filter((t) => t && !NOISE.test(t))
