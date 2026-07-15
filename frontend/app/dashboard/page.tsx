@@ -270,12 +270,12 @@ export default function DashboardPage() {
               <p className="dash-alert-title">
                 {alert
                   ? `${criticalCount} unit${criticalCount > 1 ? "s" : ""} need${criticalCount > 1 ? "" : "s"} immediate attention`
-                  : "No units need attention"}
+                  : "No critical alerts"}
               </p>
               <p className="dash-sub" style={{ marginTop: 8 }}>
                 {alert
                   ? `${unitLabel(alert.asset)} · ${alert.asset.unit_model} · ${faultLine(alert)}`
-                  : "All locomotives are operating normally."}
+                  : "No units have a critical fault right now."}
               </p>
             </div>
           </div>
