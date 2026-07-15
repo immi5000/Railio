@@ -1,8 +1,9 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   finalizeWrapUp,
   getTicket,
@@ -182,6 +183,7 @@ export function WrapUpForm({
   onFiled?: () => void;
 }) {
   const qc = useQueryClient();
+  const router = useRouter();
 
   const { data: ticket } = useQuery({
     queryKey: ["ticket", ticketId],
@@ -240,6 +242,14 @@ export function WrapUpForm({
     },
   });
 
+  // Once filed, show the "Record filed" confirmation briefly, then return the
+  // tech to the dashboard so the closed ticket drops off their view.
+  useEffect(() => {
+    if (!filed) return;
+    const t = setTimeout(() => router.push("/dashboard"), 1500);
+    return () => clearTimeout(t);
+  }, [filed, router]);
+
   // Catalog entries not already picked, filtered by the search box. Capped so a
   // large inventory doesn't render thousands of rows.
   const pickedIds = new Set(manualParts.map((p) => p.part_id));
@@ -282,8 +292,8 @@ export function WrapUpForm({
             history and will surface in future chats for this unit.
           </p>
           <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center" }}>
-            <Link href="/work" className="btn btn-primary btn-sm">
-              Back to queue
+            <Link href="/dashboard" className="btn btn-primary btn-sm">
+              Back to dashboard
             </Link>
           </div>
         </div>
