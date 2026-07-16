@@ -2602,25 +2602,18 @@ button {
     text-overflow: ellipsis;
     overflow: hidden;
   }
-}
-/* The count text is nowrap and the dispatcher adds a third nowrap item
-   ("+ New ticket"), so at phone widths the controls can't stay on the count's
-   line without shrinking the selects past their labels. Drop them to their own
-   full-width line and let them share it evenly instead. */
-@media (max-width: 480px) {
-  .dash-tickets-head {
+  /* The All-tickets card adds a third item ("+ New ticket") to this row. Three
+     items can't share a phone-width line without starving the selects down to
+     their chevrons, so let the pill drop to its own line above them. Scoped to
+     that card only — the dashboard's two-select row must keep sitting on one
+     line exactly as it does now. */
+  .dash-tickets-controls--wrap {
     flex-wrap: wrap;
-    gap: 12px;
+    justify-content: flex-end;
   }
-  .dash-tickets-controls {
+  .dash-tickets-controls--wrap .work-drawer-new {
     flex: 1 0 100%;
-    flex-wrap: wrap;
-  }
-  .dash-tickets-controls .dash-filter {
-    flex: 1 1 120px;
-  }
-  .dash-tickets-controls .work-drawer-new {
-    flex: 0 0 auto;
+    text-align: center;
   }
 }
 .dash-link {

@@ -652,11 +652,22 @@ function TicketList({
       </div>
 
       <section className="dash-card" style={{ padding: "22px 28px" }}>
+        {/* Same structure as the dashboard's tickets card: the count is grouped
+            into a single flex child so the controls sit beside it and shrink to
+            fit, rather than the count itself competing with them for the row. */}
         <div className="dash-tickets-head" style={{ marginBottom: 14 }}>
-          <p className="dash-section-sub" style={{ marginTop: 0 }}>
-            {tickets.length} total · {openCount} open
-          </p>
-          <div className="dash-tickets-controls" style={{ alignItems: "center" }}>
+          <div>
+            <p className="dash-section-sub" style={{ marginTop: 0 }}>
+              {tickets.length} total · {openCount} open
+            </p>
+          </div>
+          <div
+            className={
+              isDispatch
+                ? "dash-tickets-controls dash-tickets-controls--wrap"
+                : "dash-tickets-controls"
+            }
+          >
             {isDispatch && (
               <Link href="/dispatcher/new" className="work-drawer-new">
                 + New ticket
