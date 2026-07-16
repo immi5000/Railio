@@ -652,19 +652,11 @@ function TicketList({
       </div>
 
       <section className="dash-card" style={{ padding: "22px 28px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: 16,
-            marginBottom: 14,
-          }}
-        >
+        <div className="dash-tickets-head" style={{ marginBottom: 14 }}>
           <p className="dash-section-sub" style={{ marginTop: 0 }}>
             {tickets.length} total · {openCount} open
           </p>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div className="dash-tickets-controls" style={{ alignItems: "center" }}>
             {isDispatch && (
               <Link href="/dispatcher/new" className="work-drawer-new">
                 + New ticket

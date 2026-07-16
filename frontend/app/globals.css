@@ -2603,6 +2603,26 @@ button {
     overflow: hidden;
   }
 }
+/* The count text is nowrap and the dispatcher adds a third nowrap item
+   ("+ New ticket"), so at phone widths the controls can't stay on the count's
+   line without shrinking the selects past their labels. Drop them to their own
+   full-width line and let them share it evenly instead. */
+@media (max-width: 480px) {
+  .dash-tickets-head {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .dash-tickets-controls {
+    flex: 1 0 100%;
+    flex-wrap: wrap;
+  }
+  .dash-tickets-controls .dash-filter {
+    flex: 1 1 120px;
+  }
+  .dash-tickets-controls .work-drawer-new {
+    flex: 0 0 auto;
+  }
+}
 .dash-link {
   font-family: "Inter", sans-serif;
   font-weight: 700;
