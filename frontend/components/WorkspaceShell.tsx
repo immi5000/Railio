@@ -63,6 +63,29 @@ function faultLine(t: Ticket): string {
   return codes || "no fault code";
 }
 
+// Priority rank for the "Priority" sort — lower sorts first (most urgent on top).
+const SEV_RANK: Record<Ticket["severity"], number> = { critical: 0, major: 1, minor: 2 };
+
+type SortMode = "priority" | "locomotive";
+
+// Status filter pills. "open" is the union of every non-closed state; the rest
+// map to a single TicketStatus. Order mirrors the ticket lifecycle.
+type StatusFilter = "all" | "open" | TicketStatus;
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "open", label: "Open" },
+  { value: "AWAITING_TECH", label: "Awaiting tech" },
+  { value: "IN_PROGRESS", label: "In progress" },
+  { value: "AWAITING_REVIEW", label: "Awaiting review" },
+  { value: "CLOSED", label: "Closed" },
+];
+
+function matchesStatus(t: Ticket, f: StatusFilter): boolean {
+  if (f === "all") return true;
+  if (f === "open") return t.status !== "CLOSED";
+  return t.status === f;
+}
+
 import { ChatPane } from "./ChatPane";
 import { RepairContext } from "./RepairContext";
 import { IntakeContext } from "./IntakeContext";
@@ -220,11 +243,11 @@ export function WorkspaceShell() {
     }
   }, [mobileView, role, ticket?.status]);
 
-  // Tech sees only actionable tickets; dispatcher sees the whole board.
-  const filter = role === "tech" ? ["AWAITING_TECH", "IN_PROGRESS"] : null;
-  const tickets: Ticket[] = (data || []).filter((t) =>
-    filter ? filter.includes(t.status) : true,
-  );
+  // Every role gets the full board here — the status pills below do the
+  // narrowing (a tech simply defaults to the "Open" pill). Pre-filtering by
+  // role would strip CLOSED tickets from the list entirely, leaving the Closed
+  // pill permanently empty for techs.
+  const tickets: Ticket[] = data || [];
 
   const isDispatch = role === "dispatcher";
 
@@ -264,9 +287,6 @@ export function WorkspaceShell() {
       <div className="dash">
         <div className="dash-inner" style={{ paddingBottom: 64, gap: 0 }}>
           <span className="sect-eyebrow">Tickets</span>
-          <h1 className="h2" style={{ marginTop: 12, marginBottom: 24 }}>
-            All tickets
-          </h1>
 
           <TicketList
             role={role}
@@ -550,56 +570,132 @@ function TicketList({
 }) {
   const isDispatch = role === "dispatcher";
   const [unitFilter, setUnitFilter] = useState<string>("all");
+  // A tech lands on the actionable board ("Open"); dispatch sees everything.
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    role === "tech" ? "open" : "all",
+  );
+  const [sortMode, setSortMode] = useState<SortMode>("priority");
 
   const units = useMemo(
     () => Array.from(new Set(tickets.map((t) => unitLabel(t.asset)))).sort(),
     [tickets],
   );
-  const visible = useMemo(
-    () =>
+
+  // Count of tickets in each status bucket, shown on the pills so the operator
+  // can see the board's shape at a glance. Reflects the locomotive filter.
+  const statusCounts = useMemo(() => {
+    const pool =
       unitFilter === "all"
         ? tickets
-        : tickets.filter((t) => unitLabel(t.asset) === unitFilter),
-    [tickets, unitFilter],
-  );
+        : tickets.filter((t) => unitLabel(t.asset) === unitFilter);
+    const m = new Map<StatusFilter, number>();
+    for (const f of STATUS_FILTERS) {
+      m.set(f.value, pool.filter((t) => matchesStatus(t, f.value)).length);
+    }
+    return m;
+  }, [tickets, unitFilter]);
+
+  const visible = useMemo(() => {
+    const filtered = tickets.filter(
+      (t) =>
+        (unitFilter === "all" || unitLabel(t.asset) === unitFilter) &&
+        matchesStatus(t, statusFilter),
+    );
+    const sorted = [...filtered];
+    if (sortMode === "locomotive") {
+      sorted.sort(
+        (a, b) =>
+          unitLabel(a.asset).localeCompare(unitLabel(b.asset)) ||
+          SEV_RANK[a.severity] - SEV_RANK[b.severity],
+      );
+    } else {
+      sorted.sort(
+        (a, b) =>
+          SEV_RANK[a.severity] - SEV_RANK[b.severity] ||
+          new Date(b.opened_at ?? 0).getTime() -
+            new Date(a.opened_at ?? 0).getTime(),
+      );
+    }
+    return sorted;
+  }, [tickets, unitFilter, statusFilter, sortMode]);
 
   return (
-    <section className="dash-card" style={{ padding: "22px 28px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 16,
-          marginBottom: 8,
-        }}
-      >
-        <p className="dash-section-sub" style={{ marginTop: 0 }}>
-          {tickets.length} total · {openCount} open
-        </p>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {isDispatch && (
-            <Link href="/dispatcher/new" className="work-drawer-new">
-              + New ticket
-            </Link>
-          )}
-          <select
-            className="dash-filter"
-            value={unitFilter}
-            onChange={(e) => setUnitFilter(e.target.value)}
-            aria-label="Filter by locomotive"
-          >
-            <option value="all">Locomotive</option>
-            {units.map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
-          </select>
+    <>
+      {/* Page header: title on the left, status-filter pills right-aligned on
+          the same row. Closed tickets live under the "Closed" pill (they're
+          pulled off the dashboard), so this is where you go to find them. */}
+      <div className="tickets-header">
+        <h1 className="h2" style={{ margin: 0 }}>
+          All tickets
+        </h1>
+        <div
+          className="ticket-status-pills"
+          role="group"
+          aria-label="Filter by status"
+        >
+          {STATUS_FILTERS.map((f) => {
+            const n = statusCounts.get(f.value) ?? 0;
+            return (
+              <button
+                key={f.value}
+                type="button"
+                className="ticket-status-pill"
+                data-active={statusFilter === f.value}
+                aria-pressed={statusFilter === f.value}
+                onClick={() => setStatusFilter(f.value)}
+              >
+                {f.label} <span className="ticket-status-pill-count">· {n}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="dash-table">
+      <section className="dash-card" style={{ padding: "22px 28px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 16,
+            marginBottom: 14,
+          }}
+        >
+          <p className="dash-section-sub" style={{ marginTop: 0 }}>
+            {tickets.length} total · {openCount} open
+          </p>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {isDispatch && (
+              <Link href="/dispatcher/new" className="work-drawer-new">
+                + New ticket
+              </Link>
+            )}
+            <select
+              className="dash-filter"
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value as SortMode)}
+              aria-label="Sort tickets"
+            >
+              <option value="priority">Priority</option>
+              <option value="locomotive">Locomotive</option>
+            </select>
+            <select
+              className="dash-filter"
+              value={unitFilter}
+              onChange={(e) => setUnitFilter(e.target.value)}
+              aria-label="Filter by locomotive"
+            >
+              <option value="all">Locomotive</option>
+              {units.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="dash-table">
         <div className="dash-row dash-wo dash-row--head">
           <span className="dash-th">Ticket</span>
           <span className="dash-th">Symptoms / fault</span>
@@ -627,9 +723,11 @@ function TicketList({
         {!isLoading && !error && visible.length === 0 && (
           <div className="dash-row dash-wo">
             <span className="dash-sub">
-              {isDispatch
-                ? "No tickets yet. Open one so the tech has context."
-                : "Tickets handed off by dispatch show up here."}
+              {statusFilter !== "all" || unitFilter !== "all"
+                ? "No tickets match these filters."
+                : isDispatch
+                  ? "No tickets yet. Open one so the tech has context."
+                  : "Tickets handed off by dispatch show up here."}
             </span>
           </div>
         )}
@@ -669,7 +767,7 @@ function TicketList({
                   {t.severity.toUpperCase()}
                 </span>
               </div>
-              <div className="dash-hide-sm">
+              <div className="dash-collapse-sm dash-wo-status">
                 <span className="dash-status">
                   <span
                     className="dash-dot"
@@ -678,15 +776,16 @@ function TicketList({
                   {STATUS_LABEL[t.status]}
                 </span>
               </div>
-              <div className="dash-hide-sm">
-                <span className="dash-sub" style={{ display: "block", textAlign: "right" }}>
+              <div className="dash-collapse-sm dash-wo-opened">
+                <span className="dash-sub dash-opened-val">
                   {fmtDateTime(t.opened_at)}
                 </span>
               </div>
             </button>
           );
         })}
-      </div>
-    </section>
+        </div>
+      </section>
+    </>
   );
 }

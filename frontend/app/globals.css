@@ -48,6 +48,30 @@
   box-sizing: border-box;
 }
 
+/* Focus policy: a mouse click should never leave a lingering focus ring behind.
+   Suppress the default outline on plain :focus (which sticks after click), and
+   show a clear ring only for :focus-visible — i.e. keyboard/assistive-tech
+   navigation, where the indicator is needed for accessibility. */
+:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+:focus-visible {
+  outline: 2px solid var(--dash-link, #2683eb);
+  outline-offset: 2px;
+}
+/* Native <select> and the filter/switcher pills report :focus-visible even on a
+   plain mouse click (Chromium treats them as keyboard-operable once open), which
+   re-introduces the lingering ring. These are always operated by pointer, so
+   suppress the ring on them outright. */
+select,
+.dash-filter,
+.dash-company-switch,
+.dash-stat--company {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -2970,30 +2994,179 @@ button.dash-row--click {
   grid-template-columns: 1.6fr 2fr 0.9fr 1.1fr 1fr;
 }
 .dash-fleet {
-  grid-template-columns: 1.3fr 0.8fr 0.9fr 1fr 0.9fr 0.5fr;
+  grid-template-columns: 1.3fr 0.9fr 1.1fr 1fr 0.5fr;
 }
+/* Desktop: opened timestamp sits right-aligned in its column (previously an
+   inline style; moved here so mobile can override without !important). */
+.dash-wo-opened .dash-opened-val {
+  display: block;
+  text-align: right;
+}
+
+/* ── Mobile: stacked "cards" that keep every column instead of hiding it ──
+   The desktop tables (5-col tickets, 6-col fleets) can't shrink to a phone
+   width without squishing text to shreds. Rather than drop the Status/Opened/
+   Model/Next-due columns (which loses real information), each row becomes a
+   labeled card: the primary cells stack, and the columns that used to be their
+   own grid tracks reflow into a labeled key/value strip. */
 @media (max-width: 760px) {
-  /* Stack each table row into a single left-aligned column: a 2-col grid
-     orphaned the 3rd visible cell (severity pill / open badge) onto its own
-     row. Hide the column headers — they no longer line up once stacked. */
   .dash-wo,
   .dash-fleet {
     grid-template-columns: 1fr;
-    gap: 6px;
+    gap: 10px;
+    padding: 16px 0;
   }
+  /* Column headers no longer line up once stacked — each cell carries its own
+     inline label instead. */
   .dash-row--head.dash-wo,
   .dash-row--head.dash-fleet {
     display: none;
   }
-  .dash-hide-sm {
+  /* Header cells only (the sole remaining users of dash-hide-sm). */
+  .dash-th.dash-hide-sm {
     display: none;
   }
-  /* Cells the desktop layout right-aligned via inline styles (e.g. the fleet
-     open-count badge) read left-aligned once stacked. !important is needed to
-     beat the inline text-align. */
-  .dash-wo > *,
-  .dash-fleet > * {
-    text-align: left !important;
+
+  /* Tickets card ------------------------------------------------------- */
+  /* Switch the row from grid to flex so the cells stack into a card.
+       child 1: id + unit + count  → full width (severity pill floats top-right)
+       child 2: symptom / fault    → full width
+       child 3: severity pill      → absolutely positioned, top-right corner
+       status (dot + label)        ┐ one meta line
+       opened timestamp            ┘ */
+  .dash-wo {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 8px;
+  }
+  .dash-wo > :nth-child(1),
+  .dash-wo > :nth-child(2) {
+    flex: 0 0 100%;
+  }
+  /* Keep the id/unit line clear of the pinned severity pill, and give it extra
+     breathing room above the symptom text below. */
+  .dash-wo > :nth-child(1) {
+    padding-right: 76px;
+    margin-bottom: 6px;
+  }
+  .dash-wo > :nth-child(2) {
+    margin-bottom: 2px;
+  }
+  /* Severity pill pinned to the top-right, aligned with the id/unit line. The
+     row bleeds 28px past the card padding on each side, so anchor the pill at
+     right:28px to land it inside the visible card edge, not on the bleed. */
+  .dash-wo > :nth-child(3) {
+    position: absolute;
+    top: 16px;
+    right: 28px;
+    margin: 0;
+  }
+  /* Status + opened share one meta line beneath the fault text. */
+  .dash-wo .dash-wo-status {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    text-align: left;
+  }
+  .dash-wo .dash-wo-opened {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+  }
+  .dash-wo-opened .dash-opened-val {
+    display: inline;
+    text-align: left;
+  }
+  /* Soft dot separating status and opened on the meta line. */
+  .dash-wo .dash-wo-opened::before {
+    content: "·";
+    margin-right: 12px;
+    color: var(--dash-faint);
+  }
+
+  /* Fleets card -------------------------------------------------------- */
+  /* Each unit becomes a compact card:
+       row 1: ● unit   status ............................. open badge (right)
+       row 2: MODEL ................................ NEXT DUE
+     Status rides inline next to the unit title (the operational state), so the
+     "In service" *date* column — nearly always blank and redundant with the
+     status — is dropped on mobile. Model / Next due share the second row. */
+  .dash-fleet {
+    grid-template-columns: auto 1fr auto;
+    column-gap: 14px;
+    row-gap: 12px;
+    align-items: end;
+  }
+  /* Unit line: col 1, row 1 — sizes to its own width. */
+  .dash-fleet > .dash-status:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    justify-self: start;
+    white-space: nowrap;
+  }
+  /* Status: col 2, row 1 — sits just right of the unit, no label, no wrap. */
+  .dash-fleet .dash-data[data-label="Status"] {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: row;
+    gap: 0;
+    align-self: center;
+    justify-self: start;
+    white-space: nowrap;
+  }
+  .dash-fleet .dash-data[data-label="Status"]::before {
+    display: none;
+    content: "";
+  }
+  /* Open-count badge (last cell): col 3, row 1, far right. */
+  .dash-fleet > :last-child {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    align-self: center;
+  }
+  /* Data row: Model (left) / Next due (right, spanning to the card edge). */
+  .dash-fleet .dash-data[data-label="Model"] {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .dash-fleet .dash-data[data-label="Next due"] {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    align-items: flex-end;
+    text-align: right;
+  }
+  /* Labeled key/value cells. */
+  .dash-fleet .dash-data[data-label] {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    text-align: left;
+  }
+  .dash-fleet .dash-data[data-label]::before {
+    content: attr(data-label);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--dash-faint);
+    white-space: nowrap;
+  }
+}
+
+/* Narrow phones: a long "Next due" string (e.g. "92-Day: Aug 20, 2026") can't
+   share the row with Model. Drop it to its own full-width row beneath. */
+@media (max-width: 400px) {
+  .dash-fleet .dash-data[data-label="Next due"] {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    align-items: flex-start;
+    text-align: left;
   }
 }
 
@@ -3118,6 +3291,60 @@ button.dash-row--click {
   border-radius: 40px;
   padding: 6px 30px 6px 14px;
   cursor: pointer;
+  transition: border-color 0.1s, background 0.1s;
+}
+/* Match the Switch dropdown: no focus ring, black border on hover only. */
+.dash-filter:hover {
+  border-color: #000;
+}
+
+/* All-tickets page header: title on the left, status pills right-aligned on the
+   same row. Wraps to a stacked layout when the row runs out of width. */
+.tickets-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: 12px;
+  margin-bottom: 24px;
+}
+
+/* All-tickets status filter — a row of selectable rounded pills, matching the
+   Knowledge-page filter tabs: black fill + white text when active, white with a
+   grey outline when inactive. The count reads inline as "Label · N". */
+.ticket-status-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ticket-status-pill {
+  appearance: none;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #3a3a3e;
+  background: #fff;
+  border: 1px solid var(--dash-border);
+  border-radius: 99px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s;
+}
+.ticket-status-pill:hover:not([data-active="true"]) {
+  border-color: #000;
+}
+.ticket-status-pill[data-active="true"] {
+  color: #fff;
+  background: #000;
+  border-color: #000;
+}
+.ticket-status-pill-count {
+  color: #9a9aa0;
+}
+.ticket-status-pill[data-active="true"] .ticket-status-pill-count {
+  color: #fff;
 }
 
 /* Bottom split: fleets + team */

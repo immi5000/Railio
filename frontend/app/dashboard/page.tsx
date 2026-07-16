@@ -129,14 +129,16 @@ export default function DashboardPage() {
   }, [open]);
 
   const units = useMemo(
-    () => Array.from(new Set(tickets.map((t) => unitLabel(t.asset)))).sort(),
-    [tickets],
+    () => Array.from(new Set(open.map((t) => unitLabel(t.asset)))).sort(),
+    [open],
   );
   const visibleWorkOrders = useMemo(() => {
+    // Closed tickets drop off the dashboard entirely — they live on the
+    // All-tickets page. The dashboard only ever shows the open board.
     const filtered =
       unitFilter === "all"
-        ? tickets
-        : tickets.filter((t) => unitLabel(t.asset) === unitFilter);
+        ? open
+        : open.filter((t) => unitLabel(t.asset) === unitFilter);
 
     // Sort by severity (critical → major → minor), most recent first as a
     // tie-break; or group alphabetically by locomotive unit.
@@ -156,7 +158,7 @@ export default function DashboardPage() {
       );
     }
     return sorted;
-  }, [tickets, unitFilter, sortMode]);
+  }, [open, unitFilter, sortMode]);
 
   // The Open-tickets block reflects the most severe open ticket:
   // black = critical, yellow = major, grey = minor (and the none-open case).
@@ -348,7 +350,7 @@ export default function DashboardPage() {
                       {t.severity.toUpperCase()}
                     </span>
                   </div>
-                  <div className="dash-hide-sm">
+                  <div className="dash-collapse-sm dash-wo-status">
                     <span className="dash-status">
                       <span
                         className="dash-dot"
@@ -357,8 +359,8 @@ export default function DashboardPage() {
                       {STATUS_LABEL[t.status]}
                     </span>
                   </div>
-                  <div className="dash-hide-sm">
-                    <span className="dash-sub" style={{ display: "block", textAlign: "right" }}>
+                  <div className="dash-collapse-sm dash-wo-opened">
+                    <span className="dash-sub dash-opened-val">
                       {fmtDateTime(t.opened_at)}
                     </span>
                   </div>
@@ -390,7 +392,6 @@ export default function DashboardPage() {
               <div className="dash-row dash-fleet dash-row--head">
                 <span className="dash-th">Unit</span>
                 <span className="dash-th">Model</span>
-                <span className="dash-th dash-hide-sm">In service</span>
                 <span className="dash-th dash-hide-sm">Next due</span>
                 <span className="dash-th dash-hide-sm">Status</span>
                 <span className="dash-th" style={{ textAlign: "right" }}>
@@ -421,17 +422,17 @@ export default function DashboardPage() {
                       />
                       <span className="dash-unit">{unitLabel(a)}</span>
                     </span>
-                    <span className="dash-data">{a.unit_model}</span>
-                    <span className="dash-data dash-hide-sm">{fmtDate(a.in_service_date)}</span>
+                    <span className="dash-data" data-label="Model">{a.unit_model}</span>
                     <span
-                      className="dash-data dash-hide-sm"
+                      className="dash-data dash-collapse-sm"
+                      data-label="Next due"
                       style={{ color: STATE_COLOR[urgent.state] }}
                     >
                       {urgent.nextDue
                         ? `${urgent.label}: ${fmtDate(urgent.nextDue)}`
                         : "—"}
                     </span>
-                    <span className="dash-data dash-hide-sm">
+                    <span className="dash-data dash-collapse-sm" data-label="Status">
                       {down !== null ? (
                         <span style={{ color: "var(--dash-danger)" }}>
                           Down {down}d
