@@ -1083,18 +1083,17 @@ button {
 .work-body > .work-copilot {
   flex: 1;
   min-width: 0;
+  /* Lighter stroke to match the side panels (.work-ctx-drawer / .work-wrapup use
+     --dash-card-border), overriding .dash-card's darker --dash-border here. */
+  border-color: var(--dash-card-border);
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   border-left: none;
 }
-/* When the wrap-up drawer is open on the right, join it to the chat the same way
-   the left context drawer joins: square the chat's right corners and drop its
-   right border so the wrap-up's left edge supplies the single seam. */
-.work-body:has(.work-wrapup[data-open="true"]) > .work-copilot {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-  border-right: none;
-}
+/* The wrap-up panel is a detached floating card (not joined to the chat), so
+   the chat keeps its own right border and rounding when wrap-up is open — the
+   panel's own margin-left supplies the gap between them. (No :has override
+   needed here.) */
 .work-copilot {
   display: flex;
   flex-direction: column;
@@ -3295,9 +3294,13 @@ button.dash-row--click {
   align-self: stretch;
   min-height: 0;
   background: #fff;
+  /* Detached, fully-rounded floating card (not joined to the chat): the chat
+     keeps its own right border and rounding — the :has join rule above is
+     neutralized — and margin-left is the gap between the two. Uses the lighter
+     --dash-card-border to match the detail drawer and chat column strokes. */
   border: 1px solid var(--dash-card-border);
-  border-left: 1px solid var(--dash-line);
-  border-radius: 0 14px 14px 0;
+  border-radius: 14px;
+  margin-left: 16px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
