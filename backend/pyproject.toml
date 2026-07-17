@@ -25,6 +25,7 @@ dev = [
   "ruff>=0.8.0",
   "pytest>=8.0",
   "pytest-asyncio>=0.24",
+  "pytest-xdist>=3.6",
 ]
 
 [build-system]
@@ -33,6 +34,21 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["railio*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+# BOTH must be session-scoped. railio.db._engine is a module singleton holding
+# loop-bound asyncpg connections, so a per-test event loop leaves the cached
+# engine pointing at a closed loop and every test after the first dies with
+# "Event loop is closed". Setting only the fixture scope is not enough.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+addopts = "-ra --strict-markers"
+markers = [
+  "live_openai: hits the real OpenAI API (costs money)",
+  "db: requires live Postgres with the `unit_tests` org seeded",
+]
 
 [tool.ruff]
 line-length = 100
