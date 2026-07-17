@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getTicket, listTickets, patchTicket } from "@/lib/api";
 import { statusLabel } from "@/lib/format";
+import { visibleTickets } from "@/lib/tickets";
 import { useRole } from "@/components/RoleProvider";
 import type { Role } from "@/lib/role";
 import type { Ticket, TicketStatus } from "@/lib/contract";
@@ -575,27 +576,40 @@ function TicketList({
   );
   const [sortMode, setSortMode] = useState<SortMode>("priority");
 
+  // Everything below counts off this, not the raw list: a tech must never see
+  // a ticket the dispatcher still holds — including in the pill counts.
+  const pool = useMemo(() => visibleTickets(tickets, role), [tickets, role]);
+
+  // Handing off is dispatch's move, so the pill is theirs too.
+  const filters = useMemo(
+    () =>
+      STATUS_FILTERS.filter(
+        (f) => f.value !== "AWAITING_HANDOFF" || role !== "tech",
+      ),
+    [role],
+  );
+
   const units = useMemo(
-    () => Array.from(new Set(tickets.map((t) => unitLabel(t.asset)))).sort(),
-    [tickets],
+    () => Array.from(new Set(pool.map((t) => unitLabel(t.asset)))).sort(),
+    [pool],
   );
 
   // Count of tickets in each status bucket, shown on the pills so the operator
   // can see the board's shape at a glance. Reflects the locomotive filter.
   const statusCounts = useMemo(() => {
-    const pool =
+    const scoped =
       unitFilter === "all"
-        ? tickets
-        : tickets.filter((t) => unitLabel(t.asset) === unitFilter);
+        ? pool
+        : pool.filter((t) => unitLabel(t.asset) === unitFilter);
     const m = new Map<StatusFilter, number>();
-    for (const f of STATUS_FILTERS) {
-      m.set(f.value, pool.filter((t) => matchesStatus(t, f.value)).length);
+    for (const f of filters) {
+      m.set(f.value, scoped.filter((t) => matchesStatus(t, f.value)).length);
     }
     return m;
-  }, [tickets, unitFilter]);
+  }, [pool, unitFilter, filters]);
 
   const visible = useMemo(() => {
-    const filtered = tickets.filter(
+    const filtered = pool.filter(
       (t) =>
         (unitFilter === "all" || unitLabel(t.asset) === unitFilter) &&
         matchesStatus(t, statusFilter),
@@ -632,7 +646,7 @@ function TicketList({
           role="group"
           aria-label="Filter by status"
         >
-          {STATUS_FILTERS.map((f) => {
+          {filters.map((f) => {
             const n = statusCounts.get(f.value) ?? 0;
             return (
               <button
