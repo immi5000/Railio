@@ -13,6 +13,8 @@ import type { Ticket, TicketStatus } from "@/lib/contract";
 // Figma status pill: white pill with a status-colored dot.
 function statusDotColor(status: TicketStatus): string {
   switch (status) {
+    case "AWAITING_HANDOFF":
+      return "#7a7a7e";
     case "AWAITING_TECH":
       return "#efc000";
     case "IN_PROGRESS":
@@ -27,12 +29,14 @@ function statusDotColor(status: TicketStatus): string {
 // Mirrors the dashboard work-order table palette/labels so the all-tickets
 // page reads identically to the dashboard "Tickets" section.
 const STATUS_DOT: Record<TicketStatus, string> = {
+  AWAITING_HANDOFF: "#7a7a7e",
   AWAITING_TECH: "#e0a200",
   IN_PROGRESS: "#2683eb",
   AWAITING_REVIEW: "#9a9aa0",
   CLOSED: "#5fb85f",
 };
 const STATUS_LABEL: Record<TicketStatus, string> = {
+  AWAITING_HANDOFF: "Awaiting handoff",
   AWAITING_TECH: "Awaiting tech",
   IN_PROGRESS: "In progress",
   AWAITING_REVIEW: "Awaiting review",
@@ -342,7 +346,11 @@ export function WorkspaceShell() {
                   </button>
                 )
               )}
-              {!isTech && ticket.status === "AWAITING_TECH" && (
+              {/* Handing off is what releases the ticket to the tech's queue, so
+                  it can happen exactly once. After that the button stays as a
+                  disabled receipt rather than vanishing — the dispatcher needs to
+                  see that it went through. */}
+              {!isTech && ticket.status === "AWAITING_HANDOFF" && (
                 <button
                   className="work-cta"
                   onClick={() => handoffMut.mutate()}
@@ -357,6 +365,13 @@ export function WorkspaceShell() {
                   )}
                 </button>
               )}
+              {!isTech &&
+                ticket.status !== "AWAITING_HANDOFF" &&
+                ticket.status !== "CLOSED" && (
+                  <button className="work-cta" disabled>
+                    Handed off
+                  </button>
+                )}
             </div>
           )}
         </div>

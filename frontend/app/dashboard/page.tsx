@@ -8,9 +8,10 @@ import type { TicketStatus, Asset, Ticket, Severity } from "@/lib/contract";
 import { mostUrgent, oosDays, STATE_COLOR } from "@/lib/inspections";
 import { CompanySwitcher } from "@/components/CompanySwitcher";
 
-// Status dot color, mirroring the Figma legend:
+// Status dot color, mirroring the Figma legend: awaiting handoff = muted grey,
 // awaiting tech = amber, in progress = blue, awaiting review = gray, closed = green.
 const STATUS_DOT: Record<TicketStatus, string> = {
+  AWAITING_HANDOFF: "#7a7a7e",
   AWAITING_TECH: "#e0a200",
   IN_PROGRESS: "#2683eb",
   AWAITING_REVIEW: "#9a9aa0",
@@ -18,6 +19,7 @@ const STATUS_DOT: Record<TicketStatus, string> = {
 };
 
 const STATUS_LABEL: Record<TicketStatus, string> = {
+  AWAITING_HANDOFF: "Awaiting handoff",
   AWAITING_TECH: "Awaiting tech",
   IN_PROGRESS: "In progress",
   AWAITING_REVIEW: "Awaiting review",

@@ -67,6 +67,7 @@ Use the token, never a raw hex, on new work.
 ### Semantic state (keep identical everywhere)
 | Meaning | Color | Where |
 |---|---|---|
+| Awaiting handoff | `#7a7a7e` muted grey | Status dot — dispatcher still holds it; nothing for the tech to act on yet |
 | Awaiting tech | `#e0a200` amber | Status dot |
 | In progress | `#2683eb` blue | Status dot |
 | Awaiting review | `#9a9aa0` grey | Status dot |
