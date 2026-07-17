@@ -251,17 +251,6 @@ export function WorkspaceShell() {
 
   const isDispatch = role === "dispatcher";
 
-  // Open-ticket count per asset, for the all-tickets row badges.
-  const openByAsset = useMemo(() => {
-    const m = new Map<number, number>();
-    for (const t of tickets) {
-      if (t.status !== "CLOSED")
-        m.set(t.asset.id, (m.get(t.asset.id) ?? 0) + 1);
-    }
-    return m;
-  }, [tickets]);
-  const openCount = tickets.filter((t) => t.status !== "CLOSED").length;
-
   function select(shortId: string | null) {
     router.push(shortId == null ? "/work" : `/work?ticket=${shortId}&from=tickets`);
   }
@@ -293,8 +282,6 @@ export function WorkspaceShell() {
             tickets={tickets}
             isLoading={isLoading}
             error={!!error}
-            openCount={openCount}
-            openByAsset={openByAsset}
             onSelect={select}
           />
         </div>
@@ -556,16 +543,12 @@ function TicketList({
   tickets,
   isLoading,
   error,
-  openCount,
-  openByAsset,
   onSelect,
 }: {
   role: Role;
   tickets: Ticket[];
   isLoading: boolean;
   error: boolean;
-  openCount: number;
-  openByAsset: Map<number, number>;
   onSelect: (shortId: string | null) => void;
 }) {
   const isDispatch = role === "dispatcher";
@@ -652,27 +635,19 @@ function TicketList({
       </div>
 
       <section className="dash-card" style={{ padding: "22px 28px" }}>
-        {/* Same structure as the dashboard's tickets card: the count is grouped
-            into a single flex child so the controls sit beside it and shrink to
-            fit, rather than the count itself competing with them for the row. */}
+        {/* "+ New ticket" sits at the card's left edge; the filters are pushed to
+            the right by their own auto margin, so they stay right-aligned whether
+            or not the dispatch button is present. */}
         <div className="dash-tickets-head" style={{ marginBottom: 14 }}>
-          <div>
-            <p className="dash-section-sub" style={{ marginTop: 0 }}>
-              {tickets.length} total · {openCount} open
-            </p>
-          </div>
+          {isDispatch && (
+            <Link href="/dispatcher/new" className="work-drawer-new">
+              + New ticket
+            </Link>
+          )}
           <div
-            className={
-              isDispatch
-                ? "dash-tickets-controls dash-tickets-controls--wrap"
-                : "dash-tickets-controls"
-            }
+            className="dash-tickets-controls"
+            style={{ marginLeft: "auto" }}
           >
-            {isDispatch && (
-              <Link href="/dispatcher/new" className="work-drawer-new">
-                + New ticket
-              </Link>
-            )}
             <select
               className="dash-filter"
               value={sortMode}
@@ -736,7 +711,6 @@ function TicketList({
         )}
 
         {visible.map((t) => {
-          const count = openByAsset.get(t.asset.id) ?? 0;
           const symptom = t.title || t.initial_symptoms || "—";
           return (
             <button
@@ -751,11 +725,6 @@ function TicketList({
                 <span className="dash-unit">
                   {unitLabel(t.asset)} · {t.asset.unit_model}
                 </span>
-                {count > 0 && (
-                  <span className="dash-count" data-on={count > 1}>
-                    {count}
-                  </span>
-                )}
               </div>
               <div style={{ minWidth: 0 }}>
                 <p className="dash-cell" style={{ margin: 0 }}>
