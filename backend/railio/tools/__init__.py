@@ -190,4 +190,23 @@ async def execute_tool(
     return {"error": f"unknown tool: {name}"}
 
 
-__all__ = ["TOOL_DEFS", "ToolEmit", "execute_tool"]
+def redact_for_model(name: str, output: dict[str, Any]) -> dict[str, Any]:
+    """Strip fields the UI needs to render but the model must not see.
+
+    A tool's output serves two consumers: the frontend (which renders it) and
+    the model (which reads it back as a `tool` message). Hand the model a
+    figure's storage path and it stops trusting show_figure to do the rendering
+    — it prepends an invented origin and emits its own markdown image, which
+    404s into a broken-image box. search_corpus already withholds paths for this
+    reason; this keeps show_figure honest to the same rule. The model only needs
+    to know the call succeeded.
+    """
+    if name == "show_figure" and isinstance(output.get("figure"), dict):
+        return {
+            **output,
+            "figure": {k: v for k, v in output["figure"].items() if k != "path"},
+        }
+    return output
+
+
+__all__ = ["TOOL_DEFS", "ToolEmit", "execute_tool", "redact_for_model"]

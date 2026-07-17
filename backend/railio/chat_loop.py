@@ -23,7 +23,7 @@ from .storage import STORAGE_URL_PREFIX, download_bytes
 from .suggested_replies import generate_suggested_replies
 from .system_prompt import SYSTEM_PROMPT
 from .tickets_repo import get_ticket_detail
-from .tools import TOOL_DEFS, execute_tool
+from .tools import TOOL_DEFS, execute_tool, redact_for_model
 from .tools.set_ticket_status import set_ticket_status
 
 MAX_TOOL_ROUNDS = 8
@@ -293,7 +293,7 @@ async def run_chat(
                 {
                     "role": "tool",
                     "tool_call_id": t["id"],
-                    "content": json.dumps(output),
+                    "content": json.dumps(redact_for_model(t["name"], output)),
                 }
             )
 

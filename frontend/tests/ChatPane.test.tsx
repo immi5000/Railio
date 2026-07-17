@@ -273,6 +273,29 @@ describe("ChatPane streaming", () => {
     expect(document.querySelector('img[src*="fig.png"]')).toBeNull();
   });
 
+  it("drops an image the model wrote itself", async () => {
+    // Verbatim from a real reply (message 1233): having seen a figure path in
+    // show_figure's result, the model invented a host for it and embedded the
+    // image alongside the thumbnail show_figure had already rendered. The URL
+    // does not exist, so it 404s into a broken-image box mid-paragraph.
+    const hallucinated =
+      "![Fig.AR10-13](https://urlcube.com/api/uploads/manuals/emd_gp38_2/p115-full-fig146.png)";
+    script([
+      { type: "user_message_persisted", message: msg(1, "tech", "diagram?") },
+      {
+        type: "assistant_message_persisted",
+        message: msg(2, "assistant", `Here is the circuit: ${hallucinated}`),
+      },
+      { type: "done" },
+    ] as StreamEvent[]);
+
+    const { user } = renderPane();
+    await send(user, "diagram?");
+    await screen.findByText(/Here is the circuit/);
+    expect(document.querySelector("img[src*='urlcube']")).toBeNull();
+    expect(document.querySelectorAll(".md img")).toHaveLength(0);
+  });
+
   it("surfaces a mid-stream error", async () => {
     script([
       { type: "user_message_persisted", message: msg(1, "tech", "x") },

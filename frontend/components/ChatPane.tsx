@@ -1405,13 +1405,12 @@ function Markdown({
           url.startsWith("cite:") ? url : defaultUrlTransform(url)
         }
         components={{
-          // Skip images the model emits with an empty/missing URL — a bare
-          // src="" trips the browser's empty-src warning and re-requests the page.
-          img: ({ src, alt }) =>
-            src ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={src} alt={alt ?? ""} style={{ maxWidth: "100%" }} />
-            ) : null,
+          // Drop every model-authored image. Figures reach the chat only through
+          // show_figure, which renders its own thumbnail from a path the backend
+          // resolved; an `![...]()` in the prose is therefore always the model
+          // guessing a URL, and a guessed URL 404s into a broken-image box next
+          // to the real thumbnail. Nothing legitimate is lost by refusing them.
+          img: () => null,
           a: ({ href, children }) => {
             const m = /^cite:(\d+)$/.exec(href ?? "");
             if (m) {
