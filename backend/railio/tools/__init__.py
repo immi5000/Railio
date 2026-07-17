@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any, Awaitable, Callable
 
 from .lookup_parts import lookup_parts
-from .parse_fault_dump import parse_fault_dump
 from .record_part_used import record_part_used
 from .search_corpus import search_corpus
 from .show_figure import show_figure
@@ -33,24 +32,6 @@ TOOL_DEFS: list[dict[str, Any]] = [
                     },
                 },
                 "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "parse_fault_dump",
-            "description": (
-                "Parse a raw locomotive diagnostic dump into structured "
-                "{code, ts, severity, description}[]. Persists to tickets.fault_dump_parsed. "
-                "Call once on dispatcher intake. The ticket is bound by the runtime."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "raw_text": {"type": "string"},
-                },
-                "required": ["raw_text"],
             },
         },
     },
@@ -167,12 +148,6 @@ async def execute_tool(
             args["unit_model"] = scope.get("unit_model")
             args["asset_id"] = scope.get("asset_id")
         return await search_corpus(**args)
-    if name == "parse_fault_dump":
-        # ticket_id is bound by the runtime — the model never picks which ticket.
-        args = {k: v for k, v in inp.items() if k != "ticket_id"}
-        if scope:
-            args["ticket_id"] = scope.get("ticket_id")
-        return await parse_fault_dump(**args)
     if name == "request_photo":
         emit(
             {
