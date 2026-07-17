@@ -78,6 +78,7 @@ type StatusFilter = "all" | "open" | TicketStatus;
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "open", label: "Open" },
+  { value: "AWAITING_HANDOFF", label: "Awaiting handoff" },
   { value: "AWAITING_TECH", label: "Awaiting tech" },
   { value: "IN_PROGRESS", label: "In progress" },
   { value: "AWAITING_REVIEW", label: "Awaiting review" },
