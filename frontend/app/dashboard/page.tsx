@@ -264,9 +264,6 @@ export default function DashboardPage() {
           <div className="dash-tickets-head">
             <div>
               <h2 className="dash-section-title">Tickets</h2>
-              <p className="dash-section-sub">
-                {tickets.length} total · {open.length} open
-              </p>
             </div>
             <div className="dash-tickets-controls">
               <select
@@ -318,7 +315,6 @@ export default function DashboardPage() {
             )}
 
             {visibleWorkOrders.map((t) => {
-              const openCount = openByAsset.get(t.asset.id) ?? 0;
               const symptom = t.title || t.initial_symptoms || "—";
               return (
                 <Link
@@ -331,11 +327,6 @@ export default function DashboardPage() {
                     <span className="dash-unit">
                       {unitLabel(t.asset)} · {t.asset.unit_model}
                     </span>
-                    {openCount > 0 && (
-                      <span className="dash-count" data-on={openCount > 1}>
-                        {openCount}
-                      </span>
-                    )}
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <p className="dash-cell" style={{ margin: 0 }}>

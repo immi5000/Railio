@@ -1949,11 +1949,17 @@ button {
   background: var(--dash-yellow);
   border: 1px solid var(--dash-yellow);
   border-radius: 20px;
-  padding: 8px 14px;
+  /* Match .dash-filter's box so the pill lines up with the filter row: same
+     vertical padding, border and line-height, so both resolve to the same
+     height from the same font metrics. */
+  padding: 6px 14px;
+  line-height: 1.4;
   white-space: nowrap;
   transition: filter 0.12s;
 }
+/* Hold the label black: the global a:hover would otherwise tint it link-blue. */
 .work-drawer-new:hover {
+  color: #000;
   filter: brightness(0.94);
 }
 .work-drawer-list {
@@ -2598,22 +2604,16 @@ button {
     min-width: 0;
     flex: 1 1 0;
     padding-left: 10px;
-    padding-right: 24px;
+    /* Still has to clear the chevron — the ellipsis must not run into it. */
+    padding-right: 34px;
     text-overflow: ellipsis;
     overflow: hidden;
   }
-  /* The All-tickets card adds a third item ("+ New ticket") to this row. Three
-     items can't share a phone-width line without starving the selects down to
-     their chevrons, so let the pill drop to its own line above them. Scoped to
-     that card only — the dashboard's two-select row must keep sitting on one
-     line exactly as it does now. */
-  .dash-tickets-controls--wrap {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-  .dash-tickets-controls--wrap .work-drawer-new {
-    flex: 1 0 100%;
-    text-align: center;
+  /* The All-tickets card adds a third item ("+ New ticket") to this row. Keep it
+     at its label's width so it doesn't stretch, and let the selects take the
+     remaining space via the flex rule above. */
+  .dash-tickets-controls .work-drawer-new {
+    flex: 0 0 auto;
   }
 }
 .dash-link {
@@ -3302,7 +3302,9 @@ button.dash-row--click {
   background-size: 10px 6px;
   border: 1px solid var(--dash-border);
   border-radius: 40px;
-  padding: 6px 30px 6px 14px;
+  /* Right padding clears the chevron (10px wide, inset 12px) plus a gap, so the
+     label never butts up against the arrow. */
+  padding: 6px 34px 6px 14px;
   cursor: pointer;
   transition: border-color 0.1s, background 0.1s;
 }
