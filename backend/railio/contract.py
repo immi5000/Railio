@@ -9,7 +9,12 @@ from pydantic import BaseModel, Field
 # Unit models are data, not a fixed enum — the dispatcher can add new locomotive
 # models, so this is an open string keyed off the assets table.
 UnitModel = str
-TicketStatus = Literal["AWAITING_TECH", "IN_PROGRESS", "AWAITING_REVIEW", "CLOSED"]
+# AWAITING_HANDOFF is dispatcher-owned intake: the ticket exists but is not yet
+# visible to the tech. The dispatcher's "Hand off to tech" action is what moves
+# it to AWAITING_TECH.
+TicketStatus = Literal[
+    "AWAITING_HANDOFF", "AWAITING_TECH", "IN_PROGRESS", "AWAITING_REVIEW", "CLOSED"
+]
 Role = Literal["dispatcher", "tech", "assistant", "system", "tool"]
 DocClass = Literal["manual", "tribal_knowledge"]
 Severity = Literal["minor", "major", "critical"]
@@ -188,6 +193,12 @@ class ListPartsResponse(BaseModel):
     total: int
 
 
+class PartsFilterOptions(BaseModel):
+    locations: list[str] = Field(default_factory=list)
+    suppliers: list[str] = Field(default_factory=list)
+    departments: list[str] = Field(default_factory=list)
+
+
 class TicketPart(BaseModel):
     id: int
     part_id: int
@@ -296,6 +307,11 @@ class FinalizeWrapUpBody(BaseModel):
     parts: Optional[list[WrapUpPartEntry]] = None
 
 
+class AddTicketPartBody(BaseModel):
+    part_id: int
+    qty: int
+
+
 class CreateHistoricalRecordBody(BaseModel):
     reported_date: Optional[str] = None
     completed_date: Optional[str] = None
@@ -317,6 +333,11 @@ class CreatePartBody(BaseModel):
     lead_time_days: Optional[int] = None
     alternate_part_numbers: list[str] = Field(default_factory=list)
     avg_cost: Optional[float] = None
+    # With locations, qty_on_hand/avg_cost are derived from them server-side.
+    locations: list[PartLocation] = Field(default_factory=list)
+    department: Optional[str] = None
+    subsidiary: Optional[str] = None
+    inv_class: Optional[str] = None
 
 
 class AttachDocumentBody(BaseModel):
