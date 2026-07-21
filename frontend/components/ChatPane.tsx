@@ -6,10 +6,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
+  addTicketPart,
   apiUrl,
   authHeaders,
   fileUrl,
   getCorpusChunk,
+  getTicket,
+  removeTicketPart,
   uploadPhotos,
 } from "@/lib/api";
 import type {
@@ -17,6 +20,7 @@ import type {
   CorpusFigure,
   Message,
   StreamEvent,
+  TicketDetail,
   ToolCall,
   Attachment,
 } from "@/lib/contract";
@@ -68,6 +72,53 @@ export function ChatPane({
   });
 
   const messages: Message[] = useMemo(() => data ?? [], [data]);
+
+  // The Add/Added part toggle on inline lookup_parts results is ticket-only: it
+  // writes to ticket_parts, which the copilot (no ticket) has no place to put.
+  // session.uploadRef is the ticket ref for the ticket chat and null for copilot.
+  const ticketRef = session.uploadRef;
+
+  // Parts already recorded on the ticket — drives the toggle's Add/Added state.
+  // Read from the shared ["ticket", ref] detail cache WorkspaceShell owns (this
+  // pane caches only Message[], under a distinct key), disabled for the copilot.
+  const { data: ticketDetail } = useQuery({
+    queryKey: ["ticket", ticketRef],
+    queryFn: () => getTicket(ticketRef as string),
+    enabled: ticketRef != null,
+  });
+  const addedPartIds = useMemo(
+    () =>
+      new Set<number>(
+        (ticketDetail?.ticket_parts ?? []).map((tp) => tp.part_id),
+      ),
+    [ticketDetail?.ticket_parts],
+  );
+  const [pendingPartIds, setPendingPartIds] = useState<Set<number>>(new Set());
+
+  async function togglePart(partId: number, add: boolean) {
+    if (!ticketRef) return; // copilot has no ticket to record parts against
+    setPendingPartIds((prev) => new Set(prev).add(partId));
+    try {
+      if (add) await addTicketPart(ticketRef, partId, 1);
+      else await removeTicketPart(ticketRef, partId);
+      qc.invalidateQueries({ queryKey: ["ticket", ticketRef] });
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+    } catch {
+      setError("Couldn't update parts — try again.");
+    } finally {
+      setPendingPartIds((prev) => {
+        const next = new Set(prev);
+        next.delete(partId);
+        return next;
+      });
+    }
+  }
+
+  const partActions: PartActions = {
+    addedPartIds,
+    pendingPartIds,
+    onTogglePart: togglePart,
+  };
 
   const [draft, setDraft] = useState("");
   const [interim, setInterim] = useState("");
@@ -316,6 +367,12 @@ export function ChatPane({
           qc.invalidateQueries({ queryKey: session.queryKey.slice(0, 2) });
           qc.invalidateQueries({ queryKey: ["tickets"] });
         }
+        if (toolName === "record_part_used" && ticketRef) {
+          // AI recorded a part; refresh so the sidebar's "Parts to bring", the
+          // wrap-up used-parts list, and the inline Add/Added toggle all update.
+          // Ticket-only — the copilot has no record_part_used tool.
+          qc.invalidateQueries({ queryKey: ["ticket", ticketRef] });
+        }
         callIdToName.current.delete(ev.call_id);
         break;
       }
@@ -498,6 +555,7 @@ export function ChatPane({
             isLast={i === messages.length - 1 && !live}
             onPick={(q) => send(q)}
             picksDisabled={streaming || inCooldown}
+            partActions={partActions}
           />
         ))}
 
@@ -510,6 +568,7 @@ export function ChatPane({
             onPhotoSend={uploadAndSend}
             onPick={(q) => send(q)}
             picksDisabled={streaming || inCooldown}
+            partActions={partActions}
           />
         )}
       </div>
@@ -670,6 +729,7 @@ function MessageBubble({
   isLast,
   onPick,
   picksDisabled,
+  partActions,
 }: {
   message: Message;
   onCitationClick: (c: Citation) => void;
@@ -678,6 +738,7 @@ function MessageBubble({
   isLast?: boolean;
   onPick?: (text: string) => void;
   picksDisabled?: boolean;
+  partActions: PartActions;
 }) {
   const isUser = message.role === "tech" || message.role === "dispatcher";
   const isSystem = message.role === "system" || message.role === "tool";
@@ -742,6 +803,7 @@ function MessageBubble({
         </div>
         {message.role === "assistant" ? (
           <Markdown
+            citations={message.citations ?? undefined}
             onCite={(id) => {
               const c = message.citations?.find((x) => x.chunk_id === id);
               c ? onCitationClick(c) : onOpenChunk(id);
@@ -787,12 +849,20 @@ function MessageBubble({
         {message.tool_calls && message.tool_calls.length > 0 && (
           <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap" }}>
             {message.tool_calls
-              .filter((tc) => tc.name !== "suggest_replies")
+              .filter(
+                (tc) => tc.name !== "suggest_replies" && tc.name !== "lookup_parts",
+              )
               .map((tc, i) => (
                 <ToolPill key={i} tc={tc} />
               ))}
           </div>
         )}
+
+        {(message.tool_calls ?? [])
+          .filter((tc) => tc.name === "lookup_parts")
+          .map((tc, i) => (
+            <LookupPartsResult key={`lp-${i}`} tc={tc} actions={partActions} />
+          ))}
 
         {suggestions.length > 0 && onPick && (
           <QuickReplies
@@ -1017,17 +1087,136 @@ function describeTool(tc: ToolCall): string {
       return "Checking the manual...";
     case "lookup_parts":
       return "Looking up parts...";
+    // No longer a chat tool — parsing runs through POST /parse-fault-dump. Kept
+    // because messages are append-only + hash-chained, so threads from before the
+    // removal permanently carry this tool_call and still have to render.
     case "parse_fault_dump":
       return "Parsing fault codes";
     case "request_photo":
       return "Requested photo";
     case "show_figure":
       return "Showed figure";
+    case "record_part_used":
+      return "Recorded part used";
     case "set_ticket_status":
       return "Status changed";
     default:
       return tc.name;
   }
+}
+
+type PartMatch = {
+  id: number;
+  part_number: string;
+  name: string;
+  bin_location: string | null;
+  qty_on_hand: number;
+  description?: string | null;
+};
+
+type PartActions = {
+  addedPartIds: Set<number>;
+  pendingPartIds: Set<number>;
+  onTogglePart: (partId: number, add: boolean) => void;
+};
+
+// Renders a lookup_parts result inline as an actionable list: one row per
+// matched part with an Add/Added toggle that records the part as used on the
+// ticket (surfacing it in the sidebar + Complete & wrap-up). Works both while
+// streaming and after reload, since the matches ride on the persisted
+// tool_call output — same reconstruction trick as show_figure.
+function LookupPartsResult({
+  tc,
+  actions,
+}: {
+  tc: ToolCall;
+  actions: PartActions;
+}) {
+  const output = tc.output as { matches?: PartMatch[] } | undefined;
+  const matches = output?.matches;
+
+  if (matches === undefined) {
+    return (
+      <div style={{ marginTop: 8 }}>
+        <span className="tool-pill">Looking up parts…</span>
+      </div>
+    );
+  }
+  if (matches.length === 0) {
+    return (
+      <div style={{ marginTop: 8, fontSize: 13, color: "var(--dash-muted)" }}>
+        No matching parts in inventory.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+      }}
+    >
+      {matches.map((m) => {
+        const added = actions.addedPartIds.has(m.id);
+        const pending = actions.pendingPartIds.has(m.id);
+        return (
+          <div
+            key={m.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "8px 10px",
+              border: "1px solid var(--dash-border)",
+              borderRadius: 12,
+              background: "#fff",
+            }}
+          >
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {m.name}
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--dash-muted)",
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span>{m.part_number}</span>
+                {m.bin_location && <span>Bin {m.bin_location}</span>}
+                <span style={{ color: m.qty_on_hand <= 0 ? "var(--dash-danger)" : undefined }}>
+                  {m.qty_on_hand <= 0 ? "Out of stock" : `${m.qty_on_hand} on hand`}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={added ? "btn btn-ghost btn-sm" : "btn btn-super btn-sm"}
+              disabled={pending}
+              onClick={() => actions.onTogglePart(m.id, !added)}
+              style={{ flexShrink: 0, minWidth: 84 }}
+            >
+              {pending ? "…" : added ? "✓ Added" : "+ Add"}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function LiveBubble({
@@ -1038,6 +1227,7 @@ function LiveBubble({
   onPhotoSend,
   onPick,
   picksDisabled,
+  partActions,
 }: {
   live: LiveAssistant;
   onCitationClick: (c: Citation) => void;
@@ -1046,6 +1236,7 @@ function LiveBubble({
   onPhotoSend: (file: File) => void;
   onPick: (text: string) => void;
   picksDisabled?: boolean;
+  partActions: PartActions;
 }) {
   return (
     <div style={{ display: "flex", justifyContent: "flex-start" }}>
@@ -1069,14 +1260,23 @@ function LiveBubble({
 
         <div style={{ display: "flex", flexWrap: "wrap" }}>
           {live.toolCalls
-            .filter((tc) => tc.name !== "suggest_replies")
+            .filter(
+              (tc) => tc.name !== "suggest_replies" && tc.name !== "lookup_parts",
+            )
             .map((tc, i) => (
               <ToolPill key={i} tc={tc} />
             ))}
         </div>
 
+        {live.toolCalls
+          .filter((tc) => tc.name === "lookup_parts")
+          .map((tc, i) => (
+            <LookupPartsResult key={`lp-${i}`} tc={tc} actions={partActions} />
+          ))}
+
         {live.text ? (
           <Markdown
+            citations={live.citations}
             onCite={(id) => {
               const c = live.citations.find((x) => x.chunk_id === id);
               c ? onCitationClick(c) : onOpenChunk(id);
@@ -1209,9 +1409,12 @@ function RequestPhotoBlock({
 function Markdown({
   children,
   onCite,
+  citations,
 }: {
   children: string;
   onCite?: (chunkId: number) => void;
+  /** Authoritative labels, keyed by chunk. See the `a` renderer below. */
+  citations?: Citation[];
 }) {
   return (
     <div className="md">
@@ -1223,17 +1426,25 @@ function Markdown({
           url.startsWith("cite:") ? url : defaultUrlTransform(url)
         }
         components={{
-          // Skip images the model emits with an empty/missing URL — a bare
-          // src="" trips the browser's empty-src warning and re-requests the page.
-          img: ({ src, alt }) =>
-            src ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={src} alt={alt ?? ""} style={{ maxWidth: "100%" }} />
-            ) : null,
+          // Drop every model-authored image. Figures reach the chat only through
+          // show_figure, which renders its own thumbnail from a path the backend
+          // resolved; an `![...]()` in the prose is therefore always the model
+          // guessing a URL, and a guessed URL 404s into a broken-image box next
+          // to the real thumbnail. Nothing legitimate is lost by refusing them.
+          img: () => null,
           a: ({ href, children }) => {
             const m = /^cite:(\d+)$/.exec(href ?? "");
             if (m) {
               const chunkId = Number(m[1]);
+              // Render the source_label the backend recorded for this chunk, not
+              // the text the model typed between the brackets. The model is told
+              // to copy the label verbatim and mostly does, but it drifts —
+              // usually toward a figure name ("Fig. DG-1") or a merged page range
+              // ("p.229, 230, 233") that the link, carrying one chunk_id, can't
+              // deliver. The citation array is built from the chunks actually
+              // retrieved, so it can't drift. Falls back to the model's text for
+              // a chunk that isn't in the array.
+              const label = citations?.find((c) => c.chunk_id === chunkId)?.source_label;
               return (
                 <a
                   className="cite-link"
@@ -1243,7 +1454,7 @@ function Markdown({
                     onCite?.(chunkId);
                   }}
                 >
-                  {children}
+                  {label ?? children}
                 </a>
               );
             }

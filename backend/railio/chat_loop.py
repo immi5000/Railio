@@ -23,7 +23,7 @@ from .storage import STORAGE_URL_PREFIX, download_bytes
 from .suggested_replies import generate_suggested_replies
 from .system_prompt import COPILOT_SYSTEM_PROMPT, SYSTEM_PROMPT
 from .tickets_repo import get_ticket_detail
-from .tools import COPILOT_TOOL_DEFS, TOOL_DEFS, execute_tool
+from .tools import COPILOT_TOOL_DEFS, TOOL_DEFS, execute_tool, redact_for_model
 from .tools.set_ticket_status import set_ticket_status
 
 MAX_TOOL_ROUNDS = 8
@@ -263,7 +263,7 @@ async def _run_tool_loop(
                 {
                     "role": "tool",
                     "tool_call_id": t["id"],
-                    "content": json.dumps(output),
+                    "content": json.dumps(redact_for_model(t["name"], output)),
                 }
             )
 

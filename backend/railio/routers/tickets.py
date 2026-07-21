@@ -8,25 +8,30 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from ..contract import (
+    AddTicketPartBody,
     CreateTicketBody,
     FinalizeWrapUpBody,
     Organization,
     PatchTicketBody,
     TicketStatus,
 )
+from ..messages_repo import _iso_now
 from ..org_context import get_current_org, get_current_user
 from ..post_repair import draft_repair_record
 from ..tickets_repo import (
+    add_ticket_part,
     create_ticket,
     delete_ticket,
     finalize_wrap_up,
     get_ticket_detail,
     list_tickets,
+    remove_ticket_part,
     reset_ticket,
     resolve_ticket_id,
 )
 from ..db import session_scope
 from ..posthog_client import get_posthog
+from ..tools.set_ticket_status import transition_error
 from sqlalchemy import text
 
 router = APIRouter()
@@ -109,10 +114,41 @@ async def patch_ticket_route(
 
     # Every UPDATE carries AND org_id so a tenant can't mutate another's ticket.
     async with session_scope() as session:
-        if body.status is not None:
+        current = (
             await session.execute(
-                text("UPDATE tickets SET status = :v WHERE id = :id AND org_id = :org"),
-                {"v": body.status, "id": ticket_id, "org": org.id},
+                text("SELECT status FROM tickets WHERE id = :id AND org_id = :org"),
+                {"id": ticket_id, "org": org.id},
+            )
+        ).scalar_one_or_none()
+        if current is None:
+            raise HTTPException(status_code=404, detail="not found")
+
+        # Re-asserting the status the ticket already holds is idempotent here — a
+        # double-clicked button is not a bug. The table stays strict about it
+        # because chat_loop depends on the rejection (see transition_error).
+        status_change = body.status if body.status != current else None
+
+        if status_change is not None:
+            # The same legality table the chat loop obeys — otherwise the HTTP API
+            # is a back door around it (AWAITING_TECH → CLOSED used to succeed here).
+            err = transition_error(current, status_change)
+            if err:
+                raise HTTPException(status_code=400, detail=err)
+            closed_at = _iso_now() if status_change == "CLOSED" else None
+            await session.execute(
+                text(
+                    """
+                    UPDATE tickets
+                    SET status = :v, closed_at = COALESCE(:closed_at, closed_at)
+                    WHERE id = :id AND org_id = :org
+                    """
+                ),
+                {
+                    "v": status_change,
+                    "closed_at": closed_at,
+                    "id": ticket_id,
+                    "org": org.id,
+                },
             )
         if body.pre_arrival_summary is not None:
             await session.execute(
@@ -202,6 +238,36 @@ async def wrap_up_finalize_route(
         )
 
     return JSONResponse({"chunk_id": chunk_id, "ticket": t.model_dump(by_alias=True)})
+
+
+@router.post("/{ticket_ref}/parts")
+async def add_ticket_part_route(
+    ticket_ref: str,
+    body: AddTicketPartBody,
+    org: Organization = Depends(get_current_org),
+) -> JSONResponse:
+    ticket_id = await resolve_ticket_id(ticket_ref, org.id)
+    if ticket_id is None:
+        raise HTTPException(status_code=404, detail="not found")
+    ok = await add_ticket_part(ticket_id, body.part_id, body.qty, org.id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="part not found")
+    t = await get_ticket_detail(ticket_id, org.id)
+    return JSONResponse(t.model_dump(by_alias=True))
+
+
+@router.delete("/{ticket_ref}/parts/{part_id}")
+async def remove_ticket_part_route(
+    ticket_ref: str,
+    part_id: int,
+    org: Organization = Depends(get_current_org),
+) -> JSONResponse:
+    ticket_id = await resolve_ticket_id(ticket_ref, org.id)
+    if ticket_id is None:
+        raise HTTPException(status_code=404, detail="not found")
+    await remove_ticket_part(ticket_id, part_id)
+    t = await get_ticket_detail(ticket_id, org.id)
+    return JSONResponse(t.model_dump(by_alias=True))
 
 
 @router.post("/{ticket_ref}/reset")

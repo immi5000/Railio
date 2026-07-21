@@ -6,11 +6,14 @@ import { useQuery } from "@tanstack/react-query";
 import { listTickets, listAssets, getMe, listOrgMembers } from "@/lib/api";
 import type { TicketStatus, Asset, Ticket, Severity } from "@/lib/contract";
 import { mostUrgent, oosDays, STATE_COLOR } from "@/lib/inspections";
+import { visibleTickets } from "@/lib/tickets";
 import { CompanySwitcher } from "@/components/CompanySwitcher";
+import { useRole } from "@/components/RoleProvider";
 
-// Status dot color, mirroring the Figma legend:
+// Status dot color, mirroring the Figma legend: awaiting handoff = muted grey,
 // awaiting tech = amber, in progress = blue, awaiting review = gray, closed = green.
 const STATUS_DOT: Record<TicketStatus, string> = {
+  AWAITING_HANDOFF: "#7a7a7e",
   AWAITING_TECH: "#e0a200",
   IN_PROGRESS: "#2683eb",
   AWAITING_REVIEW: "#9a9aa0",
@@ -18,6 +21,7 @@ const STATUS_DOT: Record<TicketStatus, string> = {
 };
 
 const STATUS_LABEL: Record<TicketStatus, string> = {
+  AWAITING_HANDOFF: "Awaiting handoff",
   AWAITING_TECH: "Awaiting tech",
   IN_PROGRESS: "In progress",
   AWAITING_REVIEW: "Awaiting review",
@@ -90,6 +94,7 @@ const SEV_RANK: Record<Severity, number> = { critical: 0, major: 1, minor: 2 };
 type SortMode = "priority" | "locomotive";
 
 export default function DashboardPage() {
+  const { role } = useRole();
   const [sortMode, setSortMode] = useState<SortMode>("priority");
   const [unitFilter, setUnitFilter] = useState<string>("all");
 
@@ -109,7 +114,13 @@ export default function DashboardPage() {
     queryFn: listOrgMembers,
     retry: false,
   });
-  const open = useMemo(() => tickets.filter((t) => t.status !== "CLOSED"), [tickets]);
+  // Role-scoped first: a tech's dashboard must not count or list tickets the
+  // dispatcher hasn't handed off yet. Every derived view below reads off `open`.
+  const open = useMemo(
+    () =>
+      visibleTickets(tickets, role).filter((t) => t.status !== "CLOSED"),
+    [tickets, role],
+  );
 
   // Open-ticket count per asset, for the work-order and fleet row badges.
   const openByAsset = useMemo(() => {

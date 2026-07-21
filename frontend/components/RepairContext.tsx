@@ -62,7 +62,8 @@ export function RepairContext({ ticketId }: { ticketId: string }) {
     );
   }
 
-  const started = ticket.status !== "AWAITING_TECH";
+  const started =
+    ticket.status !== "AWAITING_HANDOFF" && ticket.status !== "AWAITING_TECH";
   const faults = ticket.fault_dump_parsed || [];
   const firstCode =
     faults[0]?.code ||

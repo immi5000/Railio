@@ -33,7 +33,9 @@ cp .env.example .env
 | `python -m scripts.corpus_fetch`                              | Fetch eCFR source docs                 |
 | `python -m scripts.corpus_build`                              | Embed + load corpus into pgvector      |
 | `python -m scripts.verify_chain`                              | Verify the messages hash chain         |
-| `python -m scripts.e2e`                                       | End-to-end smoke test (server running) |
+| `python -m scripts.copy_org test unit_tests`                  | Seed the test org (one-time, see tests/README.md) |
+| `pytest tests/api -q`                                         | API + invariant tests (no OpenAI spend) |
+| `pytest tests/chat -n 4 --dist loadscope`                     | Live chat tool-invocation tests (~$2–3) |
 
 ## One-time setup, in order
 

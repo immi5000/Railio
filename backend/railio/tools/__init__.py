@@ -6,7 +6,6 @@ import copy
 from typing import Any, Awaitable, Callable
 
 from .lookup_parts import lookup_parts
-from .parse_fault_dump import parse_fault_dump
 from .record_part_used import record_part_used
 from .search_corpus import search_corpus
 from .show_figure import show_figure
@@ -34,24 +33,6 @@ TOOL_DEFS: list[dict[str, Any]] = [
                     },
                 },
                 "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "parse_fault_dump",
-            "description": (
-                "Parse a raw locomotive diagnostic dump into structured "
-                "{code, ts, severity, description}[]. Persists to tickets.fault_dump_parsed. "
-                "Call once on dispatcher intake. The ticket is bound by the runtime."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "raw_text": {"type": "string"},
-                },
-                "required": ["raw_text"],
             },
         },
     },
@@ -201,12 +182,6 @@ async def execute_tool(
             args["unit_model"] = scope.get("unit_model")
             args["asset_id"] = scope.get("asset_id")
         return await search_corpus(**args)
-    if name == "parse_fault_dump":
-        # ticket_id is bound by the runtime — the model never picks which ticket.
-        args = {k: v for k, v in inp.items() if k != "ticket_id"}
-        if scope:
-            args["ticket_id"] = scope.get("ticket_id")
-        return await parse_fault_dump(**args)
     if name == "request_photo":
         emit(
             {
@@ -249,4 +224,23 @@ async def execute_tool(
     return {"error": f"unknown tool: {name}"}
 
 
-__all__ = ["TOOL_DEFS", "COPILOT_TOOL_DEFS", "ToolEmit", "execute_tool"]
+def redact_for_model(name: str, output: dict[str, Any]) -> dict[str, Any]:
+    """Strip fields the UI needs to render but the model must not see.
+
+    A tool's output serves two consumers: the frontend (which renders it) and
+    the model (which reads it back as a `tool` message). Hand the model a
+    figure's storage path and it stops trusting show_figure to do the rendering
+    — it prepends an invented origin and emits its own markdown image, which
+    404s into a broken-image box. search_corpus already withholds paths for this
+    reason; this keeps show_figure honest to the same rule. The model only needs
+    to know the call succeeded.
+    """
+    if name == "show_figure" and isinstance(output.get("figure"), dict):
+        return {
+            **output,
+            "figure": {k: v for k, v in output["figure"].items() if k != "path"},
+        }
+    return output
+
+
+__all__ = ["TOOL_DEFS", "COPILOT_TOOL_DEFS", "ToolEmit", "execute_tool", "redact_for_model"]

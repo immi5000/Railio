@@ -6,7 +6,11 @@
 // Unit models are data, not a fixed enum — the dispatcher adds locomotive models,
 // so this is an open string keyed off the assets table.
 export type UnitModel = string;
+// AWAITING_HANDOFF is dispatcher-owned intake: the ticket exists but is not yet
+// visible to the tech. The dispatcher's "Hand off to tech" action is what moves
+// it to AWAITING_TECH.
 export type TicketStatus =
+  | "AWAITING_HANDOFF"
   | "AWAITING_TECH"
   | "IN_PROGRESS"
   | "AWAITING_REVIEW"
@@ -88,6 +92,13 @@ export type FinalizeWrapUpBody = {
   // Parts the tech entered manually at wrap-up (in addition to any the AI
   // already recorded on the ticket). Each decrements inventory when filed.
   parts?: WrapUpPartEntry[];
+};
+
+// A part the tech recorded straight from a chat parts-lookup result. Inserted
+// as a tech_manual ticket_part; inventory is not touched until the ticket closes.
+export type AddTicketPartBody = {
+  part_id: number;
+  qty: number;
 };
 
 export type AttachDocumentBody = {
@@ -331,6 +342,12 @@ export type Part = {
 
 export type ListPartsResponse = { parts: Part[]; total: number };
 
+export type PartsFilterOptions = {
+  locations: string[];
+  suppliers: string[];
+  departments: string[];
+};
+
 export type TicketPart = {
   id: number;
   part_id: number;
@@ -350,6 +367,11 @@ export type CreatePartBody = {
   lead_time_days?: number | null;
   alternate_part_numbers?: string[];
   avg_cost?: number | null;
+  // With locations, qty_on_hand/avg_cost are derived from them server-side.
+  locations?: PartLocation[];
+  department?: string | null;
+  subsidiary?: string | null;
+  inv_class?: string | null;
 };
 
 // A locomotive model that has ingested knowledge (manuals). Drives the

@@ -8,13 +8,13 @@ differ, so this must run against the actual DB).
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 from sqlalchemy import text
 
 from railio.db import session_scope
 from railio.model_family import _sql_family, model_family
+
+pytestmark = pytest.mark.db
 
 # (input, expected family)
 BATTERY = [
@@ -43,28 +43,15 @@ def test_model_family_none():
     assert model_family(None) is None
 
 
-def test_python_sql_agreement():
+async def test_python_sql_agreement():
     """The SQL family expression must produce the same family as Python for
-    every battery input, against real Postgres. Runs the whole battery in ONE
-    event loop — the async engine in railio.db is a loop-bound singleton, so a
-    per-input asyncio.run() would reuse a closed loop."""
-
-    async def run() -> None:
-        from railio.db import close_engine
-
-        try:
-            async with session_scope() as s:
-                for raw, expected in BATTERY:
-                    fam = (
-                        await s.execute(
-                            text(f"SELECT {_sql_family(':v')} AS fam"), {"v": raw}
-                        )
-                    ).scalar_one()
-                    assert fam == expected == model_family(raw), (
-                        f"{raw!r}: sql={fam!r} py={model_family(raw)!r} "
-                        f"expected={expected!r}"
-                    )
-        finally:
-            await close_engine()
-
-    asyncio.run(run())
+    every battery input, against real Postgres — POSIX ERE and Python re can
+    disagree, and retrieval would silently scope to the wrong manuals."""
+    async with session_scope() as s:
+        for raw, expected in BATTERY:
+            fam = (
+                await s.execute(text(f"SELECT {_sql_family(':v')} AS fam"), {"v": raw})
+            ).scalar_one()
+            assert fam == expected == model_family(raw), (
+                f"{raw!r}: sql={fam!r} py={model_family(raw)!r} expected={expected!r}"
+            )

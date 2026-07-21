@@ -25,6 +25,8 @@ export function formatDateOnly(iso: string | null | undefined) {
 
 export function statusLabel(s: TicketStatus): string {
   switch (s) {
+    case "AWAITING_HANDOFF":
+      return "Awaiting handoff";
     case "AWAITING_TECH":
       return "Awaiting tech";
     case "IN_PROGRESS":
@@ -38,6 +40,8 @@ export function statusLabel(s: TicketStatus): string {
 
 export function statusPillClass(s: TicketStatus): string {
   switch (s) {
+    case "AWAITING_HANDOFF":
+      return "pill";
     case "AWAITING_TECH":
       return "pill pill-warn";
     case "IN_PROGRESS":

@@ -16,6 +16,7 @@ import type {
   Asset,
   Part,
   ListPartsResponse,
+  PartsFilterOptions,
   CreatePartBody,
   ParsedFault,
   Ticket,
@@ -173,6 +174,28 @@ export async function finalizeWrapUp(
   );
 }
 
+/** Record a part as used on a ticket, straight from a chat parts-lookup result. */
+export async function addTicketPart(
+  ref: string,
+  part_id: number,
+  qty = 1,
+): Promise<TicketDetail> {
+  return jsonFetch<TicketDetail>(`/api/tickets/${ref}/parts`, {
+    method: "POST",
+    body: JSON.stringify({ part_id, qty }),
+  });
+}
+
+/** Undo a chat-added part: remove it from the ticket's used-parts. */
+export async function removeTicketPart(
+  ref: string,
+  part_id: number,
+): Promise<TicketDetail> {
+  return jsonFetch<TicketDetail>(`/api/tickets/${ref}/parts/${part_id}`, {
+    method: "DELETE",
+  });
+}
+
 export async function parseFaultDump(
   ref: string,
   raw: string,
@@ -265,16 +288,26 @@ export async function updateHistoricalRecord(
 export async function listParts(opts?: {
   unit_model?: string;
   q?: string;
+  location?: string;
+  supplier?: string;
+  department?: string;
   limit?: number;
   offset?: number;
 }): Promise<ListPartsResponse> {
   const params = new URLSearchParams();
   if (opts?.unit_model) params.set("unit_model", opts.unit_model);
   if (opts?.q) params.set("q", opts.q);
+  if (opts?.location) params.set("location", opts.location);
+  if (opts?.supplier) params.set("supplier", opts.supplier);
+  if (opts?.department) params.set("department", opts.department);
   if (opts?.limit != null) params.set("limit", String(opts.limit));
   if (opts?.offset != null) params.set("offset", String(opts.offset));
   const qs = params.toString();
   return jsonFetch<ListPartsResponse>(`/api/parts${qs ? `?${qs}` : ""}`);
+}
+
+export async function getPartsFilterOptions(): Promise<PartsFilterOptions> {
+  return jsonFetch<PartsFilterOptions>(`/api/parts/filter-options`);
 }
 
 // Full catalog as a flat array — for callers that build a part_id → Part lookup

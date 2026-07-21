@@ -91,6 +91,6 @@ npm install
 npm run dev               # :3000
 ```
 
-Open `http://localhost:3000`. Verify the audit trail with `python -m scripts.verify_chain`; run an end-to-end smoke test against a running backend with `python -m scripts.e2e`.
+Open `http://localhost:3000`. Verify the audit trail with `python -m scripts.verify_chain`; run the test suite with `pytest` in `backend/` and `npm test` in `frontend/` (see [backend/tests/README.md](backend/tests/README.md)).
 
 ---

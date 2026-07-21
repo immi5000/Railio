@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getTicket, listTickets, patchTicket } from "@/lib/api";
 import { statusLabel } from "@/lib/format";
+import { visibleTickets } from "@/lib/tickets";
 import { useRole } from "@/components/RoleProvider";
 import type { Role } from "@/lib/role";
 import type { Ticket, TicketStatus } from "@/lib/contract";
@@ -13,6 +14,8 @@ import type { Ticket, TicketStatus } from "@/lib/contract";
 // Figma status pill: white pill with a status-colored dot.
 function statusDotColor(status: TicketStatus): string {
   switch (status) {
+    case "AWAITING_HANDOFF":
+      return "#7a7a7e";
     case "AWAITING_TECH":
       return "#efc000";
     case "IN_PROGRESS":
@@ -27,12 +30,14 @@ function statusDotColor(status: TicketStatus): string {
 // Mirrors the dashboard work-order table palette/labels so the all-tickets
 // page reads identically to the dashboard "Tickets" section.
 const STATUS_DOT: Record<TicketStatus, string> = {
+  AWAITING_HANDOFF: "#7a7a7e",
   AWAITING_TECH: "#e0a200",
   IN_PROGRESS: "#2683eb",
   AWAITING_REVIEW: "#9a9aa0",
   CLOSED: "#5fb85f",
 };
 const STATUS_LABEL: Record<TicketStatus, string> = {
+  AWAITING_HANDOFF: "Awaiting handoff",
   AWAITING_TECH: "Awaiting tech",
   IN_PROGRESS: "In progress",
   AWAITING_REVIEW: "Awaiting review",
@@ -74,6 +79,7 @@ type StatusFilter = "all" | "open" | TicketStatus;
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "open", label: "Open" },
+  { value: "AWAITING_HANDOFF", label: "Awaiting handoff" },
   { value: "AWAITING_TECH", label: "Awaiting tech" },
   { value: "IN_PROGRESS", label: "In progress" },
   { value: "AWAITING_REVIEW", label: "Awaiting review" },
@@ -344,7 +350,11 @@ export function WorkspaceShell() {
                   </button>
                 )
               )}
-              {!isTech && ticket.status === "AWAITING_TECH" && (
+              {/* Handing off is what releases the ticket to the tech's queue, so
+                  it can happen exactly once. After that the button stays as a
+                  disabled receipt rather than vanishing — the dispatcher needs to
+                  see that it went through. */}
+              {!isTech && ticket.status === "AWAITING_HANDOFF" && (
                 <button
                   className="work-cta"
                   onClick={() => handoffMut.mutate()}
@@ -359,6 +369,13 @@ export function WorkspaceShell() {
                   )}
                 </button>
               )}
+              {!isTech &&
+                ticket.status !== "AWAITING_HANDOFF" &&
+                ticket.status !== "CLOSED" && (
+                  <button className="work-cta" disabled>
+                    Handed off
+                  </button>
+                )}
             </div>
           )}
         </div>
@@ -566,27 +583,40 @@ function TicketList({
   });
   const [sortMode, setSortMode] = useState<SortMode>("priority");
 
+  // Everything below counts off this, not the raw list: a tech must never see
+  // a ticket the dispatcher still holds — including in the pill counts.
+  const pool = useMemo(() => visibleTickets(tickets, role), [tickets, role]);
+
+  // Handing off is dispatch's move, so the pill is theirs too.
+  const filters = useMemo(
+    () =>
+      STATUS_FILTERS.filter(
+        (f) => f.value !== "AWAITING_HANDOFF" || role !== "tech",
+      ),
+    [role],
+  );
+
   const units = useMemo(
-    () => Array.from(new Set(tickets.map((t) => unitLabel(t.asset)))).sort(),
-    [tickets],
+    () => Array.from(new Set(pool.map((t) => unitLabel(t.asset)))).sort(),
+    [pool],
   );
 
   // Count of tickets in each status bucket, shown on the pills so the operator
   // can see the board's shape at a glance. Reflects the locomotive filter.
   const statusCounts = useMemo(() => {
-    const pool =
+    const scoped =
       unitFilter === "all"
-        ? tickets
-        : tickets.filter((t) => unitLabel(t.asset) === unitFilter);
+        ? pool
+        : pool.filter((t) => unitLabel(t.asset) === unitFilter);
     const m = new Map<StatusFilter, number>();
-    for (const f of STATUS_FILTERS) {
-      m.set(f.value, pool.filter((t) => matchesStatus(t, f.value)).length);
+    for (const f of filters) {
+      m.set(f.value, scoped.filter((t) => matchesStatus(t, f.value)).length);
     }
     return m;
-  }, [tickets, unitFilter]);
+  }, [pool, unitFilter, filters]);
 
   const visible = useMemo(() => {
-    const filtered = tickets.filter(
+    const filtered = pool.filter(
       (t) =>
         (unitFilter === "all" || unitLabel(t.asset) === unitFilter) &&
         matchesStatus(t, statusFilter),
@@ -623,7 +653,7 @@ function TicketList({
           role="group"
           aria-label="Filter by status"
         >
-          {STATUS_FILTERS.map((f) => {
+          {filters.map((f) => {
             const n = statusCounts.get(f.value) ?? 0;
             return (
               <button

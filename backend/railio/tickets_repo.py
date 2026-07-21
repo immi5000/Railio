@@ -138,7 +138,10 @@ async def get_ticket_detail(
 
 
 async def _ticket_is_pristine(ticket_id: int, status: str, has_parsed: bool) -> bool:
-    if status != "AWAITING_TECH" or has_parsed:
+    # Both pre-work states count: AWAITING_HANDOFF (dispatcher hasn't handed off
+    # yet) and AWAITING_TECH (handed off, tech hasn't spoken). Neither has done
+    # anything worth resetting away from.
+    if status not in ("AWAITING_HANDOFF", "AWAITING_TECH") or has_parsed:
         return False
     async with session_scope() as session:
         counts = (
@@ -288,7 +291,7 @@ async def reset_ticket(ticket_id: int, org_id: Optional[int] = None) -> bool:
             text(
                 """
                 UPDATE tickets
-                SET status = 'AWAITING_TECH', fault_dump_parsed = NULL, closed_at = NULL
+                SET status = 'AWAITING_HANDOFF', fault_dump_parsed = NULL, closed_at = NULL
                 WHERE id = :id
                 """
             ),
@@ -302,12 +305,13 @@ async def _record_manual_parts(
     parts: list["WrapUpPartEntry"],
     org_id: Optional[int],
 ) -> None:
-    """Insert tech-entered wrap-up parts and draw them down from inventory.
+    """Insert tech-entered wrap-up parts as tech_manual ticket_parts rows.
 
-    Each entry becomes a `tech_manual` ticket_parts row and decrements the
-    part's qty_on_hand (clamped at 0 so stock never goes negative). Parts are
-    validated against the caller's org so a tenant can't touch another's
-    inventory; unknown/cross-org part ids are skipped.
+    Inventory is NOT drawn down here — `finalize_wrap_up` decrements every
+    ticket_part once at close, so manual, button-added, and AI-recorded parts
+    all draw down exactly once (no double-count). Parts are validated against
+    the caller's org so a tenant can't touch another's inventory; unknown/
+    cross-org part ids are skipped.
     """
     now = _iso_now()
     async with session_scope() as session:
@@ -315,7 +319,7 @@ async def _record_manual_parts(
             qty = int(entry.qty)
             if qty <= 0:
                 continue
-            # Scope the part to the org (when known) before mutating stock.
+            # Scope the part to the org (when known) before inserting.
             where = "id = :pid" + (" AND org_id = :org" if org_id is not None else "")
             params: dict[str, object] = {"pid": entry.part_id}
             if org_id is not None:
@@ -336,18 +340,56 @@ async def _record_manual_parts(
                 ),
                 {"tid": ticket_id, "pid": entry.part_id, "qty": qty, "now": now},
             )
-            # GREATEST clamps at 0; last_used_at stamps the draw-down.
-            await session.execute(
-                text(
-                    """
-                    UPDATE parts
-                    SET qty_on_hand = GREATEST(0, qty_on_hand - :qty),
-                        last_used_at = :now
-                    WHERE id = :pid
-                    """
-                ),
-                {"qty": qty, "now": now, "pid": entry.part_id},
-            )
+
+
+async def add_ticket_part(
+    ticket_id: int,
+    part_id: int,
+    qty: int,
+    org_id: Optional[int] = None,
+) -> bool:
+    """Record a part as used on a ticket (from the chat parts-lookup button).
+
+    Inserts a tech_manual ticket_parts row; inventory is untouched until the
+    ticket closes. The part is org-scoped so a tenant can't record another
+    org's inventory. Returns False if the part is unknown/cross-org.
+    """
+    if qty <= 0:
+        qty = 1
+    async with session_scope() as session:
+        where = "id = :pid" + (" AND org_id = :org" if org_id is not None else "")
+        params: dict[str, object] = {"pid": part_id}
+        if org_id is not None:
+            params["org"] = org_id
+        exists = (
+            await session.execute(text(f"SELECT id FROM parts WHERE {where}"), params)
+        ).scalar_one_or_none()
+        if exists is None:
+            return False
+        await session.execute(
+            text(
+                """
+                INSERT INTO ticket_parts (ticket_id, part_id, qty, added_via, added_at)
+                VALUES (:tid, :pid, :qty, 'tech_manual', :now)
+                """
+            ),
+            {"tid": ticket_id, "pid": part_id, "qty": qty, "now": _iso_now()},
+        )
+    return True
+
+
+async def remove_ticket_part(
+    ticket_id: int,
+    part_id: int,
+) -> None:
+    """Remove a part from a ticket's used-parts (undo of the chat add button)."""
+    async with session_scope() as session:
+        await session.execute(
+            text(
+                "DELETE FROM ticket_parts WHERE ticket_id = :tid AND part_id = :pid"
+            ),
+            {"tid": ticket_id, "pid": part_id},
+        )
 
 
 async def finalize_wrap_up(
@@ -365,9 +407,10 @@ async def finalize_wrap_up(
     that unit's future chats and never leaks to another tenant), records the
     capture in tribal_capture, and closes the ticket. Returns the new chunk id.
 
-    Any `parts` the tech entered by hand are inserted as tech_manual
-    ticket_parts and drawn down from inventory before the corpus record is
-    built, so they appear in the filed repair record.
+    Any `parts` the tech entered by hand at wrap-up are inserted as tech_manual
+    ticket_parts first. Then every ticket_part on the ticket — manual,
+    button-added, and AI-recorded — is drawn down from inventory exactly once
+    (this is the sole draw-down point), and all appear in the filed record.
     """
     t = await get_ticket_detail(ticket_id, org_id)
     if not t:
@@ -377,6 +420,7 @@ async def finalize_wrap_up(
     if parts:
         await _record_manual_parts(ticket_id, parts, org_id)
 
+    now = _iso_now()
     parts_lines = []
     async with session_scope() as session:
         rows = (
@@ -394,7 +438,28 @@ async def finalize_wrap_up(
         for r in rows:
             parts_lines.append(f"{r['qty']}× {r['name']} ({r['part_number']})")
 
-    now = _iso_now()
+        # Draw every recorded part down from inventory once, at close — manual,
+        # button-added, and AI-recorded alike. Aggregate by part_id so a part on
+        # two ticket_parts rows decrements by the summed qty exactly once.
+        # GREATEST clamps at 0 so stock never goes negative.
+        await session.execute(
+            text(
+                """
+                UPDATE parts p
+                SET qty_on_hand = GREATEST(0, p.qty_on_hand - agg.total),
+                    last_used_at = :now
+                FROM (
+                    SELECT part_id, SUM(qty) AS total
+                    FROM ticket_parts
+                    WHERE ticket_id = :tid
+                    GROUP BY part_id
+                ) agg
+                WHERE p.id = agg.part_id
+                """
+            ),
+            {"tid": ticket_id, "now": now},
+        )
+
     date = now[:10]
     body_parts = [
         f"Ticket {t.short_id} (closed {date}). "
@@ -497,7 +562,7 @@ async def create_ticket(
                         initial_error_codes, initial_symptoms, fault_dump_raw
                     )
                     VALUES (
-                        :org_id, :asset_id, :title, :short_id, 'AWAITING_TECH', :sev,
+                        :org_id, :asset_id, :title, :short_id, 'AWAITING_HANDOFF', :sev,
                         'dispatcher', :opened_at,
                         :err, :sym, :raw
                     )

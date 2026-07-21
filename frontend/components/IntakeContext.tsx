@@ -44,8 +44,11 @@ export function IntakeContext({
     .map((c) => c.trim())
     .filter(Boolean);
   const faults = ticket.fault_dump_parsed || [];
+  // Nothing to reset away from while the ticket is still in either pre-work
+  // state and no one has said anything.
   const isPristine =
-    ticket.status === "AWAITING_TECH" && ticket.messages.length === 0;
+    (ticket.status === "AWAITING_HANDOFF" || ticket.status === "AWAITING_TECH") &&
+    ticket.messages.length === 0;
 
   return (
     <>

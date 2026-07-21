@@ -2,13 +2,17 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPart, listAssets, listParts, patchPart } from "@/lib/api";
+import { getPartsFilterOptions, listAssets, listParts, patchPart } from "@/lib/api";
 import type {
   ListPartsResponse,
   Part,
   PartLocation,
   UnitModel,
 } from "@/lib/contract";
+import { deriveTotals, fmtLocations, fmtMoney, locTitle } from "@/lib/parts";
+import { SearchableSelect } from "./SearchableSelect";
+import { PartDetailModal } from "./PartDetailModal";
+import { QtyAllocationPrompt } from "./QtyAllocationPrompt";
 
 // Column order + default widths (px). Headers, the <colgroup>, and the resize
 // handles all key off this so they stay in sync.
@@ -67,46 +71,40 @@ function useColumnWidths() {
   return { widths, setWidth };
 }
 
-function fmtMoney(n: number | null): string {
-  if (n == null) return "";
-  return n.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  });
-}
-
-function fmtLocations(locs: PartLocation[]): string {
-  if (!locs || locs.length === 0) return "";
-  if (locs.length === 1) return `${locs[0].location} · ${locs[0].qty}`;
-  return `${locs.length} locations`;
-}
-
-function locTitle(locs: PartLocation[]): string {
-  if (!locs || locs.length === 0) return "";
-  return locs.map((l) => `${l.location}: ${l.qty}`).join("\n");
-}
-
 export function PartsAdmin() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [unit, setUnit] = useState<UnitModel | "">("");
-  const [adding, setAdding] = useState(false);
+  const [location, setLocation] = useState("");
+  const [supplier, setSupplier] = useState("");
+  const [department, setDepartment] = useState("");
   const [page, setPage] = useState(0);
+  // id === null → the modal opens blank, in create mode.
+  const [detail, setDetail] = useState<{
+    id: number | null;
+    focusLocations: boolean;
+  } | null>(null);
   const { widths, setWidth } = useColumnWidths();
 
+  const partsKey = ["parts", q, unit, location, supplier, department, page];
   const { data, isLoading, error } = useQuery({
-    queryKey: ["parts", q, unit, page],
+    queryKey: partsKey,
     queryFn: () =>
       listParts({
         q: q || undefined,
         unit_model: unit || undefined,
+        location: location || undefined,
+        supplier: supplier || undefined,
+        department: department || undefined,
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
       }),
   });
   const parts = data?.parts ?? [];
   const total = data?.total ?? 0;
+  const detailPart =
+    detail && detail.id != null ? parts.find((p) => p.id === detail.id) : undefined;
+  const anyFilter = !!(q.trim() || unit || location || supplier || department);
 
   // Unit-model filter options come from the live fleet roster, not a literal.
   const { data: assets } = useQuery({
@@ -116,6 +114,12 @@ export function PartsAdmin() {
   const unitModels = Array.from(
     new Set((assets || []).map((a) => a.unit_model)),
   ).sort();
+
+  // Location / supplier / department filter values, distinct across the org.
+  const { data: filterOpts } = useQuery({
+    queryKey: ["parts-filter-options"],
+    queryFn: () => getPartsFilterOptions(),
+  });
 
   return (
     <div className="dash">
@@ -137,36 +141,60 @@ export function PartsAdmin() {
         >
           <input
             className="input"
-            style={{ maxWidth: 320 }}
+            style={{ maxWidth: 280 }}
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
               setPage(0);
             }}
-            placeholder="Search part #, name, supplier..."
+            placeholder="Search part #, name, supplier, bin, location..."
           />
-          <select
-            className="select"
-            style={{ maxWidth: 200 }}
+          <SearchableSelect
             value={unit}
-            onChange={(e) => {
-              setUnit(e.target.value as UnitModel | "");
+            options={unitModels}
+            placeholder="All units"
+            width={160}
+            onChange={(v) => {
+              setUnit(v as UnitModel | "");
               setPage(0);
             }}
-          >
-            <option value="">All units</option>
-            {unitModels.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
+          />
+          <SearchableSelect
+            value={location}
+            options={filterOpts?.locations ?? []}
+            placeholder="All locations"
+            width={160}
+            onChange={(v) => {
+              setLocation(v);
+              setPage(0);
+            }}
+          />
+          <SearchableSelect
+            value={supplier}
+            options={filterOpts?.suppliers ?? []}
+            placeholder="All suppliers"
+            width={160}
+            onChange={(v) => {
+              setSupplier(v);
+              setPage(0);
+            }}
+          />
+          <SearchableSelect
+            value={department}
+            options={filterOpts?.departments ?? []}
+            placeholder="All depts"
+            width={140}
+            onChange={(v) => {
+              setDepartment(v);
+              setPage(0);
+            }}
+          />
           <button
             type="button"
             className="btn"
-            onClick={() => setAdding((v) => !v)}
+            onClick={() => setDetail({ id: null, focusLocations: false })}
           >
-            {adding ? "Cancel" : "+ Add part"}
+            + Add part
           </button>
           <span
             className="micro"
@@ -175,15 +203,6 @@ export function PartsAdmin() {
             {total} part{total === 1 ? "" : "s"}
           </span>
         </div>
-
-        {adding && (
-          <AddPartForm
-            onDone={() => {
-              setAdding(false);
-              setPage(0);
-            }}
-          />
-        )}
 
         {isLoading && (
           <div className="card" style={{ color: "var(--dash-muted)" }}>
@@ -201,9 +220,7 @@ export function PartsAdmin() {
         {data && parts.length === 0 && (
           <div className="card" style={{ color: "var(--dash-muted)", textAlign: "center" }}>
             <span className="micro">
-              {q.trim() || unit
-                ? "No parts match."
-                : "No parts in inventory yet."}
+              {anyFilter ? "No parts match." : "No parts in inventory yet."}
             </span>
           </div>
         )}
@@ -258,20 +275,21 @@ export function PartsAdmin() {
                   <PartRow
                     key={p.id}
                     part={p}
+                    onOpenDetail={(focusLocations) =>
+                      setDetail({ id: p.id, focusLocations })
+                    }
                     onSave={(patch) =>
-                      qc.setQueryData<ListPartsResponse>(
-                        ["parts", q, unit, page],
-                        (old) =>
-                          old
-                            ? {
-                                ...old,
-                                parts: old.parts.map((x) =>
-                                  x.id === p.id
-                                    ? ({ ...x, ...patch } as Part)
-                                    : x,
-                                ),
-                              }
-                            : old,
+                      qc.setQueryData<ListPartsResponse>(partsKey, (old) =>
+                        old
+                          ? {
+                              ...old,
+                              parts: old.parts.map((x) =>
+                                x.id === p.id
+                                  ? ({ ...x, ...patch } as Part)
+                                  : x,
+                              ),
+                            }
+                          : old,
                       )
                     }
                   />
@@ -313,168 +331,30 @@ export function PartsAdmin() {
           </div>
         )}
       </div>
+
+      {detail && (detail.id == null || detailPart) && (
+        <PartDetailModal
+          part={detailPart ?? null}
+          focusLocations={detail.focusLocations}
+          onClose={() => setDetail(null)}
+          onSaved={(updated) => {
+            qc.setQueryData<ListPartsResponse>(partsKey, (old) =>
+              old
+                ? {
+                    ...old,
+                    parts: old.parts.map((x) =>
+                      x.id === updated.id ? updated : x,
+                    ),
+                  }
+                : old,
+            );
+            qc.invalidateQueries({ queryKey: ["parts"] });
+            qc.invalidateQueries({ queryKey: ["parts-filter-options"] });
+            setDetail(null);
+          }}
+        />
+      )}
     </div>
-  );
-}
-
-function AddPartForm({ onDone }: { onDone: () => void }) {
-  const qc = useQueryClient();
-  const [partNumber, setPartNumber] = useState("");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [compatible, setCompatible] = useState("");
-  const [bin, setBin] = useState("");
-  const [qty, setQty] = useState("0");
-  const [avgCost, setAvgCost] = useState("");
-  const [supplier, setSupplier] = useState("");
-  const [lead, setLead] = useState("");
-  const [alternates, setAlternates] = useState("");
-
-  const mut = useMutation({
-    mutationFn: () =>
-      createPart({
-        part_number: partNumber.trim(),
-        name: name.trim(),
-        description: description.trim() || null,
-        compatible_units: compatible
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
-        bin_location: bin.trim() || null,
-        qty_on_hand: Number(qty) || 0,
-        avg_cost: avgCost === "" ? null : Number(avgCost),
-        supplier: supplier.trim() || null,
-        lead_time_days: lead === "" ? null : Number(lead),
-        alternate_part_numbers: alternates
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["parts"] });
-      onDone();
-    },
-  });
-
-  const canSubmit = !!partNumber.trim() && !!name.trim();
-
-  return (
-    <div
-      className="card"
-      style={{
-        marginBottom: 16,
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-        gap: 8,
-        alignItems: "end",
-      }}
-    >
-      <Field label="Part # *">
-        <input
-          className="input"
-          value={partNumber}
-          onChange={(e) => setPartNumber(e.target.value)}
-        />
-      </Field>
-      <Field label="Name *">
-        <input
-          className="input"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </Field>
-      <Field label="Description">
-        <input
-          className="input"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-      </Field>
-      <Field label="Compatible (comma-sep)">
-        <input
-          className="input"
-          value={compatible}
-          onChange={(e) => setCompatible(e.target.value)}
-        />
-      </Field>
-      <Field label="Bin">
-        <input
-          className="input"
-          value={bin}
-          onChange={(e) => setBin(e.target.value)}
-        />
-      </Field>
-      <Field label="On hand">
-        <input
-          className="input"
-          type="number"
-          value={qty}
-          onChange={(e) => setQty(e.target.value)}
-        />
-      </Field>
-      <Field label="Avg cost">
-        <input
-          className="input"
-          type="number"
-          value={avgCost}
-          onChange={(e) => setAvgCost(e.target.value)}
-        />
-      </Field>
-      <Field label="Supplier">
-        <input
-          className="input"
-          value={supplier}
-          onChange={(e) => setSupplier(e.target.value)}
-        />
-      </Field>
-      <Field label="Lead (d)">
-        <input
-          className="input"
-          type="number"
-          value={lead}
-          onChange={(e) => setLead(e.target.value)}
-        />
-      </Field>
-      <Field label="Alternates (comma-sep)">
-        <input
-          className="input"
-          value={alternates}
-          onChange={(e) => setAlternates(e.target.value)}
-        />
-      </Field>
-      <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8, alignItems: "center" }}>
-        <button
-          type="button"
-          className="btn btn-sm"
-          disabled={!canSubmit || mut.isPending}
-          onClick={() => mut.mutate()}
-        >
-          {mut.isPending ? "Adding…" : "Add part"}
-        </button>
-        {mut.error && (
-          <span className="micro" style={{ color: "#c0392b" }}>
-            {(mut.error as Error).message}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label style={{ display: "grid", gap: 4 }}>
-      <span className="micro" style={{ color: "var(--dash-muted)" }}>
-        {label}
-      </span>
-      {children}
-    </label>
   );
 }
 
@@ -541,9 +421,11 @@ function ResizableTh({
 function PartRow({
   part,
   onSave,
+  onOpenDetail,
 }: {
   part: Part;
   onSave: (patch: Partial<Part>) => void;
+  onOpenDetail: (focusLocations: boolean) => void;
 }) {
   const qc = useQueryClient();
   const mut = useMutation({
@@ -556,10 +438,103 @@ function PartRow({
     mut.mutate(patch);
   }
 
+  // Draft qty/cost drive the live Value cell as the user types; they resync from
+  // the server row on refetch, but not while the field is focused (so a
+  // background invalidate can't clobber an in-progress edit).
+  const [draftQty, setDraftQty] = useState(String(part.qty_on_hand));
+  const [draftCost, setDraftCost] = useState(
+    part.avg_cost != null ? String(part.avg_cost) : "",
+  );
+  const qtyRef = useRef<HTMLInputElement>(null);
+  const costRef = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState<{ n: number; delta: number } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (document.activeElement !== qtyRef.current) {
+      setDraftQty(String(part.qty_on_hand));
+    }
+  }, [part.qty_on_hand]);
+  useEffect(() => {
+    if (document.activeElement !== costRef.current) {
+      setDraftCost(part.avg_cost != null ? String(part.avg_cost) : "");
+    }
+  }, [part.avg_cost]);
+
+  const locs = part.locations || [];
+  const hasLocs = locs.length > 0;
+  // With locations everything derives from them (so an allocation shows the
+  // right number optimistically); without, it's the live qty x cost the user
+  // is typing.
+  const totals = hasLocs
+    ? deriveTotals(locs, part.qty_on_hand, part.avg_cost)
+    : deriveTotals(
+        null,
+        Number(draftQty) || 0,
+        draftCost === "" ? null : Number(draftCost),
+      );
+
+  function commitQty() {
+    const n = Number(draftQty) || 0;
+    if (n === part.qty_on_hand) return;
+    if (locs.length === 0) {
+      commit({ qty_on_hand: n });
+    } else if (locs.length === 1) {
+      const l = locs[0];
+      commitLocations([{ ...l, qty: n }]);
+    } else {
+      const sum = locs.reduce((a, l) => a + l.qty, 0);
+      setPending({ n, delta: n - sum });
+    }
+  }
+
+  function commitCost() {
+    const c = draftCost === "" ? null : Number(draftCost);
+    if (c === part.avg_cost) return;
+    commit({ avg_cost: c });
+  }
+
+  // The server re-derives these identically and overrides whatever we send;
+  // including them just keeps the optimistic row honest until the refetch.
+  function commitLocations(newLocs: PartLocation[]) {
+    const t = deriveTotals(newLocs, 0, null);
+    commit({
+      locations: newLocs.map((l) => ({
+        ...l,
+        value: l.avg_cost != null ? l.qty * l.avg_cost : null,
+      })),
+      qty_on_hand: t.qty,
+      avg_cost: t.avgCost,
+      on_hand_value: t.value,
+    });
+  }
+
+  function allocate(i: number) {
+    if (!pending) return;
+    const delta = pending.delta;
+    commitLocations(
+      locs.map((l, j) => (j === i ? { ...l, qty: l.qty + delta } : l)),
+    );
+    setPending(null);
+  }
+
+  function cancelAlloc() {
+    setDraftQty(String(part.qty_on_hand));
+    setPending(null);
+  }
+
   return (
     <tr style={{ borderBottom: "1px solid var(--dash-line)" }}>
       <Td label="Part #">
-        <Cell value={part.part_number} onCommit={(v) => commit({ part_number: v })} />
+        <button
+          type="button"
+          className="cell-link"
+          title="Open part details"
+          onClick={() => onOpenDetail(false)}
+        >
+          {part.part_number}
+        </button>
       </Td>
       <Td label="Name">
         <Cell value={part.name} onCommit={(v) => commit({ name: v })} />
@@ -590,25 +565,54 @@ function PartRow({
         />
       </Td>
       <Td label="On hand">
-        <Cell
-          value={String(part.qty_on_hand)}
-          numeric
-          onCommit={(v) => commit({ qty_on_hand: Number(v) || 0 })}
+        <input
+          ref={qtyRef}
+          value={draftQty}
+          type="number"
+          onChange={(e) => setDraftQty(e.target.value)}
+          onBlur={commitQty}
+          style={CELL_INPUT_STYLE}
         />
       </Td>
       <Td label="Avg cost">
-        <Cell
-          value={part.avg_cost != null ? String(part.avg_cost) : ""}
-          numeric
-          onCommit={(v) => commit({ avg_cost: v === "" ? null : Number(v) })}
-        />
+        {hasLocs ? (
+          <ReadCell
+            value={fmtMoney(totals.avgCost)}
+            title="Weighted average of this part's location costs — edit a location to change it"
+          />
+        ) : (
+          <input
+            ref={costRef}
+            value={draftCost}
+            type="number"
+            onChange={(e) => setDraftCost(e.target.value)}
+            onBlur={commitCost}
+            style={CELL_INPUT_STYLE}
+          />
+        )}
       </Td>
       <Td label="Value">
-        <ReadCell value={fmtMoney(part.on_hand_value)} />
+        <ReadCell value={fmtMoney(totals.value)} />
       </Td>
       <Td label="Locations">
-        <ReadCell value={fmtLocations(part.locations)} title={locTitle(part.locations)} />
+        <button
+          type="button"
+          className="cell-link"
+          title={locTitle(part.locations) || "Add locations"}
+          onClick={() => onOpenDetail(true)}
+          style={{ color: locs.length ? undefined : "var(--dash-faint)" }}
+        >
+          {fmtLocations(part.locations) || "— add —"}
+        </button>
       </Td>
+      {pending && (
+        <QtyAllocationPrompt
+          delta={pending.delta}
+          locations={locs}
+          onPick={allocate}
+          onCancel={cancelAlloc}
+        />
+      )}
       <Td label="Dept">
         <Cell
           value={part.department || ""}
@@ -687,6 +691,17 @@ function ReadCell({ value, title }: { value: string; title?: string }) {
   );
 }
 
+const CELL_INPUT_STYLE: React.CSSProperties = {
+  appearance: "none",
+  border: 0,
+  outline: 0,
+  background: "transparent",
+  padding: "10px 12px",
+  width: "100%",
+  fontFamily: "inherit",
+  fontSize: 13,
+};
+
 function Cell({
   value,
   onCommit,
@@ -705,16 +720,7 @@ function Cell({
         if (v !== value) onCommit(v);
       }}
       type={numeric ? "number" : "text"}
-      style={{
-        appearance: "none",
-        border: 0,
-        outline: 0,
-        background: "transparent",
-        padding: "10px 12px",
-        width: "100%",
-        fontFamily: "inherit",
-        fontSize: 13,
-      }}
+      style={CELL_INPUT_STYLE}
     />
   );
 }
