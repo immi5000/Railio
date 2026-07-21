@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from typing import Any, Awaitable, Callable
 
 from .lookup_parts import lookup_parts
@@ -145,6 +146,34 @@ TOOL_DEFS: list[dict[str, Any]] = [
     },
 ]
 
+# === Ticketless copilot tool set ===
+# Derived by filtering the ticket TOOL_DEFS so descriptions stay in one place.
+# Dropped: parse_fault_dump / record_part_used (both write ticket-scoped rows
+# and there is no ticket) and request_photo (its upload endpoint requires a
+# ticket, so the prompt would be unanswerable). lookup_parts is kept but its
+# unit_model description is rewritten — the ticket version says "use the model
+# named in the ticket context", a dangling reference with no ticket.
+_TICKETLESS_EXCLUDED = {"parse_fault_dump", "record_part_used", "request_photo"}
+
+
+def _copilot_tool_defs() -> list[dict[str, Any]]:
+    defs: list[dict[str, Any]] = []
+    for d in TOOL_DEFS:
+        if d["function"]["name"] in _TICKETLESS_EXCLUDED:
+            continue
+        if d["function"]["name"] == "lookup_parts":
+            d = copy.deepcopy(d)
+            d["function"]["parameters"]["properties"]["unit_model"]["description"] = (
+                "The locomotive unit model to filter parts by. Use the model from "
+                "CURRENT SCOPE. If UNSCOPED, ask the user which unit or model before "
+                "calling."
+            )
+        defs.append(d)
+    return defs
+
+
+COPILOT_TOOL_DEFS: list[dict[str, Any]] = _copilot_tool_defs()
+
 # An emit callback for streaming events.
 ToolEmit = Callable[[dict[str, Any]], None]
 
@@ -155,6 +184,11 @@ async def execute_tool(
     emit: ToolEmit,
     scope: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    # Defense in depth: a ticket-mutating tool must never run without a ticket.
+    # COPILOT_TOOL_DEFS already omits these, but a jailbreak or stale conversation
+    # could still name one — fail loudly rather than writing to ticket_id = NULL.
+    if name in ("parse_fault_dump", "record_part_used") and not (scope or {}).get("ticket_id"):
+        return {"error": f"{name} requires a ticket; this is a ticketless session"}
     if name == "search_corpus":
         # Scope is bound by the runtime from the ticket and OVERRIDES any
         # org_id/unit_model/asset_id the model might pass — the model must not
@@ -215,4 +249,4 @@ async def execute_tool(
     return {"error": f"unknown tool: {name}"}
 
 
-__all__ = ["TOOL_DEFS", "ToolEmit", "execute_tool"]
+__all__ = ["TOOL_DEFS", "COPILOT_TOOL_DEFS", "ToolEmit", "execute_tool"]

@@ -10,7 +10,6 @@ import {
   authHeaders,
   fileUrl,
   getCorpusChunk,
-  getTicket,
   uploadPhotos,
 } from "@/lib/api";
 import type {
@@ -18,10 +17,10 @@ import type {
   CorpusFigure,
   Message,
   StreamEvent,
-  TicketDetail,
   ToolCall,
   Attachment,
 } from "@/lib/contract";
+import type { ChatSession } from "@/lib/chatSession";
 import { CitationDrawer } from "./CitationDrawer";
 import { MicButton } from "./MicButton";
 import { PhotoUpload, type PendingAttachment } from "./PhotoUpload";
@@ -38,7 +37,8 @@ type LiveAssistant = {
 };
 
 type Props = {
-  ticketId: string;
+  /** Describes where messages come from and go — ticket chat or copilot. */
+  session: ChatSession;
   role: "dispatcher" | "tech";
   /** Render an empty-state hint when there are no messages yet. */
   emptyHint?: string;
@@ -46,21 +46,28 @@ type Props = {
   onRequestPhoto?: (prompt: string) => void;
   /** Drop the pane's own border/background to fill a parent card (Copilot). */
   bare?: boolean;
+  /**
+   * Prefill the composer from outside (e.g. the copilot sidebar's "Ask about
+   * this part"). Bump `nonce` to re-apply the same text. Never passed by the
+   * ticket flow, so it's inert there.
+   */
+  prefill?: { text: string; nonce: number };
 };
 
 export function ChatPane({
-  ticketId,
+  session,
   role,
   emptyHint,
   bare = false,
+  prefill,
 }: Props) {
   const qc = useQueryClient();
   const { data } = useQuery({
-    queryKey: ["ticket", ticketId],
-    queryFn: () => getTicket(ticketId),
+    queryKey: session.queryKey,
+    queryFn: session.fetchMessages,
   });
 
-  const messages: Message[] = useMemo(() => data?.messages || [], [data?.messages]);
+  const messages: Message[] = useMemo(() => data ?? [], [data]);
 
   const [draft, setDraft] = useState("");
   const [interim, setInterim] = useState("");
@@ -125,6 +132,15 @@ export function ChatPane({
     cooldownUntil != null ? Math.max(0, Math.ceil((cooldownUntil - now) / 1000)) : 0;
   const inCooldown = cooldownLeft > 0;
 
+  // External prefill (copilot sidebar). Set the draft and focus the composer so
+  // the user can review/edit before sending. Keyed on nonce so repeat picks of
+  // the same part re-apply.
+  useEffect(() => {
+    if (!prefill) return;
+    setDraft(prefill.text);
+    inputRef.current?.focus();
+  }, [prefill?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function send(overrideContent?: string) {
     const content = (overrideContent ?? draft).trim();
     if (!content && pending.length === 0) return;
@@ -140,6 +156,7 @@ export function ChatPane({
     // appears below the user bubble, not before it.
 
     const body = {
+      ...session.sendBody,
       role,
       content,
       attachment_paths: pending.map((p) => p.path),
@@ -153,7 +170,7 @@ export function ChatPane({
     abortRef.current = ac;
 
     try {
-      await fetchEventSource(apiUrl(`/api/tickets/${ticketId}/messages`), {
+      await fetchEventSource(apiUrl(session.sendUrl), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify(body),
@@ -219,10 +236,8 @@ export function ChatPane({
   // tool_calls), so this closes the gap that otherwise let a message vanish
   // between setLive(null) and the refetch landing.
   function appendMessage(m: Message) {
-    qc.setQueryData<TicketDetail>(["ticket", ticketId], (old) =>
-      old && !old.messages.some((x) => x.id === m.id)
-        ? { ...old, messages: [...old.messages, m] }
-        : old,
+    qc.setQueryData<Message[]>(session.queryKey, (old) =>
+      old && !old.some((x) => x.id === m.id) ? [...old, m] : (old ?? [m]),
     );
   }
 
@@ -243,7 +258,9 @@ export function ChatPane({
         // status actually changes). Still refresh the inbox list/status pills.
         appendMessage(ev.message);
         setLive(null);
-        qc.invalidateQueries({ queryKey: ["tickets"] });
+        if (session.invalidatesTickets) {
+          qc.invalidateQueries({ queryKey: ["tickets"] });
+        }
         break;
       case "assistant_token":
         setLive((prev) =>
@@ -290,11 +307,13 @@ export function ChatPane({
             : prev,
         );
         const toolName = callIdToName.current.get(ev.call_id);
-        if (toolName === "set_ticket_status") {
+        if (toolName === "set_ticket_status" && session.invalidatesTickets) {
           // Backend has committed the new status; invalidate so every observer
           // (TicketDetail's Start/wrap-up buttons, status pill, queue badges)
-          // re-renders with the fresh ticket.
-          qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
+          // re-renders with the fresh ticket. The detail lives under
+          // ["ticket", id] (owned by WorkspaceShell) — distinct from the message
+          // list this pane caches under ["ticket", id, "messages"].
+          qc.invalidateQueries({ queryKey: session.queryKey.slice(0, 2) });
           qc.invalidateQueries({ queryKey: ["tickets"] });
         }
         callIdToName.current.delete(ev.call_id);
@@ -360,8 +379,9 @@ export function ChatPane({
 
   // Inline upload from request_photo prompt
   async function uploadAndSend(file: File) {
+    if (!session.uploadRef) return;
     try {
-      const { attachments } = await uploadPhotos(ticketId, [file]);
+      const { attachments } = await uploadPhotos(session.uploadRef, [file]);
       setPending((p) => [
         ...p,
         ...attachments.map((a) => ({
@@ -462,7 +482,7 @@ export function ChatPane({
         {messages.length === 0 && !live && (
           <EmptyState
             hint={emptyHint || "Press the mic to talk, or type."}
-            ticket={data}
+            suggestions={session.suggestions}
             disabled={streaming || inCooldown}
             onPick={(q) => send(q)}
           />
@@ -552,15 +572,17 @@ export function ChatPane({
         />
         <div className="rc-composer-actions">
           <div className="rc-actions-left">
-            <PhotoUpload
-              ticketId={ticketId}
-              pending={pending}
-              onAdd={(a) => setPending((p) => [...p, ...a])}
-              onRemove={(path) =>
-                setPending((p) => p.filter((x) => x.path !== path))
-              }
-              compact
-            />
+            {session.uploadRef && (
+              <PhotoUpload
+                ticketId={session.uploadRef}
+                pending={pending}
+                onAdd={(a) => setPending((p) => [...p, ...a])}
+                onRemove={(path) =>
+                  setPending((p) => p.filter((x) => x.path !== path))
+                }
+                compact
+              />
+            )}
             <MicButton
               onInterim={(t) => setInterim(t)}
               onFinal={(t) => {
@@ -607,24 +629,23 @@ export function ChatPane({
 
 function EmptyState({
   hint,
-  ticket,
+  suggestions,
   disabled,
   onPick,
 }: {
   hint: string;
-  ticket: TicketDetail | undefined;
+  suggestions: string[];
   disabled: boolean;
   onPick: (question: string) => void;
 }) {
-  const questions = useMemo(() => buildSuggestedQuestions(ticket), [ticket]);
   return (
     <div className="rc-empty">
       <div className="rc-empty-hint">{hint}</div>
-      {questions.length > 0 && (
+      {suggestions.length > 0 && (
         <>
           <div className="rc-try">TRY ASKING</div>
           <div className="rc-suggest-list">
-            {questions.map((q) => (
+            {suggestions.map((q) => (
               <button
                 key={q}
                 onClick={() => onPick(q)}
@@ -639,24 +660,6 @@ function EmptyState({
       )}
     </div>
   );
-}
-
-function buildSuggestedQuestions(ticket: TicketDetail | undefined): string[] {
-  if (!ticket) return [];
-  const firstParsed = ticket.fault_dump_parsed?.[0]?.code;
-  const firstInitial = ticket.initial_error_codes
-    ?.split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)[0];
-  const code = firstParsed || firstInitial;
-  const codeRef = code ? `fault ${code}` : "these symptoms";
-  return [
-    "Give me a full briefing on this ticket.",
-    `What's the most likely root cause of ${codeRef}?`,
-    `What does the manual say about ${codeRef}?`,
-    "Are there senior-tech notes for this kind of issue?",
-    "What parts should I bring? Show bin locations.",
-  ];
 }
 
 function MessageBubble({

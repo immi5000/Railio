@@ -229,6 +229,29 @@ class TicketDetail(Ticket):
     ticket_parts: list[TicketPart] = Field(default_factory=list)
 
 
+# === Ticketless copilot conversations ===
+# A saved Railio Copilot chat with no ticket. Deliberately NOT in the `messages`
+# hash chain — advisory browsing isn't a regulated maintenance record.
+# asset_id/unit_model are the last scope used, for restoring the sidebar on
+# reload (not authorization — scope is re-derived server-side per request).
+class CopilotConversation(BaseModel):
+    id: int
+    org_id: int
+    created_by: str
+    title: Optional[str] = None
+    asset_id: Optional[int] = None
+    unit_model: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+
+# Copilot messages reuse the ticket `Message` shape so the SSE pipeline and
+# ChatPane render them unchanged. No hash chain, so ticket_id is 0 and
+# prev_hash/hash are empty on copilot rows.
+class CopilotConversationDetail(CopilotConversation):
+    messages: list[Message] = Field(default_factory=list)
+
+
 # === API request bodies ===
 
 class CreateTicketBody(BaseModel):
@@ -244,6 +267,17 @@ class CreateTicketBody(BaseModel):
 class SendMessageBody(BaseModel):
     role: Literal["dispatcher", "tech"]
     content: str
+    attachment_paths: Optional[list[str]] = None
+
+
+# A message on the ticketless Railio Copilot. The client names a scope (asset_id
+# OR unit_model); the SERVER re-derives it from the JWT org — a client-supplied
+# unit_model or org is never trusted. Neither set = general, unscoped chat.
+class CopilotMessageBody(BaseModel):
+    role: Literal["dispatcher", "tech"]
+    content: str
+    asset_id: Optional[int] = None
+    unit_model: Optional[str] = None
     attachment_paths: Optional[list[str]] = None
 
 

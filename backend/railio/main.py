@@ -13,6 +13,7 @@ from .db import close_engine, get_engine
 from .posthog_client import init_posthog, shutdown_posthog
 from .routers import (
     assets,
+    copilot,
     corpus,
     messages,
     parse_fault_dump,
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(photos.router, prefix="/api/tickets", tags=["photos"])
     app.include_router(parts.router, prefix="/api/parts", tags=["parts"])
     app.include_router(corpus.router, prefix="/api/corpus", tags=["corpus"])
+    app.include_router(copilot.router, prefix="/api/copilot", tags=["copilot"])
     app.include_router(uploads.router, prefix="/api/uploads", tags=["uploads"])
     app.include_router(users.router, prefix="/api", tags=["users"])
 

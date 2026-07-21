@@ -87,6 +87,7 @@ function matchesStatus(t: Ticket, f: StatusFilter): boolean {
 }
 
 import { ChatPane } from "./ChatPane";
+import { ticketSession } from "@/lib/chatSession";
 import { RepairContext } from "./RepairContext";
 import { IntakeContext } from "./IntakeContext";
 import { WrapUpForm } from "./WrapUpForm";
@@ -283,6 +284,7 @@ export function WorkspaceShell() {
             isLoading={isLoading}
             error={!!error}
             onSelect={select}
+            initialStatus={params.get("status")}
           />
         </div>
       </div>
@@ -468,7 +470,7 @@ export function WorkspaceShell() {
           <section className="dash-card work-copilot">
             <div className="work-copilot-body">
               <ChatPane
-                ticketId={selectedId}
+                session={ticketSession(ticket, selectedId)}
                 role={role}
                 bare
                 emptyHint={
@@ -544,19 +546,24 @@ function TicketList({
   isLoading,
   error,
   onSelect,
+  initialStatus,
 }: {
   role: Role;
   tickets: Ticket[];
   isLoading: boolean;
   error: boolean;
   onSelect: (shortId: string | null) => void;
+  /** Preset the status filter from a deep link, e.g. /work?status=open. */
+  initialStatus?: string | null;
 }) {
   const isDispatch = role === "dispatcher";
   const [unitFilter, setUnitFilter] = useState<string>("all");
-  // A tech lands on the actionable board ("Open"); dispatch sees everything.
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
-    role === "tech" ? "open" : "all",
-  );
+  // A deep-link (?status=open from the dashboard "Open tickets" card) wins;
+  // otherwise a tech lands on the actionable board ("Open") and dispatch sees all.
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
+    const preset = STATUS_FILTERS.find((f) => f.value === initialStatus)?.value;
+    return preset ?? (role === "tech" ? "open" : "all");
+  });
   const [sortMode, setSortMode] = useState<SortMode>("priority");
 
   const units = useMemo(

@@ -406,6 +406,41 @@ _STATEMENTS = [
         SELECT 1 FROM oos_periods p WHERE p.asset_id = a.id AND p.ended_at IS NULL
       )
     """,
+    # === Ticketless copilot conversations ===
+    # A general-purpose AI chat NOT tied to a ticket. Deliberately kept OUT of the
+    # `messages` table: that table is a tamper-evident SHA-256 hash chain for
+    # FRA-regulated repair records, and verify_chain.py only audits rows that
+    # belong to a ticket. Advisory browsing has no repair, no asset, and no
+    # regulatory weight, so it lives in its own tables with no chain — keeping the
+    # audit log exclusively for what it's for. asset_id/unit_model here are the
+    # LAST scope used (for restoring the sidebar on reload), not authorization:
+    # scope is re-derived server-side from the JWT org on every request.
+    """
+    CREATE TABLE IF NOT EXISTS copilot_conversations (
+        id serial PRIMARY KEY,
+        org_id integer REFERENCES organizations(id) ON DELETE CASCADE,
+        created_by text NOT NULL,
+        title text,
+        asset_id integer REFERENCES assets(id) ON DELETE SET NULL,
+        unit_model text,
+        created_at text NOT NULL,
+        updated_at text NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_copilot_conv_org ON copilot_conversations (org_id, created_by, updated_at DESC)",
+    """
+    CREATE TABLE IF NOT EXISTS copilot_messages (
+        id serial PRIMARY KEY,
+        conversation_id integer REFERENCES copilot_conversations(id) ON DELETE CASCADE,
+        role text NOT NULL,
+        content text NOT NULL,
+        citations jsonb,
+        tool_calls jsonb,
+        attachments jsonb,
+        created_at text NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_copilot_msg_conv ON copilot_messages (conversation_id, id)",
 ]
 
 

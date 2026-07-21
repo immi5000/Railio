@@ -32,6 +32,18 @@ export type SendMessageBody = {
   attachment_paths?: string[];
 };
 
+// A message on the ticketless Railio Copilot. The client names a scope
+// (asset_id OR unit_model); the SERVER re-derives it from the JWT org and
+// decides what's real — a client-supplied unit_model or org is never trusted.
+// Both are optional: neither set = general, unscoped chat.
+export type CopilotMessageBody = {
+  role: "dispatcher" | "tech";
+  content: string;
+  asset_id?: number | null;
+  unit_model?: string | null;
+  attachment_paths?: string[];
+};
+
 export type CreateAssetBody = {
   reporting_mark: string;
   road_number: string;
@@ -263,6 +275,30 @@ export type Ticket = {
 export type TicketDetail = Ticket & {
   messages: Message[];
   ticket_parts: TicketPart[];
+};
+
+// === Ticketless copilot conversations ===
+// A saved Railio Copilot chat with no ticket behind it. Deliberately NOT in the
+// `messages` hash chain — advisory browsing isn't a regulated maintenance
+// record. asset_id/unit_model are the last scope used, for restoring the sidebar
+// on reload (not authorization — scope is re-derived server-side per request).
+export type CopilotConversation = {
+  id: number;
+  org_id: number;
+  created_by: string;
+  title: string | null;
+  asset_id: number | null;
+  unit_model: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// Copilot messages reuse the ticket `Message` shape so the SSE pipeline and
+// ChatPane render them unchanged. There is no hash chain, so `ticket_id` is 0
+// and `prev_hash`/`hash` are empty on copilot rows — ChatPane reads none of the
+// three for rendering.
+export type CopilotConversationDetail = CopilotConversation & {
+  messages: Message[];
 };
 
 export type PartLocation = {

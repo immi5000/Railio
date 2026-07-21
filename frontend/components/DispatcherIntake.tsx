@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   createAsset,
   createTicket,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import type { Asset, ParsedFault, Severity, Ticket } from "@/lib/contract";
 import { ChatPane } from "./ChatPane";
+import { ticketSession } from "@/lib/chatSession";
 import { severityClass } from "@/lib/format";
 
 export function DispatcherIntake() {
@@ -37,6 +38,22 @@ export function DispatcherIntake() {
     queryFn: () => listAssets(),
   });
   const knownAssets: Asset[] = assets || [];
+
+  // Prefill the unit when arriving from the copilot's "Open a ticket" handoff
+  // (/dispatcher/new?asset=<id>). Only applies before a ticket is created and
+  // only once the roster is loaded (so the id resolves to a real asset).
+  const params = useSearchParams();
+  const assetParam = params.get("asset");
+  useEffect(() => {
+    if (!assetParam || createdTicket) return;
+    const id = Number(assetParam);
+    const a = knownAssets.find((x) => x.id === id);
+    if (a) {
+      setAssetId(a.id);
+      setReportingMark(a.reporting_mark);
+      setRoadNumber(a.road_number);
+    }
+  }, [assetParam, knownAssets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Models that have ingested knowledge — the add-asset model picker binds the
   // asset's unit_model directly to one of these, so the ticket scope always
@@ -436,7 +453,7 @@ export function DispatcherIntake() {
               {createdTicket ? (
                 <div style={{ flex: 1 }}>
                   <ChatPane
-                    ticketId={createdTicket.short_id}
+                    session={ticketSession(undefined, createdTicket.short_id)}
                     role="dispatcher"
                     emptyHint="Tell Railio what the engineer said. It&rsquo;ll write the pre-arrival summary for the tech."
                   />

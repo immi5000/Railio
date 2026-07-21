@@ -37,25 +37,15 @@ function initials(name: string | null | undefined): string {
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "—";
 }
 
-// Faint decorative steam locomotive (side profile), drawn in the same stroke
-// style as the Figma line icons.
-function TrainIcon() {
+// Four-point AI sparkle: one large diamond + a small companion, drawn in the
+// same single-stroke line style as the Figma icons. Marks the Copilot quick-link.
+function SparkleIcon() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      {/* mirrored horizontally so the locomotive faces the other way */}
-      <g transform="scale(-1,1) translate(-24,0)">
-        {/* boiler + cab body, sitting on the running board */}
-        <path d="M3 16V9h9l3 3h5v4" />
-        {/* cab roof */}
-        <path d="M15 9V6h4v6" />
-        {/* smokestack */}
-        <path d="M6 9V6h2v3" />
-        {/* running board / footplate */}
-        <path d="M3 16h18" />
-        {/* wheels */}
-        <circle cx="7" cy="18" r="2" />
-        <circle cx="17" cy="18" r="2" />
-      </g>
+      {/* large four-point star */}
+      <path d="M13 3l1.7 4.6a4 4 0 0 0 2.4 2.4L21.5 11.7l-4.4 1.7a4 4 0 0 0-2.4 2.4L13 20.4l-1.7-4.6a4 4 0 0 0-2.4-2.4L4.5 11.7l4.4-1.7a4 4 0 0 0 2.4-2.4z" />
+      {/* small companion sparkle, lower-left */}
+      <path d="M5 15.5l.5 1.4a1.6 1.6 0 0 0 1 1l1.4.5-1.4.5a1.6 1.6 0 0 0-1 1L5 22.3l-.5-1.4a1.6 1.6 0 0 0-1-1L2.1 19.4l1.4-.5a1.6 1.6 0 0 0 1-1z" />
     </svg>
   );
 }
@@ -230,8 +220,11 @@ export default function DashboardPage() {
 
         {/* Summary stats */}
         <section className="dash-stats">
-          {/* Open tickets */}
-          <div className="dash-card dash-stat dash-stat--wo">
+          {/* Open tickets — links to the all-tickets board pre-filtered to Open. */}
+          <Link
+            href="/work?status=open&from=dashboard"
+            className="dash-card dash-stat dash-stat--wo dash-stat--link"
+          >
             <div className="dash-stat-col">
               <span className="dash-stat-label">Open tickets</span>
               <span className="dash-stat-value">
@@ -239,20 +232,26 @@ export default function DashboardPage() {
               </span>
             </div>
             <span className="dash-stat-block" style={{ background: blockColor }} />
-          </div>
+          </Link>
 
-          {/* Fleet availability */}
-          <div className="dash-card dash-stat dash-stat--avail">
+          {/* Railio Copilot — quick link into the ticketless AI chat. */}
+          <Link
+            href="/copilot"
+            className="dash-card dash-stat dash-stat--copilot dash-stat--link"
+          >
             <div className="dash-stat-col">
-              <span className="dash-stat-label">Fleet availability</span>
-              <span className="dash-stat-value">{availLabel}</span>
+              <span className="dash-stat-label">Railio Copilot</span>
+              <span className="dash-company-hint">Ask about units, parts &amp; more</span>
             </div>
             <div className="dash-stat-side">
               <span className="dash-stat-flake" aria-hidden="true">
-                <TrainIcon />
+                <SparkleIcon />
+              </span>
+              <span className="dash-link">
+                Start chat <span className="ico-arr" aria-hidden="true" />
               </span>
             </div>
-          </div>
+          </Link>
 
           {/* Active client company — the rail operator this crew is maintaining
               right now. A contractor can switch between the companies they service. */}

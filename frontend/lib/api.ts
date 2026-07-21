@@ -28,6 +28,8 @@ import type {
   OnboardingBody,
   MeResponse,
   OrgMember,
+  CopilotConversation,
+  CopilotConversationDetail,
 } from "./contract";
 
 export const API_BASE =
@@ -357,5 +359,22 @@ export async function completeOnboarding(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+// === Copilot (ticketless chat) ===
+export async function createCopilotConversation(): Promise<CopilotConversation> {
+  return jsonFetch<CopilotConversation>(`/api/copilot/conversations`, {
+    method: "POST",
+  });
+}
+
+export async function listCopilotConversations(): Promise<CopilotConversation[]> {
+  return jsonFetch<CopilotConversation[]>(`/api/copilot/conversations`);
+}
+
+export async function getCopilotConversation(
+  id: number,
+): Promise<CopilotConversationDetail> {
+  return jsonFetch<CopilotConversationDetail>(`/api/copilot/conversations/${id}`);
 }
 

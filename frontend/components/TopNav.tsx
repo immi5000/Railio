@@ -268,13 +268,15 @@ function TopNavInner() {
   );
 }
 
-// The ticket-detail chat view (/work?ticket=…) is a focused, full-height screen
-// with no global nav. Reading the query param requires a Suspense boundary
-// (Next 16 CSR bail-out rule) — same pattern as PageViewTracker in
-// PostHogProvider — so the param read lives in this small gate.
+// The focused chat screens — the ticket-detail view (/work?ticket=…) and the
+// ticketless copilot (/copilot) — are full-height and hide the global nav.
+// Reading the query param requires a Suspense boundary (Next 16 CSR bail-out
+// rule) — same pattern as PageViewTracker in PostHogProvider — so the param read
+// lives in this small gate.
 function TopNavGate() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  if (pathname === "/copilot") return null;
   if (pathname === "/work" && searchParams.has("ticket")) return null;
   return <TopNavInner />;
 }
