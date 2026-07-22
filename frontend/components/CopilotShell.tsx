@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { createCopilotConversation } from "@/lib/api";
+import { createCopilotConversation, listAssets } from "@/lib/api";
 import { copilotSession, type CopilotScope } from "@/lib/chatSession";
 import { useRole } from "@/components/RoleProvider";
 import { ChatPane } from "./ChatPane";
-import { CopilotScopePanel } from "./CopilotScopePanel";
+import { CopilotScopePanel, scopeLabel } from "./CopilotScopePanel";
 
 const SIDEBAR_MIN = 300;
 const SIDEBAR_MAX = 620;
@@ -52,6 +52,17 @@ export function CopilotShell() {
       if (Number.isFinite(id)) setScope({ assetId: id, unitModel: null });
     }
   }, [assetParam]);
+
+  // The current focus, shown in the panel header (replacing the static title).
+  // Shares the ["assets"] query with the scope panel — React Query dedupes it.
+  const { data: assets = [] } = useQuery({
+    queryKey: ["assets"],
+    queryFn: listAssets,
+  });
+  const focusLabel = useMemo(() => {
+    const asset = assets.find((a) => a.id === scope.assetId) ?? null;
+    return scopeLabel(scope, asset);
+  }, [assets, scope]);
 
   // Prefill bridge for the sidebar's "Ask about this part".
   const [prefill, setPrefill] = useState<{ text: string; nonce: number }>();
@@ -109,7 +120,7 @@ export function CopilotShell() {
   return (
     <div className="work work--full">
       <div className="work-inner">
-        <div className="work-topbar">
+        <div className="work-topbar copilot-topbar">
           <Link href="/dashboard" className="work-topbar-back dash-link">
             <span className="ico-arr-back" aria-hidden="true" /> Dashboard
           </Link>
@@ -162,12 +173,40 @@ export function CopilotShell() {
             aria-hidden={!ctxOpen}
           >
             <div className="work-ctx-head">
-              <span className="work-ctx-title">Ask Railio</span>
+              <span
+                className="work-ctx-title"
+                title={focusLabel}
+                style={{
+                  color:
+                    scope.assetId || scope.unitModel
+                      ? "var(--dash-link)"
+                      : "var(--dash-muted)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  marginRight: 0,
+                  flexShrink: 1,
+                  minWidth: 0,
+                }}
+              >
+                {focusLabel}
+              </span>
+              {(scope.assetId || scope.unitModel) && (
+                <button
+                  type="button"
+                  className="copilot-clear-focus"
+                  onClick={() => setScope({ assetId: null, unitModel: null })}
+                  title="Clear focus"
+                >
+                  ✕ clear
+                </button>
+              )}
               <button
                 type="button"
                 className="work-ctx-close"
                 onClick={() => setCtxOpen(false)}
                 aria-label="Collapse focus panel"
+                style={{ marginLeft: "auto" }}
               >
                 <span className="ico-arr-back" aria-hidden="true" />
               </button>

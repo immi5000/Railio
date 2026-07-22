@@ -1406,6 +1406,12 @@ button {
   align-items: center;
   gap: 10px;
 }
+/* Reserve the "Open a ticket" button's height even when no unit is focused, so
+   the chat body doesn't jump down the moment a focus makes the button appear. */
+.copilot-topbar {
+  align-items: center;
+  min-height: 40px;
+}
 
 /* Right in-flow context drawer — collapsed by default, drag-resizable. In-flow
    so opening it pushes the chat narrower; collapsed it shrinks to width 0. */
@@ -1470,6 +1476,29 @@ button {
 }
 .work-ctx-close:hover {
   color: #000;
+}
+/* Header-level "clear focus" — always visible while a focus is set, so the user
+   never has to scroll the picker back to the highlighted row to deselect it. */
+.copilot-clear-focus {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  background: none;
+  border: 1px solid var(--dash-line);
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--dash-muted);
+  transition:
+    color 0.12s,
+    border-color 0.12s;
+}
+.copilot-clear-focus:hover {
+  color: var(--dash-link);
+  border-color: var(--dash-link);
 }
 /* The context stack fills the drawer and scrolls on its own; it keeps the
    .work-context class so the existing panel styling applies unchanged. */

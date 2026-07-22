@@ -16,6 +16,14 @@ function unitLabel(a: Asset): string {
   return `${a.reporting_mark} ${a.road_number}`.trim();
 }
 
+// The current focus, as one line. Shown in the shell header (replacing a static
+// title) so the panel doesn't repeat it. `asset` is the resolved scope.assetId.
+export function scopeLabel(scope: CopilotScope, asset: Asset | null): string {
+  if (asset) return `${unitLabel(asset)} · ${asset.unit_model}`;
+  if (scope.unitModel) return `${scope.unitModel} (fleet-wide)`;
+  return "No focus — general chat";
+}
+
 // The sidebar for the ticketless copilot. Unlike the ticket details sidebar, it
 // SELECTS scope rather than displaying it: pick one unit or one model to focus
 // the copilot's corpus/parts search, or select nothing for general chat. Parts
@@ -46,18 +54,17 @@ export function CopilotScopePanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <ScopeSummary
-        scope={scope}
-        asset={selectedAsset}
-        onClear={() => onScopeChange({ assetId: null, unitModel: null })}
-      />
-
       <ContextPanel title="Focus a unit" defaultOpen>
         <UnitPicker
           assets={assets}
           selectedId={scope.assetId}
+          // Clicking the focused unit again clears the focus (toggle).
           onSelect={(a) =>
-            onScopeChange({ assetId: a.id, unitModel: a.unit_model })
+            onScopeChange(
+              scope.assetId === a.id
+                ? { assetId: null, unitModel: null }
+                : { assetId: a.id, unitModel: a.unit_model },
+            )
           }
         />
       </ContextPanel>
@@ -66,7 +73,14 @@ export function CopilotScopePanel({
         <ModelPicker
           models={models}
           selected={scope.assetId ? null : scope.unitModel}
-          onSelect={(m) => onScopeChange({ assetId: null, unitModel: m })}
+          // Clicking the focused model again clears the focus (toggle).
+          onSelect={(m) =>
+            onScopeChange(
+              !scope.assetId && scope.unitModel === m
+                ? { assetId: null, unitModel: null }
+                : { assetId: null, unitModel: m },
+            )
+          }
         />
       </ContextPanel>
 
@@ -79,62 +93,6 @@ export function CopilotScopePanel({
       <ContextPanel title="Look up a part">
         <PartsLookup unitModel={scope.unitModel} onAskAbout={onAskAbout} />
       </ContextPanel>
-    </div>
-  );
-}
-
-function ScopeSummary({
-  scope,
-  asset,
-  onClear,
-}: {
-  scope: CopilotScope;
-  asset: Asset | null;
-  onClear: () => void;
-}) {
-  let label: string;
-  if (asset) label = `${unitLabel(asset)} · ${asset.unit_model}`;
-  else if (scope.unitModel) label = `${scope.unitModel} (fleet-wide)`;
-  else label = "No focus — general chat";
-  const scoped = !!(scope.assetId || scope.unitModel);
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 8,
-        padding: "10px 12px",
-        borderRadius: 12,
-        border: "1px solid var(--dash-border)",
-        background: scoped ? "rgba(38, 131, 235, 0.06)" : "#fff",
-      }}
-    >
-      <span
-        style={{
-          fontSize: 13,
-          fontWeight: 500,
-          color: scoped ? "var(--dash-link)" : "var(--dash-muted)",
-        }}
-      >
-        {label}
-      </span>
-      {scoped && (
-        <button
-          type="button"
-          className="micro"
-          onClick={onClear}
-          style={{
-            cursor: "pointer",
-            border: "none",
-            background: "transparent",
-            color: "var(--dash-muted)",
-            textDecoration: "underline",
-          }}
-        >
-          Clear
-        </button>
-      )}
     </div>
   );
 }
@@ -185,6 +143,8 @@ function UnitPicker({
               key={a.id}
               type="button"
               onClick={() => onSelect(a)}
+              aria-pressed={on}
+              title={on ? "Click to clear focus" : undefined}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -215,7 +175,7 @@ function UnitPicker({
               <span
                 style={{ fontSize: 12, color: "var(--dash-muted)", marginLeft: "auto" }}
               >
-                {a.unit_model}
+                {on ? "✕ clear" : a.unit_model}
               </span>
             </button>
           );
@@ -246,7 +206,14 @@ function ModelPicker({
             type="button"
             disabled={empty}
             onClick={() => onSelect(m.model_code)}
-            title={empty ? "No manuals ingested for this model yet" : undefined}
+            aria-pressed={on}
+            title={
+              empty
+                ? "No manuals ingested for this model yet"
+                : on
+                  ? "Click to clear focus"
+                  : undefined
+            }
             style={{
               display: "flex",
               alignItems: "center",
@@ -270,9 +237,12 @@ function ModelPicker({
             )}
             <span
               className="micro"
-              style={{ marginLeft: "auto", color: "var(--dash-faint)" }}
+              style={{
+                marginLeft: "auto",
+                color: on ? "var(--dash-link)" : "var(--dash-faint)",
+              }}
             >
-              {m.chunk_count} chunks
+              {on ? "✕ clear" : `${m.chunk_count} chunks`}
             </span>
           </button>
         );
