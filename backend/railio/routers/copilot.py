@@ -11,10 +11,12 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
+import uuid
 from typing import Any, AsyncIterator
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import text
 
 from ..assets_repo import list_assets
@@ -38,6 +40,7 @@ from ..db import session_scope
 from ..org_context import get_current_org, get_current_user
 from ..posthog_client import get_posthog
 from ..routers.messages import _guess_mime, enforce_chat_rate_limit
+from ..storage import upload_to_bucket
 
 router = APIRouter()
 
@@ -118,6 +121,41 @@ async def get_copilot_conversation(
         raise HTTPException(status_code=404, detail="not found")
     messages = await list_copilot_messages(conv_id)
     return CopilotConversationDetail(**conv.model_dump(), messages=messages)
+
+
+@router.post("/photos")
+async def upload_copilot_photos(
+    files: list[UploadFile] = File(...),
+    org: Organization = Depends(get_current_org),
+    user: dict = Depends(get_current_user),
+) -> JSONResponse:
+    """Org-scoped photo upload for the ticketless copilot. Mirrors the ticket
+    photo route (routers/photos.py) but stores under the org rather than a
+    ticket, since there's no ticket to attach to. Returns the same Attachment
+    shape, so the chat loop base64-inlines these images exactly like ticket ones.
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="no files")
+    attachments: list[Attachment] = []
+    for f in files:
+        if not f.filename:
+            continue
+        ext = os.path.splitext(f.filename)[1].lower()
+        filename = f"{int(time.time() * 1000)}-{uuid.uuid4()}{ext}"
+        storage_key = f"org-{org.id}/copilot/{filename}"
+        body = await f.read()
+        mime = f.content_type or _guess_mime(ext)
+        path = upload_to_bucket(storage_key, body, mime)
+        kind = "pdf" if mime == "application/pdf" else "image"
+        attachments.append(Attachment(kind=kind, path=path, mime=mime))  # type: ignore[arg-type]
+    ph = get_posthog()
+    if ph:
+        ph.capture(
+            distinct_id=user["supabase_user_id"],
+            event="copilot_photos_uploaded",
+            properties={"photo_count": len(attachments)},
+        )
+    return JSONResponse({"attachments": [a.model_dump() for a in attachments]})
 
 
 @router.post("/conversations/{conv_id}/messages")

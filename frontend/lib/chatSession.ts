@@ -2,8 +2,13 @@
 // and the ticketless copilot, so ChatPane can drive both without forking. Every
 // hard-wired coupling ChatPane used to have on `ticketId` is one of these.
 
-import { getCopilotConversation, getTicket } from "@/lib/api";
-import type { Message, TicketDetail } from "@/lib/contract";
+import {
+  getCopilotConversation,
+  getTicket,
+  uploadCopilotPhotos,
+  uploadPhotos,
+} from "@/lib/api";
+import type { Attachment, Message, TicketDetail } from "@/lib/contract";
 
 // The scope the copilot chat is bound to. Both null = general, unscoped chat.
 export type CopilotScope = {
@@ -20,8 +25,17 @@ export type ChatSession = {
   sendUrl: string;
   /** Extra fields merged into the send body (copilot: the selected scope). */
   sendBody?: Record<string, unknown>;
-  /** Upload target ref; null means uploads are unsupported (hides PhotoUpload). */
+  /**
+   * The ticket ref this pane is attached to, or null for the copilot. Used only
+   * to read the ["ticket", ref] detail cache (for the inline part toggle) and to
+   * gate ticket-only cache invalidations — NOT for uploads (see uploadFn).
+   */
   uploadRef: string | null;
+  /**
+   * Upload handler for photo attachments; null means uploads are unsupported and
+   * the attach button is hidden. Ticket and copilot use different endpoints.
+   */
+  uploadFn: ((files: File[]) => Promise<{ attachments: Attachment[] }>) | null;
   /** Empty-state "TRY ASKING" chips. */
   suggestions: string[];
   /**
@@ -66,6 +80,7 @@ export function ticketSession(
     fetchMessages: async () => (await getTicket(ref)).messages,
     sendUrl: `/api/tickets/${ref}/messages`,
     uploadRef: ref,
+    uploadFn: (files) => uploadPhotos(ref, files),
     suggestions: buildTicketSuggestions(ticket),
     invalidatesTickets: true,
   };
@@ -96,9 +111,9 @@ function buildCopilotSuggestions(scope: CopilotScope): string[] {
   ];
 }
 
-// The ticketless copilot session. Uploads are unsupported (no ticket to attach a
-// photo to), and message events never touch the tickets cache. The selected
-// scope rides on every send in sendBody, where the backend re-derives it.
+// The ticketless copilot session. Photos upload to an org-scoped endpoint (no
+// ticket to attach to); message events never touch the tickets cache. The
+// selected scope rides on every send in sendBody, where the backend re-derives it.
 export function copilotSession(
   conversationId: number,
   scope: CopilotScope,
@@ -110,6 +125,7 @@ export function copilotSession(
     sendUrl: `/api/copilot/conversations/${conversationId}/messages`,
     sendBody: { asset_id: scope.assetId, unit_model: scope.unitModel },
     uploadRef: null,
+    uploadFn: (files) => uploadCopilotPhotos(files),
     suggestions: buildCopilotSuggestions(scope),
     invalidatesTickets: false,
   };

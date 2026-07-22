@@ -1,19 +1,20 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { uploadPhotos, fileUrl } from "@/lib/api";
+import { fileUrl } from "@/lib/api";
 import type { Attachment } from "@/lib/contract";
 
 export type PendingAttachment = Attachment & { localUrl?: string };
 
 export function PhotoUpload({
-  ticketId,
+  upload,
   pending,
   onAdd,
   onRemove,
   compact,
 }: {
-  ticketId: string;
+  /** Upload handler — ticket and copilot supply different endpoints. */
+  upload: (files: File[]) => Promise<{ attachments: Attachment[] }>;
   pending: PendingAttachment[];
   onAdd: (a: PendingAttachment[]) => void;
   onRemove: (path: string) => void;
@@ -29,7 +30,7 @@ export function PhotoUpload({
       setBusy(true);
       setError(null);
       try {
-        const { attachments } = await uploadPhotos(ticketId, files);
+        const { attachments } = await upload(files);
         // Pair locally previewable URLs by index where possible
         const enriched = attachments.map((a, i) => ({
           ...a,
@@ -42,7 +43,7 @@ export function PhotoUpload({
         setBusy(false);
       }
     },
-    [onAdd, ticketId],
+    [onAdd, upload],
   );
 
   const fileInput = (

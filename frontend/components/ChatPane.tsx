@@ -13,7 +13,6 @@ import {
   getCorpusChunk,
   getTicket,
   removeTicketPart,
-  uploadPhotos,
 } from "@/lib/api";
 import type {
   Citation,
@@ -436,9 +435,9 @@ export function ChatPane({
 
   // Inline upload from request_photo prompt
   async function uploadAndSend(file: File) {
-    if (!session.uploadRef) return;
+    if (!session.uploadFn) return;
     try {
-      const { attachments } = await uploadPhotos(session.uploadRef, [file]);
+      const { attachments } = await session.uploadFn([file]);
       setPending((p) => [
         ...p,
         ...attachments.map((a) => ({
@@ -631,9 +630,9 @@ export function ChatPane({
         />
         <div className="rc-composer-actions">
           <div className="rc-actions-left">
-            {session.uploadRef && (
+            {session.uploadFn && (
               <PhotoUpload
-                ticketId={session.uploadRef}
+                upload={session.uploadFn}
                 pending={pending}
                 onAdd={(a) => setPending((p) => [...p, ...a])}
                 onRemove={(path) =>

@@ -222,6 +222,22 @@ export async function uploadPhotos(
   return (await res.json()) as { attachments: Attachment[] };
 }
 
+// Org-scoped photo upload for the ticketless copilot — no ticket to attach to,
+// so the backend stores under the org. Same response shape as uploadPhotos.
+export async function uploadCopilotPhotos(
+  files: File[],
+): Promise<{ attachments: Attachment[] }> {
+  const fd = new FormData();
+  files.forEach((f) => fd.append("files", f));
+  const res = await fetch(apiUrl(`/api/copilot/photos`), {
+    method: "POST",
+    body: fd,
+    headers: await authHeaders(),
+  });
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  return (await res.json()) as { attachments: Attachment[] };
+}
+
 // === Assets (fleet roster) ===
 export async function listAssets(): Promise<Asset[]> {
   return jsonFetch<Asset[]>(`/api/assets`);
