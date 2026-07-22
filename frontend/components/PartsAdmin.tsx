@@ -12,7 +12,6 @@ import type {
 import { deriveTotals, fmtLocations, fmtMoney, locTitle } from "@/lib/parts";
 import { SearchableSelect } from "./SearchableSelect";
 import { PartDetailModal } from "./PartDetailModal";
-import { QtyAllocationPrompt } from "./QtyAllocationPrompt";
 
 // Column order + default widths (px). Headers, the <colgroup>, and the resize
 // handles all key off this so they stay in sync.
@@ -447,9 +446,6 @@ function PartRow({
   );
   const qtyRef = useRef<HTMLInputElement>(null);
   const costRef = useRef<HTMLInputElement>(null);
-  const [pending, setPending] = useState<{ n: number; delta: number } | null>(
-    null,
-  );
 
   useEffect(() => {
     if (document.activeElement !== qtyRef.current) {
@@ -475,17 +471,16 @@ function PartRow({
         draftCost === "" ? null : Number(draftCost),
       );
 
+  // A part with 2+ locations shows a locked On hand (see below), so this only
+  // fires for 0- or 1-location parts. With one location the total IS that
+  // location's quantity, so route the edit through it to keep them in step.
   function commitQty() {
     const n = Number(draftQty) || 0;
     if (n === part.qty_on_hand) return;
     if (locs.length === 0) {
       commit({ qty_on_hand: n });
-    } else if (locs.length === 1) {
-      const l = locs[0];
-      commitLocations([{ ...l, qty: n }]);
     } else {
-      const sum = locs.reduce((a, l) => a + l.qty, 0);
-      setPending({ n, delta: n - sum });
+      commitLocations([{ ...locs[0], qty: n }]);
     }
   }
 
@@ -508,20 +503,6 @@ function PartRow({
       avg_cost: t.avgCost,
       on_hand_value: t.value,
     });
-  }
-
-  function allocate(i: number) {
-    if (!pending) return;
-    const delta = pending.delta;
-    commitLocations(
-      locs.map((l, j) => (j === i ? { ...l, qty: l.qty + delta } : l)),
-    );
-    setPending(null);
-  }
-
-  function cancelAlloc() {
-    setDraftQty(String(part.qty_on_hand));
-    setPending(null);
   }
 
   return (
@@ -565,14 +546,22 @@ function PartRow({
         />
       </Td>
       <Td label="On hand">
-        <input
-          ref={qtyRef}
-          value={draftQty}
-          type="number"
-          onChange={(e) => setDraftQty(e.target.value)}
-          onBlur={commitQty}
-          style={CELL_INPUT_STYLE}
-        />
+        {locs.length > 1 ? (
+          <ReadCell
+            boxed
+            value={String(totals.qty)}
+            title="Totalled from location quantities — edit a location to change it"
+          />
+        ) : (
+          <input
+            ref={qtyRef}
+            value={draftQty}
+            type="number"
+            onChange={(e) => setDraftQty(e.target.value)}
+            onBlur={commitQty}
+            style={CELL_INPUT_STYLE}
+          />
+        )}
       </Td>
       <Td label="Avg cost">
         {hasLocs ? (
@@ -605,14 +594,6 @@ function PartRow({
           {fmtLocations(part.locations) || "— add —"}
         </button>
       </Td>
-      {pending && (
-        <QtyAllocationPrompt
-          delta={pending.delta}
-          locations={locs}
-          onPick={allocate}
-          onCancel={cancelAlloc}
-        />
-      )}
       <Td label="Dept">
         <Cell
           value={part.department || ""}
@@ -672,7 +653,18 @@ function Td({
   );
 }
 
-function ReadCell({ value, title }: { value: string; title?: string }) {
+// `boxed` renders a filled grey, not-allowed cell — used where a normally
+// editable column is locked (a multi-location part's On hand is totalled from
+// its locations, so it can't be typed into directly).
+function ReadCell({
+  value,
+  title,
+  boxed,
+}: {
+  value: string;
+  title?: string;
+  boxed?: boolean;
+}) {
   return (
     <div
       title={title}
@@ -684,6 +676,9 @@ function ReadCell({ value, title }: { value: string; title?: string }) {
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
+        ...(boxed
+          ? { background: "var(--dash-bg)", cursor: "not-allowed" }
+          : null),
       }}
     >
       {value}
