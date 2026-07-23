@@ -6,26 +6,28 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  addTicketPart,
   apiUrl,
   authHeaders,
   fileUrl,
   getCorpusChunk,
   getTicket,
-  removeTicketPart,
+  listAllParts,
 } from "@/lib/api";
 import type {
   Citation,
   CorpusFigure,
   Message,
+  Part,
   StreamEvent,
-  TicketDetail,
   ToolCall,
   Attachment,
 } from "@/lib/contract";
 import type { ChatSession } from "@/lib/chatSession";
+import { useTicketParts, type TicketPartsController } from "@/lib/useTicketParts";
+import type { PartMatch } from "@/lib/parts";
 import { CitationDrawer } from "./CitationDrawer";
 import { MicButton } from "./MicButton";
+import { PartAllocatorModal } from "./PartAllocatorModal";
 import { PhotoUpload, type PendingAttachment } from "./PhotoUpload";
 
 type ShownFigure = { chunkId: number; figure: CorpusFigure };
@@ -51,10 +53,11 @@ type Props = {
   bare?: boolean;
   /**
    * Prefill the composer from outside (e.g. the copilot sidebar's "Ask about
-   * this part"). Bump `nonce` to re-apply the same text. Never passed by the
-   * ticket flow, so it's inert there.
+   * this part", or the dashboard quick-ask box). Bump `nonce` to re-apply the
+   * same text. With `send`, fire the message immediately instead of just
+   * seeding the draft. Never passed by the ticket flow, so it's inert there.
    */
-  prefill?: { text: string; nonce: number };
+  prefill?: { text: string; nonce: number; send?: boolean };
 };
 
 export function ChatPane({
@@ -77,47 +80,40 @@ export function ChatPane({
   // session.uploadRef is the ticket ref for the ticket chat and null for copilot.
   const ticketRef = session.uploadRef;
 
-  // Parts already recorded on the ticket — drives the toggle's Add/Added state.
-  // Read from the shared ["ticket", ref] detail cache WorkspaceShell owns (this
-  // pane caches only Message[], under a distinct key), disabled for the copilot.
-  const { data: ticketDetail } = useQuery({
+  // The ["ticket", ref] detail cache (owned by WorkspaceShell) holds ticket_parts;
+  // this pane caches only Message[] under a distinct key. Subscribe so the hook's
+  // optimistic writes re-render the chat's part chips. Disabled for the copilot.
+  useQuery({
     queryKey: ["ticket", ticketRef],
     queryFn: () => getTicket(ticketRef as string),
     enabled: ticketRef != null,
   });
-  const addedPartIds = useMemo(
-    () =>
-      new Set<number>(
-        (ticketDetail?.ticket_parts ?? []).map((tp) => tp.part_id),
-      ),
-    [ticketDetail?.ticket_parts],
+  // The full parts catalog (locations/qty) — the picker enriches lookup matches
+  // against it so the chat lines up with the inventory page. Already cached by
+  // RepairContext/WrapUpForm under the same key, so this is usually free.
+  const { data: catalog } = useQuery({
+    queryKey: ["parts", "all"],
+    queryFn: () => listAllParts(),
+    enabled: ticketRef != null,
+  });
+
+  const parts = useTicketParts(ticketRef);
+  // When set, the per-part allocator popup is open for this catalog part.
+  const [pickerPart, setPickerPart] = useState<Part | null>(null);
+
+  const catalogById = useMemo(
+    () => new Map<number, Part>((catalog ?? []).map((p) => [p.id, p])),
+    [catalog],
   );
-  const [pendingPartIds, setPendingPartIds] = useState<Set<number>>(new Set());
 
-  async function togglePart(partId: number, add: boolean) {
-    if (!ticketRef) return; // copilot has no ticket to record parts against
-    setPendingPartIds((prev) => new Set(prev).add(partId));
-    try {
-      if (add) await addTicketPart(ticketRef, partId, 1);
-      else await removeTicketPart(ticketRef, partId);
-      qc.invalidateQueries({ queryKey: ["ticket", ticketRef] });
-      qc.invalidateQueries({ queryKey: ["tickets"] });
-    } catch {
-      setError("Couldn't update parts — try again.");
-    } finally {
-      setPendingPartIds((prev) => {
-        const next = new Set(prev);
-        next.delete(partId);
-        return next;
-      });
-    }
-  }
-
-  const partActions: PartActions = {
-    addedPartIds,
-    pendingPartIds,
-    onTogglePart: togglePart,
-  };
+  const partUI: PartUI = useMemo(
+    () => ({
+      controller: parts,
+      catalogById,
+      openPart: (part: Part) => setPickerPart(part),
+    }),
+    [parts, catalogById],
+  );
 
   const [draft, setDraft] = useState("");
   const [interim, setInterim] = useState("");
@@ -182,13 +178,23 @@ export function ChatPane({
     cooldownUntil != null ? Math.max(0, Math.ceil((cooldownUntil - now) / 1000)) : 0;
   const inCooldown = cooldownLeft > 0;
 
-  // External prefill (copilot sidebar). Set the draft and focus the composer so
-  // the user can review/edit before sending. Keyed on nonce so repeat picks of
-  // the same part re-apply.
+  // External prefill (copilot sidebar / dashboard quick-ask). Keyed on nonce so
+  // repeat picks re-apply. With `send`, fire the message straight away (the
+  // dashboard already committed to asking); otherwise seed the draft and focus
+  // so the user can review/edit before sending.
+  const autoSentNonce = useRef<number | null>(null);
   useEffect(() => {
     if (!prefill) return;
-    setDraft(prefill.text);
-    inputRef.current?.focus();
+    if (prefill.send) {
+      // Guard against a repeat auto-send for the same prefill (e.g. StrictMode
+      // re-running this effect), which would post the message twice.
+      if (autoSentNonce.current === prefill.nonce) return;
+      autoSentNonce.current = prefill.nonce;
+      send(prefill.text);
+    } else {
+      setDraft(prefill.text);
+      inputRef.current?.focus();
+    }
   }, [prefill?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function send(overrideContent?: string) {
@@ -554,7 +560,7 @@ export function ChatPane({
             isLast={i === messages.length - 1 && !live}
             onPick={(q) => send(q)}
             picksDisabled={streaming || inCooldown}
-            partActions={partActions}
+            partUI={partUI}
           />
         ))}
 
@@ -567,10 +573,18 @@ export function ChatPane({
             onPhotoSend={uploadAndSend}
             onPick={(q) => send(q)}
             picksDisabled={streaming || inCooldown}
-            partActions={partActions}
+            partUI={partUI}
           />
         )}
       </div>
+
+      {pickerPart && (
+        <PartAllocatorModal
+          part={pickerPart}
+          controller={parts}
+          onClose={() => setPickerPart(null)}
+        />
+      )}
 
       {(inCooldown || error) && (
         <div
@@ -728,7 +742,7 @@ function MessageBubble({
   isLast,
   onPick,
   picksDisabled,
-  partActions,
+  partUI,
 }: {
   message: Message;
   onCitationClick: (c: Citation) => void;
@@ -737,7 +751,7 @@ function MessageBubble({
   isLast?: boolean;
   onPick?: (text: string) => void;
   picksDisabled?: boolean;
-  partActions: PartActions;
+  partUI: PartUI;
 }) {
   const isUser = message.role === "tech" || message.role === "dispatcher";
   const isSystem = message.role === "system" || message.role === "tool";
@@ -803,6 +817,8 @@ function MessageBubble({
         {message.role === "assistant" ? (
           <Markdown
             citations={message.citations ?? undefined}
+            partLinks={extractPartLinks(message.tool_calls)}
+            partUI={partUI}
             onCite={(id) => {
               const c = message.citations?.find((x) => x.chunk_id === id);
               c ? onCitationClick(c) : onOpenChunk(id);
@@ -856,12 +872,6 @@ function MessageBubble({
               ))}
           </div>
         )}
-
-        {(message.tool_calls ?? [])
-          .filter((tc) => tc.name === "lookup_parts")
-          .map((tc, i) => (
-            <LookupPartsResult key={`lp-${i}`} tc={tc} actions={partActions} />
-          ))}
 
         {suggestions.length > 0 && onPick && (
           <QuickReplies
@@ -1104,117 +1114,79 @@ function describeTool(tc: ToolCall): string {
   }
 }
 
-type PartMatch = {
-  id: number;
-  part_number: string;
-  name: string;
-  bin_location: string | null;
-  qty_on_hand: number;
-  description?: string | null;
+type PartUI = {
+  controller: TicketPartsController;
+  catalogById: Map<number, Part>;
+  openPart: (part: Part) => void;
 };
 
-type PartActions = {
-  addedPartIds: Set<number>;
-  pendingPartIds: Set<number>;
-  onTogglePart: (partId: number, add: boolean) => void;
-};
+// Pull the {part_number → id} pairs out of a message's lookup_parts tool_calls,
+// so the prose renderer can drop a small inline add button next to each part the
+// model names. Deduped by part number (first id wins).
+function extractPartLinks(
+  toolCalls: ToolCall[] | null | undefined,
+): { partNumber: string; id: number }[] {
+  const out: { partNumber: string; id: number }[] = [];
+  const seen = new Set<string>();
+  for (const tc of toolCalls ?? []) {
+    if (tc.name !== "lookup_parts") continue;
+    const matches = (tc.output as { matches?: PartMatch[] } | undefined)?.matches;
+    for (const m of matches ?? []) {
+      if (m.part_number && !seen.has(m.part_number)) {
+        seen.add(m.part_number);
+        out.push({ partNumber: m.part_number, id: m.id });
+      }
+    }
+  }
+  return out;
+}
 
-// Renders a lookup_parts result inline as an actionable list: one row per
-// matched part with an Add/Added toggle that records the part as used on the
-// ticket (surfacing it in the sidebar + Complete & wrap-up). Works both while
-// streaming and after reload, since the matches ride on the persisted
-// tool_call output — same reconstruction trick as show_figure.
-function LookupPartsResult({
-  tc,
-  actions,
+// The little inline "+"/"✓" that sits right after a part the AI names in prose.
+// Opens the per-bin allocator for that catalog part. Renders as plain text (no
+// button) when the part isn't in the catalog or there's no ticket to add to.
+function PartInlineAdd({
+  id,
+  children,
+  partUI,
 }: {
-  tc: ToolCall;
-  actions: PartActions;
+  id: number;
+  children: React.ReactNode;
+  partUI: PartUI;
 }) {
-  const output = tc.output as { matches?: PartMatch[] } | undefined;
-  const matches = output?.matches;
-
-  if (matches === undefined) {
-    return (
-      <div style={{ marginTop: 8 }}>
-        <span className="tool-pill">Looking up parts…</span>
-      </div>
-    );
-  }
-  if (matches.length === 0) {
-    return (
-      <div style={{ marginTop: 8, fontSize: 13, color: "var(--dash-muted)" }}>
-        No matching parts in inventory.
-      </div>
-    );
-  }
-
+  const part = partUI.catalogById.get(id);
+  if (!part || !partUI.controller.enabled) return <>{children}</>;
+  const added = partUI.controller.addedPartIds.has(id);
+  const qty = partUI.controller.qtyByPartId.get(id) ?? 0;
   return (
-    <div
-      style={{
-        marginTop: 8,
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-      }}
-    >
-      {matches.map((m) => {
-        const added = actions.addedPartIds.has(m.id);
-        const pending = actions.pendingPartIds.has(m.id);
-        return (
-          <div
-            key={m.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "8px 10px",
-              border: "1px solid var(--dash-border)",
-              borderRadius: 12,
-              background: "#fff",
-            }}
-          >
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {m.name}
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--dash-muted)",
-                  display: "flex",
-                  gap: 8,
-                  flexWrap: "wrap",
-                }}
-              >
-                <span>{m.part_number}</span>
-                {m.bin_location && <span>Bin {m.bin_location}</span>}
-                <span style={{ color: m.qty_on_hand <= 0 ? "var(--dash-danger)" : undefined }}>
-                  {m.qty_on_hand <= 0 ? "Out of stock" : `${m.qty_on_hand} on hand`}
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              className={added ? "btn btn-ghost btn-sm" : "btn btn-super btn-sm"}
-              disabled={pending}
-              onClick={() => actions.onTogglePart(m.id, !added)}
-              style={{ flexShrink: 0, minWidth: 84 }}
-            >
-              {pending ? "…" : added ? "✓ Added" : "+ Add"}
-            </button>
-          </div>
-        );
-      })}
-    </div>
+    <span style={{ whiteSpace: "nowrap" }}>
+      {children}
+      <button
+        type="button"
+        title={added ? `Added ×${qty} — edit` : "Add to ticket"}
+        onClick={() => partUI.openPart(part)}
+        style={{
+          marginLeft: 5,
+          verticalAlign: "middle",
+          padding: added ? "0 10px" : "0",
+          width: added ? undefined : 24,
+          minWidth: added ? 24 : undefined,
+          height: 24,
+          borderRadius: 7,
+          border: `1px solid ${added ? "#000" : "var(--dash-link)"}`,
+          background: added ? "#000" : "#fff",
+          color: added ? "#fff" : "var(--dash-link)",
+          fontSize: added ? 13 : 17,
+          fontWeight: 800,
+          cursor: "pointer",
+          lineHeight: "22px",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {added ? `×${qty}` : "+"}
+      </button>
+    </span>
   );
 }
 
@@ -1226,7 +1198,7 @@ function LiveBubble({
   onPhotoSend,
   onPick,
   picksDisabled,
-  partActions,
+  partUI,
 }: {
   live: LiveAssistant;
   onCitationClick: (c: Citation) => void;
@@ -1235,7 +1207,7 @@ function LiveBubble({
   onPhotoSend: (file: File) => void;
   onPick: (text: string) => void;
   picksDisabled?: boolean;
-  partActions: PartActions;
+  partUI: PartUI;
 }) {
   return (
     <div style={{ display: "flex", justifyContent: "flex-start" }}>
@@ -1257,25 +1229,11 @@ function LiveBubble({
           <span className="live-dot" /> Railio
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap" }}>
-          {live.toolCalls
-            .filter(
-              (tc) => tc.name !== "suggest_replies" && tc.name !== "lookup_parts",
-            )
-            .map((tc, i) => (
-              <ToolPill key={i} tc={tc} />
-            ))}
-        </div>
-
-        {live.toolCalls
-          .filter((tc) => tc.name === "lookup_parts")
-          .map((tc, i) => (
-            <LookupPartsResult key={`lp-${i}`} tc={tc} actions={partActions} />
-          ))}
-
         {live.text ? (
           <Markdown
             citations={live.citations}
+            partLinks={extractPartLinks(live.toolCalls)}
+            partUI={partUI}
             onCite={(id) => {
               const c = live.citations.find((x) => x.chunk_id === id);
               c ? onCitationClick(c) : onOpenChunk(id);
@@ -1290,6 +1248,19 @@ function LiveBubble({
             </span>
           </div>
         )}
+
+        {/* Components render after the text, never before — same order as a
+            persisted MessageBubble, so a turn looks identical mid-stream and on
+            reload. */}
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          {live.toolCalls
+            .filter(
+              (tc) => tc.name !== "suggest_replies" && tc.name !== "lookup_parts",
+            )
+            .map((tc, i) => (
+              <ToolPill key={i} tc={tc} />
+            ))}
+        </div>
 
         {live.requestPhoto && (
           <RequestPhotoBlock
@@ -1409,20 +1380,42 @@ function Markdown({
   children,
   onCite,
   citations,
+  partLinks,
+  partUI,
 }: {
   children: string;
   onCite?: (chunkId: number) => void;
   /** Authoritative labels, keyed by chunk. See the `a` renderer below. */
   citations?: Citation[];
+  /** {part_number → id} to weave inline add buttons into the prose. */
+  partLinks?: { partNumber: string; id: number }[];
+  partUI?: PartUI;
 }) {
+  // Weave a `part:<id>` link in at the first mention of each looked-up part
+  // number, so the `a` renderer can drop a small "+" right next to it. Only when
+  // there's a ticket to add against; deterministic (exact part-number match), so
+  // it doesn't depend on the model formatting anything specially.
+  let content = children;
+  if (partLinks && partLinks.length && partUI?.controller.enabled) {
+    for (const pl of partLinks) {
+      const esc = pl.partNumber.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(`(^|[^\\w[(/-])(${esc})(?![\\w-])`);
+      content = content.replace(
+        re,
+        (_m, pre: string, num: string) => `${pre}[${num}](part:${pl.id})`,
+      );
+    }
+  }
   return (
     <div className="md">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        // Default sanitization strips the custom `cite:` scheme to ""; preserve it
-        // so inline citation links survive to the `a` renderer below.
+        // Default sanitization strips the custom `cite:`/`part:` schemes to "";
+        // preserve them so inline citation/part links reach the `a` renderer.
         urlTransform={(url) =>
-          url.startsWith("cite:") ? url : defaultUrlTransform(url)
+          url.startsWith("cite:") || url.startsWith("part:")
+            ? url
+            : defaultUrlTransform(url)
         }
         components={{
           // Drop every model-authored image. Figures reach the chat only through
@@ -1457,6 +1450,22 @@ function Markdown({
                 </a>
               );
             }
+            // Inline add button woven in next to a looked-up part number.
+            const pm = /^part:(\d+)$/.exec(href ?? "");
+            if (pm && partUI) {
+              return (
+                <PartInlineAdd id={Number(pm[1])} partUI={partUI}>
+                  {children}
+                </PartInlineAdd>
+              );
+            }
+            // Only real external URLs become links. The model sometimes emits
+            // `[text](#)` or bare relative hrefs (which resolve to the current
+            // ticket URL + "#" and navigate nowhere useful) — render those as
+            // plain text so a stray link never hijacks the app's navigation.
+            if (!href || !/^https?:\/\//i.test(href)) {
+              return <>{children}</>;
+            }
             return (
               <a href={href} target="_blank" rel="noopener noreferrer">
                 {children}
@@ -1465,7 +1474,7 @@ function Markdown({
           },
         }}
       >
-        {children}
+        {content}
       </ReactMarkdown>
     </div>
   );

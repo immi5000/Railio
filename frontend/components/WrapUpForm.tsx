@@ -354,11 +354,19 @@ export function WrapUpForm({
                     className="card-tight"
                     style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}
                   >
-                    <span>
+                    <span style={{ minWidth: 0 }}>
                       {u.part ? u.part.name : `Part #${u.part_id}`}
                       {u.part ? (
                         <span style={{ color: "var(--dash-muted)" }}> · {u.part.part_number}</span>
                       ) : null}
+                      {(u.allocations ?? []).filter((a) => a.qty > 0).length > 0 && (
+                        <span style={{ display: "block", color: "var(--dash-muted)", fontSize: 11 }}>
+                          {(u.allocations ?? [])
+                            .filter((a) => a.qty > 0)
+                            .map((a) => `${a.qty} @ ${a.location}`)
+                            .join(" · ")}
+                        </span>
+                      )}
                     </span>
                     <span className="pill">×{u.qty}</span>
                   </div>

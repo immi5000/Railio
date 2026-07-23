@@ -7,9 +7,10 @@ import { useEffect, useRef, useState } from "react";
 // firm), which stays fixed and lives in the TopNav profile menu. A contractor
 // can service several rail companies and switches between them here.
 //
-// Frontend-only mock for now: the roster is hardcoded and the selection lives in
-// local state. Wire this to real multi-org membership (GET the user's companies,
-// POST an active-org selection, refetch scoped data) when the backend lands.
+// The active company is the signed-in user's real org (name + a live hint the
+// dashboard computes from its own assets/tickets feeds). The other rows are
+// still a frontend-only mock: real multi-org membership (GET the user's
+// companies, POST an active-org selection, refetch scoped data) isn't wired yet.
 export type Company = {
   id: string;
   name: string;
@@ -17,19 +18,37 @@ export type Company = {
   hint: string;
 };
 
-const COMPANIES: Company[] = [
-  { id: "telar", name: "TelarRail", hint: "Regional freight · 24 units" },
+// Mock alternatives the switcher lists beneath the user's real org, so the
+// contractor-switches-clients affordance still reads. Replace with real
+// membership when the backend lands.
+const OTHER_COMPANIES: Company[] = [
   { id: "northline", name: "Northline Transit", hint: "Commuter rail · 12 units" },
   { id: "cascade", name: "Cascade Freight Co.", hint: "Heavy haul · 31 units" },
 ];
 
-export function CompanySwitcher() {
-  // Default to TelarRail (the test company).
-  const [activeId, setActiveId] = useState<string>(COMPANIES[0].id);
+const ACTIVE_ID = "self";
+
+export type CompanySwitcherProps = {
+  // The signed-in user's org name (null until /api/me resolves).
+  orgName?: string | null;
+  // Live descriptor built from real fleet/ticket data, e.g. "24 units · 3 open".
+  hint?: string;
+};
+
+export function CompanySwitcher({ orgName, hint }: CompanySwitcherProps) {
+  // The real org is the default; the mock rows are switchable stand-ins.
+  const self: Company = {
+    id: ACTIVE_ID,
+    name: orgName || "Your organization",
+    hint: hint || "—",
+  };
+  const companies = [self, ...OTHER_COMPANIES];
+
+  const [activeId, setActiveId] = useState<string>(ACTIVE_ID);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const active = COMPANIES.find((c) => c.id === activeId) ?? COMPANIES[0];
+  const active = companies.find((c) => c.id === activeId) ?? self;
 
   useEffect(() => {
     if (!open) return;
@@ -79,7 +98,7 @@ export function CompanySwitcher() {
       {open && (
         <div className="dash-company-menu" role="menu">
           <div className="fig-profile-dropdown-label">Companies you service</div>
-          {COMPANIES.map((c) => (
+          {companies.map((c) => (
             <button
               key={c.id}
               type="button"

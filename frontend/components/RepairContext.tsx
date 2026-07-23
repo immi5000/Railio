@@ -3,11 +3,13 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getTicket, listAllParts, fileUrl } from "@/lib/api";
-import type { Citation, ParsedFault, Part, Severity, TicketDetail } from "@/lib/contract";
+import type { Citation, ParsedFault, Part, Severity, TicketDetail, TicketPart } from "@/lib/contract";
 import { formatDateOnly } from "@/lib/format";
 import { mostUrgent, oosDays, STATE_COLOR } from "@/lib/inspections";
+import { useTicketParts, type TicketPartsController } from "@/lib/useTicketParts";
 import { CitationDrawer } from "./CitationDrawer";
 import { ContextPanel, Empty } from "./ContextPanel";
+import { PartAllocatorModal } from "./PartAllocatorModal";
 
 const SEV_ABBR: Record<Severity, string> = {
   critical: "crit",
@@ -25,6 +27,9 @@ export function RepairContext({ ticketId }: { ticketId: string }) {
     queryKey: ["parts", "all"],
     queryFn: () => listAllParts(),
   });
+
+  const partsCtl = useTicketParts(ticketId);
+  const [pickerPart, setPickerPart] = useState<Part | null>(null);
 
   const [openChunk, setOpenChunk] = useState<number | null>(null);
 
@@ -79,7 +84,7 @@ export function RepairContext({ ticketId }: { ticketId: string }) {
         count={ticket.ticket_parts?.length || undefined}
         defaultOpen={started}
       >
-        <PartsToBring ticket={ticket} parts={parts || []} unitModel={ticket.asset.unit_model} firstCode={firstCode} />
+        <PartsToBring ticket={ticket} parts={parts || []} unitModel={ticket.asset.unit_model} firstCode={firstCode} controller={partsCtl} onEdit={setPickerPart} />
       </ContextPanel>
 
       <ContextPanel
@@ -141,6 +146,14 @@ export function RepairContext({ ticketId }: { ticketId: string }) {
 
       {openChunk != null && (
         <CitationDrawer chunkId={openChunk} onClose={() => setOpenChunk(null)} />
+      )}
+
+      {pickerPart && (
+        <PartAllocatorModal
+          part={pickerPart}
+          controller={partsCtl}
+          onClose={() => setPickerPart(null)}
+        />
       )}
     </>
   );
@@ -247,16 +260,27 @@ function UnitIntakeCard({
   );
 }
 
+// "2 @ BIN-A · 1 @ BIN-B" from the per-bin allocations, or a plain bin fallback.
+function allocationSummary(tp: TicketPart, fallbackBin: string | null): string {
+  const allocs = (tp.allocations ?? []).filter((a) => a.qty > 0);
+  if (allocs.length) return allocs.map((a) => `${a.qty} @ ${a.location}`).join(" · ");
+  return fallbackBin || "Bin ?";
+}
+
 function PartsToBring({
   ticket,
   parts,
   unitModel,
   firstCode,
+  controller,
+  onEdit,
 }: {
   ticket: TicketDetail;
   parts: Part[];
   unitModel: string;
   firstCode: string | null;
+  controller: TicketPartsController;
+  onEdit: (part: Part) => void;
 }) {
   if (!ticket.ticket_parts || ticket.ticket_parts.length === 0) {
     return <Empty>None yet — Railio adds them as it diagnoses.</Empty>;
@@ -272,12 +296,21 @@ function PartsToBring({
         {ticket.ticket_parts.map((tp) => {
           const p = partsById.get(tp.part_id);
           const insufficient = p != null && p.qty_on_hand < tp.qty;
+          // Tap the whole row to open the per-bin allocator (needs the catalog
+          // part for its locations); read-only when there's no catalog match.
+          const editable = controller.enabled && p != null;
           return (
-            <div key={tp.id} className="wc-part">
+            <div
+              key={tp.id}
+              className="wc-part"
+              onClick={editable ? () => onEdit(p as Part) : undefined}
+              style={editable ? { cursor: "pointer" } : undefined}
+              title={editable ? "Edit quantity / bins" : undefined}
+            >
               <div style={{ minWidth: 0 }}>
                 <div className="wc-part-name">{p?.name || "Unknown part"}</div>
                 <div className="wc-part-meta">
-                  {p?.part_number || "—"} · {p?.bin_location || "Bin ?"}
+                  {p?.part_number || "—"} · {allocationSummary(tp, p?.bin_location ?? null)}
                 </div>
               </div>
               <div className="wc-part-right">

@@ -15,6 +15,7 @@ import type {
   FinalizeWrapUpBody,
   Asset,
   Part,
+  PartAllocation,
   ListPartsResponse,
   PartsFilterOptions,
   CreatePartBody,
@@ -174,15 +175,17 @@ export async function finalizeWrapUp(
   );
 }
 
-/** Record a part as used on a ticket, straight from a chat parts-lookup result. */
+/** Record a part as used on a ticket, straight from a chat parts-lookup result.
+ * `allocations` is the optional per-bin breakdown (sum of qty must equal qty). */
 export async function addTicketPart(
   ref: string,
   part_id: number,
   qty = 1,
+  allocations?: PartAllocation[],
 ): Promise<TicketDetail> {
   return jsonFetch<TicketDetail>(`/api/tickets/${ref}/parts`, {
     method: "POST",
-    body: JSON.stringify({ part_id, qty }),
+    body: JSON.stringify({ part_id, qty, allocations }),
   });
 }
 

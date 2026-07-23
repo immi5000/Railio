@@ -441,6 +441,12 @@ _STATEMENTS = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_copilot_msg_conv ON copilot_messages (conversation_id, id)",
+    # === Per-bin allocation on used parts ===
+    # A part is stocked across bins/warehouses (parts.locations). When a tech
+    # records a part on a ticket they pick how many come from each bin, so we store
+    # that breakdown as [{location, qty}] and draw those exact bins down at close.
+    # ticket_parts.qty stays the total (sum) for back-compat + simple display.
+    "ALTER TABLE ticket_parts ADD COLUMN IF NOT EXISTS allocations jsonb",
 ]
 
 

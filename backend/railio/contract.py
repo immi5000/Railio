@@ -199,10 +199,17 @@ class PartsFilterOptions(BaseModel):
     departments: list[str] = Field(default_factory=list)
 
 
+class PartAllocation(BaseModel):
+    location: str
+    qty: int
+
+
 class TicketPart(BaseModel):
     id: int
     part_id: int
     qty: int
+    # Per-bin breakdown of where the qty is drawn from; None for AI/legacy rows.
+    allocations: Optional[list[PartAllocation]] = None
     added_via: Literal["ai_suggestion", "tech_manual"]
     added_at: str
 
@@ -344,6 +351,8 @@ class FinalizeWrapUpBody(BaseModel):
 class AddTicketPartBody(BaseModel):
     part_id: int
     qty: int
+    # Optional per-bin breakdown; when present, sum(allocations.qty) == qty.
+    allocations: Optional[list[PartAllocation]] = None
 
 
 class CreateHistoricalRecordBody(BaseModel):

@@ -6,7 +6,8 @@ import json
 import secrets
 from typing import Optional
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
+from sqlalchemy.dialects.postgresql import JSONB
 
 from .assets_repo import _periods_for
 from .contract import (
@@ -203,6 +204,7 @@ async def list_ticket_parts(ticket_id: int) -> list[TicketPart]:
             id=r["id"],
             part_id=r["part_id"],
             qty=r["qty"],
+            allocations=r["allocations"],
             added_via=r["added_via"],
             added_at=r["added_at"],
         )
@@ -346,16 +348,18 @@ async def add_ticket_part(
     ticket_id: int,
     part_id: int,
     qty: int,
+    allocations: Optional[list[dict]] = None,
     org_id: Optional[int] = None,
 ) -> bool:
-    """Record a part as used on a ticket (from the chat parts-lookup button).
+    """Set a part's used-quantity on a ticket (from the chat parts picker).
 
-    Inserts a tech_manual ticket_parts row; inventory is untouched until the
-    ticket closes. The part is org-scoped so a tenant can't record another
+    Idempotent upsert keyed on (ticket_id, part_id): if the part is already on
+    the ticket its qty + per-bin `allocations` are set, otherwise a tech_manual
+    row is inserted — so the +/- steppers set an absolute count and a part never
+    lands on two rows. A qty <= 0 removes the part. Inventory is untouched until
+    the ticket closes. The part is org-scoped so a tenant can't record another
     org's inventory. Returns False if the part is unknown/cross-org.
     """
-    if qty <= 0:
-        qty = 1
     async with session_scope() as session:
         where = "id = :pid" + (" AND org_id = :org" if org_id is not None else "")
         params: dict[str, object] = {"pid": part_id}
@@ -366,15 +370,46 @@ async def add_ticket_part(
         ).scalar_one_or_none()
         if exists is None:
             return False
-        await session.execute(
-            text(
+
+        if qty <= 0:
+            await session.execute(
+                text(
+                    "DELETE FROM ticket_parts WHERE ticket_id = :tid AND part_id = :pid"
+                ),
+                {"tid": ticket_id, "pid": part_id},
+            )
+            return True
+
+        # Upsert: update the existing row's qty + allocations, else insert one.
+        update_stmt = text(
+            """
+            UPDATE ticket_parts SET qty = :qty, allocations = :alloc
+            WHERE ticket_id = :tid AND part_id = :pid
+            """
+        ).bindparams(bindparam("alloc", type_=JSONB))
+        updated = (
+            await session.execute(
+                update_stmt,
+                {"qty": qty, "alloc": allocations, "tid": ticket_id, "pid": part_id},
+            )
+        ).rowcount
+        if not updated:
+            insert_stmt = text(
                 """
-                INSERT INTO ticket_parts (ticket_id, part_id, qty, added_via, added_at)
-                VALUES (:tid, :pid, :qty, 'tech_manual', :now)
+                INSERT INTO ticket_parts (ticket_id, part_id, qty, allocations, added_via, added_at)
+                VALUES (:tid, :pid, :qty, :alloc, 'tech_manual', :now)
                 """
-            ),
-            {"tid": ticket_id, "pid": part_id, "qty": qty, "now": _iso_now()},
-        )
+            ).bindparams(bindparam("alloc", type_=JSONB))
+            await session.execute(
+                insert_stmt,
+                {
+                    "tid": ticket_id,
+                    "pid": part_id,
+                    "qty": qty,
+                    "alloc": allocations,
+                    "now": _iso_now(),
+                },
+            )
     return True
 
 
@@ -390,6 +425,105 @@ async def remove_ticket_part(
             ),
             {"tid": ticket_id, "pid": part_id},
         )
+
+
+async def _draw_down_parts(ticket_id: int, now: str, parts_lines: list[str]) -> None:
+    """Draw every recorded part on the ticket down from inventory once, at close.
+
+    For a part stocked across bins (parts.locations) the per-bin `allocations` the
+    tech chose are subtracted from those exact bins; any unallocated remainder
+    (AI-recorded/legacy rows) is auto-drawn from the fullest bins first, so
+    qty_on_hand stays equal to the sum of the bin quantities. A part with no
+    locations just decrements qty_on_hand by the total. Aggregated by part_id so a
+    part decrements exactly once; `parts_lines` is filled with a readable summary.
+    """
+    from .parts_repo import derive_totals, normalize_locations
+
+    async with session_scope() as session:
+        rows = (
+            await session.execute(
+                text(
+                    """
+                    SELECT tp.part_id, tp.qty, tp.allocations,
+                           p.part_number, p.name, p.qty_on_hand, p.locations
+                    FROM ticket_parts tp JOIN parts p ON p.id = tp.part_id
+                    WHERE tp.ticket_id = :tid ORDER BY tp.id
+                    """
+                ),
+                {"tid": ticket_id},
+            )
+        ).mappings().all()
+
+        agg: dict[int, dict] = {}
+        for r in rows:
+            parts_lines.append(f"{r['qty']}× {r['name']} ({r['part_number']})")
+            e = agg.setdefault(
+                r["part_id"],
+                {"total": 0, "alloc": {}, "locations": r["locations"]},
+            )
+            e["total"] += int(r["qty"])
+            for a_ in r["allocations"] or []:
+                loc = a_.get("location")
+                if loc is None:
+                    continue
+                e["alloc"][loc] = e["alloc"].get(loc, 0) + int(a_.get("qty", 0))
+
+        for pid, e in agg.items():
+            locs = normalize_locations(e["locations"])
+            if not locs:
+                # No bin breakdown to keep in sync — decrement the flat total.
+                await session.execute(
+                    text(
+                        """
+                        UPDATE parts
+                        SET qty_on_hand = GREATEST(0, qty_on_hand - :total),
+                            last_used_at = :now
+                        WHERE id = :pid
+                        """
+                    ),
+                    {"total": e["total"], "now": now, "pid": pid},
+                )
+                continue
+
+            draw = dict(e["alloc"])
+            remainder = e["total"] - sum(draw.values())
+            # Auto-draw any unallocated remainder from the fullest bins first.
+            for loc in sorted(locs, key=lambda x: -x["qty"]):
+                if remainder <= 0:
+                    break
+                free = max(0, int(loc["qty"]) - draw.get(loc["location"], 0))
+                take = min(remainder, free)
+                if take > 0:
+                    draw[loc["location"]] = draw.get(loc["location"], 0) + take
+                    remainder -= take
+
+            new_locs = []
+            for loc in locs:
+                nl = dict(loc)
+                nl["qty"] = max(0, int(loc["qty"]) - draw.get(loc["location"], 0))
+                new_locs.append(nl)
+            new_locs = normalize_locations(new_locs)  # recompute each bin's value
+            qoh, avg, val = derive_totals(new_locs, 0, None)
+
+            stmt = text(
+                """
+                UPDATE parts
+                SET locations = :locs, qty_on_hand = :qoh,
+                    avg_cost = :avg, on_hand_value = :val, last_used_at = :now
+                WHERE id = :pid
+                """
+            ).bindparams(bindparam("locs", type_=JSONB))
+            await session.execute(
+                stmt,
+                {
+                    "locs": new_locs,
+                    "qoh": qoh,
+                    "avg": avg,
+                    "val": val,
+                    "now": now,
+                    "pid": pid,
+                },
+            )
 
 
 async def finalize_wrap_up(
@@ -422,43 +556,7 @@ async def finalize_wrap_up(
 
     now = _iso_now()
     parts_lines = []
-    async with session_scope() as session:
-        rows = (
-            await session.execute(
-                text(
-                    """
-                    SELECT p.part_number, p.name, tp.qty
-                    FROM ticket_parts tp JOIN parts p ON p.id = tp.part_id
-                    WHERE tp.ticket_id = :tid ORDER BY tp.id
-                    """
-                ),
-                {"tid": ticket_id},
-            )
-        ).mappings().all()
-        for r in rows:
-            parts_lines.append(f"{r['qty']}× {r['name']} ({r['part_number']})")
-
-        # Draw every recorded part down from inventory once, at close — manual,
-        # button-added, and AI-recorded alike. Aggregate by part_id so a part on
-        # two ticket_parts rows decrements by the summed qty exactly once.
-        # GREATEST clamps at 0 so stock never goes negative.
-        await session.execute(
-            text(
-                """
-                UPDATE parts p
-                SET qty_on_hand = GREATEST(0, p.qty_on_hand - agg.total),
-                    last_used_at = :now
-                FROM (
-                    SELECT part_id, SUM(qty) AS total
-                    FROM ticket_parts
-                    WHERE ticket_id = :tid
-                    GROUP BY part_id
-                ) agg
-                WHERE p.id = agg.part_id
-                """
-            ),
-            {"tid": ticket_id, "now": now},
-        )
+    await _draw_down_parts(ticket_id, now, parts_lines)
 
     date = now[:10]
     body_parts = [

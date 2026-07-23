@@ -96,9 +96,11 @@ export type FinalizeWrapUpBody = {
 
 // A part the tech recorded straight from a chat parts-lookup result. Inserted
 // as a tech_manual ticket_part; inventory is not touched until the ticket closes.
+// `allocations`, when present, is the per-bin breakdown (sum of qty == qty).
 export type AddTicketPartBody = {
   part_id: number;
   qty: number;
+  allocations?: PartAllocation[];
 };
 
 export type AttachDocumentBody = {
@@ -348,10 +350,18 @@ export type PartsFilterOptions = {
   departments: string[];
 };
 
+// Where a used part's quantity is drawn from — one bin and how many from it.
+export type PartAllocation = {
+  location: string;
+  qty: number;
+};
+
 export type TicketPart = {
   id: number;
   part_id: number;
   qty: number;
+  // Per-bin breakdown of where the qty comes from; null for AI/legacy rows.
+  allocations?: PartAllocation[] | null;
   added_via: "ai_suggestion" | "tech_manual";
   added_at: string;
 };

@@ -249,7 +249,12 @@ async def add_ticket_part_route(
     ticket_id = await resolve_ticket_id(ticket_ref, org.id)
     if ticket_id is None:
         raise HTTPException(status_code=404, detail="not found")
-    ok = await add_ticket_part(ticket_id, body.part_id, body.qty, org.id)
+    allocations = (
+        [a.model_dump() for a in body.allocations] if body.allocations else None
+    )
+    ok = await add_ticket_part(
+        ticket_id, body.part_id, body.qty, allocations, org.id
+    )
     if not ok:
         raise HTTPException(status_code=404, detail="part not found")
     t = await get_ticket_detail(ticket_id, org.id)

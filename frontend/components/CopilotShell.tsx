@@ -65,13 +65,24 @@ export function CopilotShell() {
   }, [assets, scope]);
 
   // Prefill bridge for the sidebar's "Ask about this part".
-  const [prefill, setPrefill] = useState<{ text: string; nonce: number }>();
+  const [prefill, setPrefill] = useState<{ text: string; nonce: number; send?: boolean }>();
   const nonce = useRef(0);
   function askAbout(text: string) {
     nonce.current += 1;
     setPrefill({ text, nonce: nonce.current });
     setMobileView("chat");
   }
+
+  // Deep-link from the dashboard quick-ask box: ?q= seeds the composer, and
+  // ?send=1 fires it as the first message once the conversation is ready.
+  const qParam = params.get("q");
+  const sendParam = params.get("send");
+  useEffect(() => {
+    if (!qParam) return;
+    nonce.current += 1;
+    setPrefill({ text: qParam, nonce: nonce.current, send: sendParam === "1" });
+    setMobileView("chat");
+  }, [qParam, sendParam]);
 
   const [mobileView, setMobileView] = useState<"chat" | "scope">("chat");
   const [ctxOpen, setCtxOpen] = useState(true);

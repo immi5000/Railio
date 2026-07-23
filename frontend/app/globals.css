@@ -855,7 +855,7 @@ button {
   height: 30px;
   display: grid;
   place-items: center;
-  border-radius: 99px;
+  border-radius: 8px;
   background: #fff;
   border: 1px solid var(--dash-border);
   color: var(--dash-danger);
@@ -3146,28 +3146,83 @@ button {
   border-color: #000;
 }
 
-/* Card 2 — Railio Copilot quick-link: label + hint over a diamond/CTA side. */
+/* Card 2 — Railio Copilot quick-link: heading + sparkle over an input/CTA row. */
 .dash-stat--copilot {
-  justify-content: space-between;
-  align-items: stretch;
-  gap: 12px;
-}
-/* Brighten the glyph on hover so it reads interactive even though it carries
-   no number. */
-.dash-stat--copilot:hover .dash-stat-flake {
-  color: var(--dash-link);
-}
-.dash-stat-side {
-  display: flex;
   flex-direction: column;
   justify-content: space-between;
-  align-items: flex-end;
-  flex: none;
+  align-items: stretch;
+  gap: 18px;
 }
+/* Heading row: label-over-hint on the left, sparkle pinned top-right. */
+.dash-copilot-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.dash-copilot-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+/* The AI sparkle is a static blue glyph marking the Copilot card. */
 .dash-stat-flake {
-  color: #d4d5d8;
+  color: var(--dash-link);
   line-height: 0;
-  transition: color 0.15s ease;
+}
+/* Inline quick-ask box on the Copilot card: input grows, CTA sits beside it on
+   the same baseline. */
+.dash-copilot-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dash-copilot-input {
+  flex: 1;
+  min-width: 0;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #000;
+  background: #fff;
+  border: 1.5px solid #c2c4c9;
+  border-radius: 12px;
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color 0.1s, box-shadow 0.1s;
+}
+.dash-copilot-input::placeholder {
+  color: var(--dash-muted);
+}
+.dash-copilot-input:hover {
+  border-color: #a9abb1;
+}
+.dash-copilot-input:focus {
+  border-color: var(--dash-link);
+  box-shadow: 0 0 0 3px rgba(38, 131, 235, 0.15);
+}
+/* Base CTA is the quiet .dash-link; once there's text it becomes a filled pill
+   so "Ask Railio" reads as the primary action. */
+.dash-copilot-cta {
+  flex: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  transition: background 0.1s, color 0.1s;
+}
+.dash-copilot-cta[data-active="true"] {
+  background: var(--dash-link);
+  color: #fff;
+  padding: 9px 16px;
+}
+.dash-copilot-cta[data-active="true"]:hover {
+  background: var(--mta);
+  color: #fff;
 }
 .dash-trend {
   font-family: "IBM Plex Mono", monospace;

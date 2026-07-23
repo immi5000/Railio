@@ -202,6 +202,9 @@ class TicketPart(Base):
     ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="CASCADE"))
     part_id = Column(Integer, ForeignKey("parts.id", ondelete="CASCADE"))
     qty = Column(Integer, nullable=False)
+    # Per-bin breakdown [{location, qty}] the tech drew this part from; qty above
+    # is the total (sum). NULL for AI-recorded/legacy rows with no bin choice.
+    allocations = Column(JSONB)
     added_via = Column(Text, nullable=False)
     added_at = Column(Text, nullable=False)
 

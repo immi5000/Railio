@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { listTickets, listAssets, getMe, listOrgMembers } from "@/lib/api";
 import type { TicketStatus, Asset, Ticket, Severity } from "@/lib/contract";
@@ -41,15 +42,15 @@ function initials(name: string | null | undefined): string {
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "—";
 }
 
-// Four-point AI sparkle: one large diamond + a small companion, drawn in the
-// same single-stroke line style as the Figma icons. Marks the Copilot quick-link.
+// Single four-point AI sparkle, centered and filled with our --dash-link blue.
+// Marks the Copilot quick-link.
 function SparkleIcon() {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      {/* large four-point star */}
-      <path d="M13 3l1.7 4.6a4 4 0 0 0 2.4 2.4L21.5 11.7l-4.4 1.7a4 4 0 0 0-2.4 2.4L13 20.4l-1.7-4.6a4 4 0 0 0-2.4-2.4L4.5 11.7l4.4-1.7a4 4 0 0 0 2.4-2.4z" />
-      {/* small companion sparkle, lower-left */}
-      <path d="M5 15.5l.5 1.4a1.6 1.6 0 0 0 1 1l1.4.5-1.4.5a1.6 1.6 0 0 0-1 1L5 22.3l-.5-1.4a1.6 1.6 0 0 0-1-1L2.1 19.4l1.4-.5a1.6 1.6 0 0 0 1-1z" />
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 1.5C12.6 8.4 15.6 11.4 22.5 12C15.6 12.6 12.6 15.6 12 22.5C11.4 15.6 8.4 12.6 1.5 12C8.4 11.4 11.4 8.4 12 1.5Z"
+        style={{ fill: "var(--dash-link)" }}
+      />
     </svg>
   );
 }
@@ -95,8 +96,22 @@ type SortMode = "priority" | "locomotive";
 
 export default function DashboardPage() {
   const { role } = useRole();
+  const router = useRouter();
   const [sortMode, setSortMode] = useState<SortMode>("priority");
   const [unitFilter, setUnitFilter] = useState<string>("all");
+  // Copilot quick-ask: what the user has typed into the dashboard card. When
+  // present, the card's CTA flips from "Start chat" to "Ask Railio" and carries
+  // the text into the chat page (auto-sent on submit, prefilled on a bare click).
+  const [copilotAsk, setCopilotAsk] = useState("");
+
+  function openCopilot(send: boolean) {
+    const q = copilotAsk.trim();
+    const qs = new URLSearchParams();
+    if (q) qs.set("q", q);
+    if (send && q) qs.set("send", "1");
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    router.push(`/copilot${suffix}`);
+  }
 
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: getMe, retry: false });
   const { data: tickets = [], isLoading: ticketsLoading } = useQuery({
@@ -200,6 +215,16 @@ export default function DashboardPage() {
 
   const firstName = me?.name?.split(/\s+/)[0] || "there";
 
+  // Live descriptor under the org name in the company switcher — total units and
+  // open-ticket load, both derived from the same feeds this page already reads.
+  const companyHint = useMemo(() => {
+    if (!assets.length) return "No units yet";
+    const unitPart = `${assets.length} unit${assets.length === 1 ? "" : "s"}`;
+    const openPart =
+      open.length === 0 ? "all clear" : `${open.length} open`;
+    return `${unitPart} · ${openPart}`;
+  }, [assets.length, open.length]);
+
   // Team roster = real onboarded org members, the signed-in user first. There is
   // no role/shift field on app_users, so the secondary line is the email. The
   // signed-in user is "in" (green); everyone else is "out".
@@ -245,28 +270,69 @@ export default function DashboardPage() {
             <span className="dash-stat-block" style={{ background: blockColor }} />
           </Link>
 
-          {/* Railio Copilot — quick link into the ticketless AI chat. */}
-          <Link
-            href="/copilot"
+          {/* Railio Copilot — quick link into the ticketless AI chat. Clicking
+              anywhere on the card opens the chat (carrying any typed text);
+              typing and submitting the box sends that first message straight
+              into the conversation. */}
+          <div
+            role="button"
+            tabIndex={0}
             className="dash-card dash-stat dash-stat--copilot dash-stat--link"
+            onClick={() => openCopilot(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openCopilot(false);
+              }
+            }}
           >
-            <div className="dash-stat-col">
-              <span className="dash-stat-label">Railio Copilot</span>
-              <span className="dash-company-hint">Ask about units, parts &amp; more</span>
-            </div>
-            <div className="dash-stat-side">
+            <div className="dash-copilot-head">
+              <div className="dash-copilot-heading">
+                <span className="dash-stat-label">Railio Copilot</span>
+                <span className="dash-company-hint">Ask about units, parts &amp; more</span>
+              </div>
               <span className="dash-stat-flake" aria-hidden="true">
                 <SparkleIcon />
               </span>
-              <span className="dash-link">
-                Start chat <span className="ico-arr" aria-hidden="true" />
-              </span>
             </div>
-          </Link>
+            {/* Input + CTA share one row so the button aligns with the box.
+                Stop clicks/keys inside from bubbling to the card's navigate-on-
+                click; Enter submits (auto-send) instead. */}
+            <form
+              className="dash-copilot-form"
+              onClick={(e) => e.stopPropagation()}
+              onSubmit={(e) => {
+                e.preventDefault();
+                openCopilot(true);
+              }}
+            >
+              <input
+                className="dash-copilot-input"
+                type="text"
+                value={copilotAsk}
+                onChange={(e) => setCopilotAsk(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+                placeholder="Ask Railio anything…"
+                aria-label="Ask Railio"
+              />
+              <button
+                type="button"
+                className="dash-link dash-copilot-cta"
+                data-active={copilotAsk.trim().length > 0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openCopilot(copilotAsk.trim().length > 0);
+                }}
+              >
+                {copilotAsk.trim() ? "Ask Railio" : "Start chat"}{" "}
+                <span className="ico-arr" aria-hidden="true" />
+              </button>
+            </form>
+          </div>
 
           {/* Active client company — the rail operator this crew is maintaining
               right now. A contractor can switch between the companies they service. */}
-          <CompanySwitcher />
+          <CompanySwitcher orgName={me?.org?.name} hint={companyHint} />
         </section>
 
         {/* Tickets */}

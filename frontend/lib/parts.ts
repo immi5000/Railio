@@ -1,5 +1,17 @@
 import type { PartLocation } from "./contract";
 
+// One row of a `lookup_parts` tool result. Narrower than a catalog Part — it
+// carries only scalar bin/qty, so the chat picker enriches it against the full
+// catalog (Part.locations) for the inventory-accurate display.
+export type PartMatch = {
+  id: number;
+  part_number: string;
+  name: string;
+  bin_location: string | null;
+  qty_on_hand: number;
+  description?: string | null;
+};
+
 // Formatting + total derivation shared by the parts table and the detail modal.
 // deriveTotals mirrors derive_totals in backend/railio/parts_repo.py (same
 // rounding) so the number the user watches while typing is the number we store.
