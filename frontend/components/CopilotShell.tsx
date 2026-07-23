@@ -75,6 +75,9 @@ export function CopilotShell() {
 
   // Deep-link from the dashboard quick-ask box: ?q= seeds the composer, and
   // ?send=1 fires it as the first message once the conversation is ready.
+  // These are one-shot: strip them from the URL right after consuming so a
+  // remount or back/forward nav can't replay the send into the same cached
+  // conversation (which showed up as the message re-sending over and over).
   const qParam = params.get("q");
   const sendParam = params.get("send");
   useEffect(() => {
@@ -82,7 +85,12 @@ export function CopilotShell() {
     nonce.current += 1;
     setPrefill({ text: qParam, nonce: nonce.current, send: sendParam === "1" });
     setMobileView("chat");
-  }, [qParam, sendParam]);
+    const next = new URLSearchParams(params);
+    next.delete("q");
+    next.delete("send");
+    const qs = next.toString();
+    router.replace(qs ? `/copilot?${qs}` : "/copilot");
+  }, [qParam, sendParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [mobileView, setMobileView] = useState<"chat" | "scope">("chat");
   const [ctxOpen, setCtxOpen] = useState(true);
