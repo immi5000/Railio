@@ -59,8 +59,8 @@ export function CitationDrawer({
         </div>
 
         {isLoading && (
-          <div className="micro" style={{ color: "var(--muted)" }}>
-            Loading chunk…
+          <div className="micro loading-dots" style={{ color: "var(--muted)" }}>
+            Loading chunk
           </div>
         )}
         {error && (

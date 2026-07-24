@@ -147,6 +147,9 @@ export function WorkspaceShell() {
   const [ctxWidth, setCtxWidth] = useState(SIDEBAR_DEFAULT);
   const dragStartX = useRef(0);
   const dragStartW = useRef(0);
+  // True while a drawer edge is being dragged — data-resizing turns off the
+  // width transition so the drawer tracks the pointer instead of lagging it.
+  const [resizing, setResizing] = useState(false);
 
   // Hydrate the persisted widths after mount (client-only; keeps first paint
   // deterministic so there is no hydration mismatch).
@@ -193,6 +196,7 @@ export function WorkspaceShell() {
     e.preventDefault();
     dragStartX.current = e.clientX;
     dragStartW.current = ctxWidth;
+    setResizing(true);
     document.body.style.userSelect = "none";
     document.body.style.cursor = "col-resize";
     function onMove(ev: PointerEvent) {
@@ -201,6 +205,7 @@ export function WorkspaceShell() {
     function onUp() {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      setResizing(false);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
     }
@@ -214,6 +219,7 @@ export function WorkspaceShell() {
     e.preventDefault();
     dragStartX.current = e.clientX;
     dragStartW.current = wrapWidth;
+    setResizing(true);
     document.body.style.userSelect = "none";
     document.body.style.cursor = "col-resize";
     function onMove(ev: PointerEvent) {
@@ -222,6 +228,7 @@ export function WorkspaceShell() {
     function onUp() {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      setResizing(false);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
     }
@@ -419,8 +426,10 @@ export function WorkspaceShell() {
           <aside
             className="work-ctx-drawer"
             data-open={ctxOpen}
+            data-resizing={resizing || undefined}
             style={{ width: ctxOpen ? ctxWidth : 0 }}
-            aria-hidden={!ctxOpen}
+            aria-hidden={!ctxOpen && mobileView !== "details"}
+            inert={!ctxOpen && mobileView !== "details"}
           >
             <div className="work-ctx-head">
               {ticket && <span className="work-ctx-title">#{ticket.short_id}</span>}
@@ -508,9 +517,11 @@ export function WorkspaceShell() {
             <aside
               className="work-wrapup"
               data-open={wrapOpen}
-              style={{ width: wrapWidth }}
+              data-resizing={resizing || undefined}
+              style={{ width: wrapOpen ? wrapWidth : 0 }}
               role="region"
               aria-label="Wrap up"
+              inert={!wrapOpen && mobileView !== "wrapup"}
             >
               {/* Resize handle on the left edge (the seam with the chat). */}
               <div
@@ -723,7 +734,7 @@ function TicketList({
 
         {isLoading && (
           <div className="dash-row dash-wo">
-            <span className="dash-sub">Loading tickets…</span>
+            <span className="dash-sub loading-dots">Loading tickets</span>
           </div>
         )}
 

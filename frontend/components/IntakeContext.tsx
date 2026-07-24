@@ -34,7 +34,7 @@ export function IntakeContext({
   if (!ticket) {
     return (
       <div className="wc-card">
-        <span className="wc-sub">Loading intake…</span>
+        <span className="wc-sub loading-dots">Loading intake</span>
       </div>
     );
   }

@@ -205,7 +205,7 @@ export function PartsAdmin() {
 
         {isLoading && (
           <div className="card" style={{ color: "var(--dash-muted)" }}>
-            <span className="micro">Loading parts…</span>
+            <span className="micro loading-dots">Loading parts</span>
           </div>
         )}
         {error && (

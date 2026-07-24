@@ -120,7 +120,7 @@ export function KnowledgeLibrary() {
 
         {isLoading && (
           <div className="card" style={{ color: "var(--dash-muted)" }}>
-            <span className="micro">Loading library…</span>
+            <span className="micro loading-dots">Loading library</span>
           </div>
         )}
         {error && (
@@ -354,7 +354,7 @@ function TribalNotes({
   if (isLoading) {
     return (
       <div style={{ padding: "14px 20px", color: "var(--dash-muted)" }}>
-        <span className="micro">Loading notes…</span>
+        <span className="micro loading-dots">Loading notes</span>
       </div>
     );
   }

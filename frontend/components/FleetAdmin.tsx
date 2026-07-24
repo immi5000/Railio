@@ -168,8 +168,11 @@ export function FleetAdmin() {
             />
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {assetsLoading && (
-                <div className="micro" style={{ padding: 12, color: "var(--dash-muted)" }}>
-                  Loading fleet…
+                <div
+                  className="micro loading-dots"
+                  style={{ padding: 12, color: "var(--dash-muted)" }}
+                >
+                  Loading fleet
                 </div>
               )}
               {assets && allAssets.length === 0 && (
@@ -656,7 +659,7 @@ function HistoryTable({ asset }: { asset: Asset }) {
 
       {isLoading && (
         <div className="card" style={{ color: "var(--dash-muted)" }}>
-          <span className="micro">Loading history…</span>
+          <span className="micro loading-dots">Loading history</span>
         </div>
       )}
       {error && (

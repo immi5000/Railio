@@ -382,7 +382,7 @@ export default function DashboardPage() {
 
             {ticketsLoading && (
               <div className="dash-row dash-wo">
-                <span className="dash-sub">Loading tickets…</span>
+                <span className="dash-sub loading-dots">Loading tickets</span>
               </div>
             )}
 

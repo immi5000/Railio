@@ -35,7 +35,13 @@ export function ContextPanel({
           <span className="panel-chevron dash-chevron" aria-hidden />
         </span>
       </button>
-      {open && <div className="panel-body">{children}</div>}
+      {/* Always rendered so the 0fr→1fr grid collapse can animate height both
+          ways; inert keeps collapsed content out of the tab order. */}
+      <div className="panel-collapse" data-open={open} inert={!open}>
+        <div className="panel-collapse-inner">
+          <div className="panel-body">{children}</div>
+        </div>
+      </div>
     </div>
   );
 }

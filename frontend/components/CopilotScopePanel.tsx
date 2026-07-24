@@ -256,7 +256,12 @@ function UnitHistory({ assetId }: { assetId: number }) {
     queryKey: ["history", assetId],
     queryFn: () => listHistoricalRecords(assetId),
   });
-  if (isLoading) return <Empty>Loading…</Empty>;
+  if (isLoading)
+    return (
+      <Empty>
+        <span className="loading-dots">Loading</span>
+      </Empty>
+    );
   if (records.length === 0) return <Empty>No history on record for this unit.</Empty>;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

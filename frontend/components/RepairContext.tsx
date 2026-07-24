@@ -62,7 +62,7 @@ export function RepairContext({ ticketId }: { ticketId: string }) {
   if (!ticket) {
     return (
       <div className="wc-card">
-        <span className="wc-sub">Loading context…</span>
+        <span className="wc-sub loading-dots">Loading context</span>
       </div>
     );
   }
