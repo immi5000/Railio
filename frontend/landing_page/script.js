@@ -204,7 +204,9 @@
       +   '<span class="arr arrow" aria-hidden="true"></span>'
       + '</div>'
       + '<div class="ttl">' + escHtml(st.title) + '</div>'
-      + '<p class="sub">' + escHtml(st.sub) + '</p>';
+      // subwrap/subinner form the 0fr→1fr grid collapse (styles.css) so the
+      // sub-copy animates open on the selected step instead of jumping.
+      + '<div class="subwrap"><div class="subinner"><p class="sub">' + escHtml(st.sub) + '</p></div></div>';
     b.addEventListener('click', function () { active = i; renderHow(); });
     stepsEl.appendChild(b);
   });
@@ -216,4 +218,90 @@
     dossierEl.innerHTML = renderDossier(STEPS[active].panel);
   }
   renderHow();
+
+  // ── Scroll reveals ──
+  // Runs after the JS-built sections above so every [data-reveal] target
+  // exists. The .reveal-ready gate means a JS failure never hides content.
+  var reduceMotion =
+    window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var revealEls = [].slice.call(document.querySelectorAll('[data-reveal]'));
+
+  if (revealEls.length) {
+    document.documentElement.classList.add('reveal-ready');
+
+    // Stagger index within each sibling group (e.g. the six metric cards),
+    // capped so long groups don't drift apart.
+    revealEls.forEach(function (el) {
+      var i = 0;
+      var sib = el;
+      while ((sib = sib.previousElementSibling)) {
+        if (sib.hasAttribute('data-reveal')) i++;
+      }
+      el.style.setProperty('--reveal-i', String(Math.min(i, 7)));
+    });
+
+    if (reduceMotion || !('IntersectionObserver' in window)) {
+      revealEls.forEach(function (el) { el.classList.add('is-revealed'); });
+    } else {
+      var revealIo = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add('is-revealed');
+            revealIo.unobserve(entry.target);
+          });
+        },
+        { rootMargin: '0px 0px -10% 0px', threshold: 0.15 }
+      );
+      revealEls.forEach(function (el) { revealIo.observe(el); });
+    }
+  }
+
+  // ── Metric count-up ──
+  // Parses the hardcoded stat text ("$2.4", "1,200", "−38" — note U+2212) and
+  // counts the first text node up on first view; the .u suffix span never
+  // moves. Any parse failure leaves the hardcoded text untouched.
+  var impactEl = document.getElementById('impact');
+  if (impactEl && !reduceMotion && 'IntersectionObserver' in window) {
+    var countUp = function (numEl) {
+      var textNode = numEl.firstChild;
+      if (!textNode || textNode.nodeType !== 3) return;
+      var raw = textNode.textContent;
+      var m = raw.match(/^([^0-9]*)([0-9.,]+)$/);
+      if (!m) return;
+      var prefix = m[1];
+      var target = parseFloat(m[2].replace(/,/g, ''));
+      if (!isFinite(target)) return;
+      var decimals = (m[2].split('.')[1] || '').length;
+      var grouping = m[2].indexOf(',') !== -1;
+      var start = null;
+      function frame(ts) {
+        if (start === null) start = ts;
+        var t = Math.min(1, (ts - start) / 900);
+        var eased = t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
+        textNode.textContent =
+          prefix +
+          (target * eased).toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+            useGrouping: grouping,
+          });
+        if (t < 1) requestAnimationFrame(frame);
+        else textNode.textContent = raw; // land on the exact authored text
+      }
+      requestAnimationFrame(frame);
+    };
+    var countIo = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          countIo.disconnect();
+          [].forEach.call(impactEl.querySelectorAll('.m .num'), countUp);
+        });
+      },
+      { threshold: 0.35 }
+    );
+    countIo.observe(impactEl);
+  }
 })();

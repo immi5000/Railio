@@ -64,8 +64,10 @@ button{font-family:inherit}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
   min-width:44px;border-radius:12px;
   font-family:'Inter',sans-serif;font-size:13px;font-weight:700;letter-spacing:0;
-  border:1px solid transparent;cursor:pointer;transition:filter .12s,background .12s,color .12s,border-color .12s;
+  border:1px solid transparent;cursor:pointer;
+  transition:filter .12s,background .12s,color .12s,border-color .12s,transform var(--t-fast) var(--ease-out);
   text-decoration:none;white-space:nowrap}
+.btn:active{transform:scale(.98)}
 /* Arrow glyph drawn as an SVG mask so it renders identically on every
    platform (the unicode → falls back to different system fonts on iOS vs
    desktop). Inherits color via currentColor. Used by Sign up (.arr),
@@ -555,10 +557,23 @@ footer{position:relative}
   color:#000;
 }
 .how-step .ttl{font-size:20px;font-weight:400;letter-spacing:-0.02em;line-height:1.15;margin:2px 0 0}
-.how-step .sub{font-size:14px;line-height:1.55;margin:6px 0 0;color:var(--muted);display:none}
-.how-step[aria-selected="true"] .sub{display:block}
+/* The step sub-copy expands/collapses via the 0fr→1fr grid trick so switching
+   steps animates height instead of jumping. */
+.how-step .subwrap{
+  display:grid;grid-template-rows:0fr;opacity:0;
+  transition:grid-template-rows .3s var(--ease-out-expo),opacity .3s var(--ease-out);
+}
+.how-step[aria-selected="true"] .subwrap{grid-template-rows:1fr;opacity:1}
+.how-step .subinner{overflow:hidden;min-height:0}
+.how-step .sub{font-size:14px;line-height:1.55;margin:6px 0 0;color:var(--muted)}
 
-.dossier{background:var(--surface);border:1px solid var(--card-border);border-radius:var(--radius);padding:24px;position:relative}
+/* Replays on every tab switch — renderHow swaps the node via innerHTML. */
+@keyframes dossier-in{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:none}
+}
+.dossier{background:var(--surface);border:1px solid var(--card-border);border-radius:var(--radius);padding:24px;position:relative;
+  animation:dossier-in .32s var(--ease-out-expo)}
 .dossier .doss-hd{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:8px}
 .dossier .doss-hd .l{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .dossier .doss-hd .r{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;color:var(--link);letter-spacing:.06em}
@@ -652,4 +667,31 @@ footer{position:relative}
   #how{padding-top:56px}
   .foot-word{font-size:clamp(56px,20vw,120px)}
   .foot-mark{--mark-size:clamp(72px,20vw,120px);--mark-radius:3px}
+}
+
+/* ── Scroll reveals ──
+   Elements with [data-reveal] hide only once script.js stamps .reveal-ready on
+   <html>, so a JS failure leaves the page fully visible. script.js sets
+   --reveal-i per sibling group for the stagger and adds .is-revealed from an
+   IntersectionObserver. */
+.reveal-ready [data-reveal]{
+  opacity:0;
+  transform:translateY(18px);
+  transition:opacity .55s var(--ease-out-expo) calc(var(--reveal-i,0)*70ms),
+             transform .55s var(--ease-out-expo) calc(var(--reveal-i,0)*70ms);
+}
+.reveal-ready [data-reveal].is-revealed{opacity:1;transform:none}
+
+/* Reduced-motion kill switch for everything added above (mirrors the app's
+   globals.css). The reveal override forces content visible even if the
+   observer never fires. */
+@media (prefers-reduced-motion:reduce){
+  .reveal-ready [data-reveal]{opacity:1;transform:none;transition:none}
+  .dossier{animation:none}
+  .how-step .subwrap{transition:none}
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
 }
