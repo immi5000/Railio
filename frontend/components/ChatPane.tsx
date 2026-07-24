@@ -515,6 +515,23 @@ export function ChatPane({
     }
   }, [composerValue]);
 
+  // The message column carries the 16px inter-bubble gap. In the bare (full-
+  // bleed) layout the .chat-col class also caps + centers it to a readable
+  // width; non-bare fills its (already narrow) card.
+  const showEmpty = messages.length === 0 && !live;
+  const colStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+    width: "100%",
+    // With no messages yet, grow to fill the scroller and center the empty-state
+    // prompt vertically instead of pinning it to the top. Applies to every chat
+    // surface (copilot + ticket), which all render EmptyState in this column.
+    ...(showEmpty
+      ? { flex: 1, justifyContent: "center", alignItems: "center" }
+      : {}),
+  };
+
   return (
     <div
       style={{
@@ -541,41 +558,46 @@ export function ChatPane({
           gap: 16,
         }}
       >
-        {messages.length === 0 && !live && (
-          <EmptyState
-            hint={emptyHint || "Press the mic to talk, or type."}
-            suggestions={session.suggestions}
-            disabled={streaming || inCooldown}
-            onPick={(q) => send(q)}
-          />
-        )}
+        {/* In the full-bleed (bare) layout the scroller spans the whole panel,
+            but its content caps at a readable centered column so long answers
+            stay legible on wide monitors. Non-bare keeps the old flush column. */}
+        <div className={bare ? "chat-col" : undefined} style={colStyle}>
+          {showEmpty && (
+            <EmptyState
+              hint={emptyHint || "Press the mic to talk, or type."}
+              suggestions={session.suggestions}
+              disabled={streaming || inCooldown}
+              onPick={(q) => send(q)}
+            />
+          )}
 
-        {messages.map((m, i) => (
-          <MessageBubble
-            key={m.id}
-            message={m}
-            onCitationClick={openCitation}
-            onOpenChunk={(id) => setOpenChunk(id)}
-            onPreviewFigure={setPreviewFigure}
-            isLast={i === messages.length - 1 && !live}
-            onPick={(q) => send(q)}
-            picksDisabled={streaming || inCooldown}
-            partUI={partUI}
-          />
-        ))}
+          {messages.map((m, i) => (
+            <MessageBubble
+              key={m.id}
+              message={m}
+              onCitationClick={openCitation}
+              onOpenChunk={(id) => setOpenChunk(id)}
+              onPreviewFigure={setPreviewFigure}
+              isLast={i === messages.length - 1 && !live}
+              onPick={(q) => send(q)}
+              picksDisabled={streaming || inCooldown}
+              partUI={partUI}
+            />
+          ))}
 
-        {live && (
-          <LiveBubble
-            live={live}
-            onCitationClick={openCitation}
-            onOpenChunk={(id) => setOpenChunk(id)}
-            onPreviewFigure={setPreviewFigure}
-            onPhotoSend={uploadAndSend}
-            onPick={(q) => send(q)}
-            picksDisabled={streaming || inCooldown}
-            partUI={partUI}
-          />
-        )}
+          {live && (
+            <LiveBubble
+              live={live}
+              onCitationClick={openCitation}
+              onOpenChunk={(id) => setOpenChunk(id)}
+              onPreviewFigure={setPreviewFigure}
+              onPhotoSend={uploadAndSend}
+              onPick={(q) => send(q)}
+              picksDisabled={streaming || inCooldown}
+              partUI={partUI}
+            />
+          )}
+        </div>
       </div>
 
       {pickerPart && (

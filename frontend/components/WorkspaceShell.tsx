@@ -430,7 +430,7 @@ export function WorkspaceShell() {
                 onClick={() => setCtxOpen(false)}
                 aria-label="Collapse details"
               >
-                <span className="ico-arr-back" aria-hidden="true" />
+                <span className="ico-sidebar" aria-hidden="true" />
               </button>
             </div>
 
@@ -479,7 +479,7 @@ export function WorkspaceShell() {
               aria-label="Show details"
             >
               <span className="work-ctx-open-head">
-                <span className="ico-arr" aria-hidden="true" />
+                <span className="ico-sidebar" aria-hidden="true" />
               </span>
             </button>
           )}

@@ -47,8 +47,10 @@ function initials(name: string | null | undefined): string {
 function SparkleIcon() {
   return (
     <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* Arm edges bow outward (cubic curves) for softer, rounded edges rather
+          than dead-straight knife points. */}
       <path
-        d="M12 1.5C12.6 8.4 15.6 11.4 22.5 12C15.6 12.6 12.6 15.6 12 22.5C11.4 15.6 8.4 12.6 1.5 12C8.4 11.4 11.4 8.4 12 1.5Z"
+        d="M12 2C12.6 7.4 13.6 9.8 16.1 10.9C17.4 11.5 18.9 11.7 22 12C18.9 12.3 17.4 12.5 16.1 13.1C13.6 14.2 12.6 16.6 12 22C11.4 16.6 10.4 14.2 7.9 13.1C6.6 12.5 5.1 12.3 2 12C5.1 11.7 6.6 11.5 7.9 10.9C10.4 9.8 11.4 7.4 12 2Z"
         style={{ fill: "var(--dash-link)" }}
       />
     </svg>

@@ -143,13 +143,22 @@ pills **20px** → **40px / 99px** (fully round: filters, chips, qty, toggle).
   var(--fig-nav-zone)`) so scroll-top is one continuous surface — no white seam.
 - **Inner container** (`.dash-inner`, `.work-inner`): `max-width: 1440px`,
   centered, vertical flex with `gap: 24px`.
+- **Chat workspace exception** (`.work--full`, used by `/work?ticket=` and
+  `/copilot`): the chat owns the whole viewport — **full-bleed**, so `.work-inner`
+  drops the 1440px cap, centering, gap and page gutter. It's a real full-width
+  **top bar** (`.work-topbar`: back link + role CTA, white strip, bottom hairline)
+  over an edge-to-edge body of flush **borderless panels** `[ detail | chat |
+  wrap-up ]` divided by single hairline seams (no rounded floating cards, no
+  gaps). Inside the chat, the message column + composer cap at a readable **820px**
+  centered column (`.work-copilot .chat-col` / `.rc-composer`) so long answers
+  stay legible on wide monitors.
 
 ### Grids
 | Pattern | Columns | Collapse |
 |---|---|---|
 | Stat row (`.dash-stats`) | `repeat(3, 1fr)` | 1 col ≤980px |
 | Bottom split (`.dash-bottom`) | `1.7fr 1fr` | 1 col ≤980px |
-| Ticket body (`.work-body`) | `1.6fr 1fr` (copilot / context) | 1 col ≤980px |
+| Ticket body (`.work-body`) | flex row of flush columns `[detail \| chat \| wrap-up]` (in-flow drawers) | 1 panel at a time, tab-switched ≤980px |
 | WO table (`.dash-wo`) | `1.6fr 2fr 0.9fr 1.1fr 1fr` | `1fr 1fr` ≤760px |
 | Fleet table (`.dash-fleet`) | `1.4fr 0.8fr 1fr 1fr 0.5fr` | `1fr 1fr` ≤760px |
 
