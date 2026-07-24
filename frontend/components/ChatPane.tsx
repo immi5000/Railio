@@ -125,6 +125,11 @@ export function ChatPane({
   // Map tool-call call_id → tool name so `tool_call_completed` (which only
   // carries call_id) can dispatch on the original tool name.
   const callIdToName = useRef<Map<string, string>>(new Map());
+  // Ids of messages that arrived live this session (vs. loaded from history or
+  // swapped in from the streaming bubble). Only these get an entrance
+  // animation: the live→persisted assistant swap re-renders an id that is NOT
+  // in this set, so the swap never re-animates (which would read as a flash).
+  const enterIds = useRef<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
   // Timestamp (ms) until which sending is blocked after a 429. null = no cooldown.
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
@@ -303,6 +308,7 @@ export function ChatPane({
         // Append the user bubble and reveal the thinking bubble in the same
         // batched render, so "Railio is thinking" shows directly below the
         // user's message rather than ahead of it.
+        enterIds.current.add(ev.message.id);
         appendMessage(ev.message);
         setLive({ text: "", citations: [], toolCalls: [], requestPhoto: null, figures: [], suggestions: [] });
         break;
@@ -582,6 +588,7 @@ export function ChatPane({
               onPick={(q) => send(q)}
               picksDisabled={streaming || inCooldown}
               partUI={partUI}
+              entering={enterIds.current.has(m.id)}
             />
           ))}
 
@@ -765,6 +772,7 @@ function MessageBubble({
   onPick,
   picksDisabled,
   partUI,
+  entering,
 }: {
   message: Message;
   onCitationClick: (c: Citation) => void;
@@ -774,6 +782,7 @@ function MessageBubble({
   onPick?: (text: string) => void;
   picksDisabled?: boolean;
   partUI: PartUI;
+  entering?: boolean;
 }) {
   const isUser = message.role === "tech" || message.role === "dispatcher";
   const isSystem = message.role === "system" || message.role === "tool";
@@ -817,6 +826,7 @@ function MessageBubble({
 
   return (
     <div
+      className={entering ? "msg-in" : undefined}
       style={{
         display: "flex",
         justifyContent: isUser ? "flex-end" : "flex-start",
@@ -1084,12 +1094,26 @@ function AttachmentThumb({ attachment }: { attachment: Attachment }) {
   );
 }
 
-function ToolPill({ tc }: { tc: ToolCall }) {
+function ToolPill({ tc, running }: { tc: ToolCall; running?: boolean }) {
   const [open, setOpen] = useState(false);
+  // One-shot settle flash when a live pill flips running→done. Persisted pills
+  // mount with running undefined and never flash.
+  const wasRunning = useRef(running);
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (wasRunning.current && !running) setSettled(true);
+    wasRunning.current = running;
+  }, [running]);
   const label = describeTool(tc);
   return (
     <div style={{ marginRight: 6, marginBottom: 6 }}>
-      <span className="tool-pill" onClick={() => setOpen((v) => !v)}>
+      <span
+        className="tool-pill"
+        data-running={running || undefined}
+        data-settled={settled || undefined}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {running && <span className="tool-spin" aria-hidden="true" />}
         {label}
       </span>
       {open && (
@@ -1232,7 +1256,7 @@ function LiveBubble({
   partUI: PartUI;
 }) {
   return (
-    <div style={{ display: "flex", justifyContent: "flex-start" }}>
+    <div className="msg-in" style={{ display: "flex", justifyContent: "flex-start" }}>
       <div
         className="chat-message-assistant"
         style={{ maxWidth: "min(80%, 640px)" }}
@@ -1252,22 +1276,25 @@ function LiveBubble({
         </div>
 
         {live.text ? (
-          <Markdown
-            citations={live.citations}
-            partLinks={extractPartLinks(live.toolCalls)}
-            partUI={partUI}
-            onCite={(id) => {
-              const c = live.citations.find((x) => x.chunk_id === id);
-              c ? onCitationClick(c) : onOpenChunk(id);
-            }}
-          >
-            {live.text}
-          </Markdown>
+          // .md-live draws the blinking stream caret after the last text block;
+          // persisted bubbles don't have the wrapper, so the caret dies exactly
+          // at the live→persisted swap.
+          <div className="md-live">
+            <Markdown
+              citations={live.citations}
+              partLinks={extractPartLinks(live.toolCalls)}
+              partUI={partUI}
+              onCite={(id) => {
+                const c = live.citations.find((x) => x.chunk_id === id);
+                c ? onCitationClick(c) : onOpenChunk(id);
+              }}
+            >
+              {live.text}
+            </Markdown>
+          </div>
         ) : (
           <div style={{ fontSize: 14, lineHeight: 1.5 }}>
-            <span className="micro" style={{ color: "var(--muted)" }}>
-              Thinking…
-            </span>
+            <span className="micro thinking-shimmer">Thinking…</span>
           </div>
         )}
 
@@ -1280,7 +1307,11 @@ function LiveBubble({
               (tc) => tc.name !== "suggest_replies" && tc.name !== "lookup_parts",
             )
             .map((tc, i) => (
-              <ToolPill key={i} tc={tc} />
+              <ToolPill
+                key={i}
+                tc={tc}
+                running={!tc.output || Object.keys(tc.output).length === 0}
+              />
             ))}
         </div>
 
@@ -1308,6 +1339,7 @@ function LiveBubble({
           replies={live.suggestions}
           disabled={picksDisabled}
           onPick={onPick}
+          animate
         />
 
       </div>
@@ -1319,10 +1351,14 @@ function QuickReplies({
   replies,
   disabled,
   onPick,
+  animate,
 }: {
   replies: string[];
   disabled?: boolean;
   onPick: (text: string) => void;
+  // Stagger the chips in only on the live turn — a persisted bubble re-renders
+  // the same replies at the swap, and replaying the entrance would flash.
+  animate?: boolean;
 }) {
   if (!replies || replies.length === 0) return null;
   return (
@@ -1333,7 +1369,8 @@ function QuickReplies({
           <button
             key={`${r}-${i}`}
             type="button"
-            className="rc-quickreply"
+            className={animate ? "rc-quickreply chip-in" : "rc-quickreply"}
+            style={animate ? { animationDelay: `${i * 50}ms` } : undefined}
             disabled={disabled}
             onClick={() => onPick(r)}
           >
@@ -1357,6 +1394,7 @@ function RequestPhotoBlock({
   const ref = useRef<HTMLInputElement>(null);
   return (
     <div
+      className="photo-req-in"
       style={{
         marginTop: 12,
         padding: 12,

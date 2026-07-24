@@ -195,20 +195,11 @@ export function MicButton({
       </svg>
       <span className="rc-pill-label">{active ? "Listening…" : "Voice"}</span>
       {active && (
-        <span
-          aria-hidden
-          style={{
-            position: "absolute",
-            top: 4,
-            right: 4,
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: "#fff",
-            boxShadow: "0 0 0 0 rgba(255,255,255,.7)",
-            animation: "dot 1.4s infinite",
-          }}
-        />
+        <span className="rc-wave" aria-hidden>
+          <i />
+          <i />
+          <i />
+        </span>
       )}
     </button>
   );

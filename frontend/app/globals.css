@@ -843,6 +843,117 @@ button {
   }
 }
 
+/* === Chat motion (DESIGN.md §7) === */
+/* Entrance for messages that arrive live. ChatPane only applies this to ids
+   born this session, so history loads and the live→persisted swap never
+   re-animate. */
+.msg-in {
+  animation: rise-in var(--t-med) var(--ease-out-expo) both;
+}
+/* "Thinking…" — a light sweep across the text while waiting for the first
+   token. Gradient-clipped text; the reduced-motion kill switch freezes the
+   sweep, and the fallback below restores solid muted text. */
+.thinking-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--dash-muted) 40%,
+    #000 50%,
+    var(--dash-muted) 60%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: shimmer 1.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .thinking-shimmer {
+    background: none;
+    color: var(--muted);
+    -webkit-text-fill-color: currentColor;
+  }
+}
+/* Blinking block caret at the end of the streaming answer. Only the common
+   last-block shapes get one; anything else (tables, code) just streams. */
+.md-live .md > p:last-child::after,
+.md-live .md > ul:last-child li:last-child::after,
+.md-live .md > ol:last-child li:last-child::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: #000;
+  animation: caret-blink 1s steps(2, start) infinite;
+}
+/* Tool pill: spinner ring while the call runs, one-shot settle flash on done. */
+.tool-pill .tool-spin {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--dash-border);
+  border-top-color: #000;
+  animation: tool-spin 0.7s linear infinite;
+  flex: none;
+}
+.tool-pill[data-running="true"] {
+  color: #000;
+}
+.tool-pill[data-settled="true"] {
+  animation: pill-settle 0.5s ease-out;
+}
+/* Quick-reply chips pop in with a slight overshoot on the live turn only
+   (ChatPane sets the class + per-chip delay). */
+.chip-in {
+  animation: rise-in var(--t-med) var(--ease-spring) both;
+}
+/* Photo-request card entrance (live-only, mounts once per request). */
+.photo-req-in {
+  animation: scale-in var(--t-med) var(--ease-out-expo) both;
+}
+/* Mic pill: 3-bar voice wave while listening (reuses the wv keyframe). The
+   parent pill's active state colors the bars via currentColor. */
+.rc-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 14px;
+  margin-left: 2px;
+}
+.rc-wave i {
+  width: 2.5px;
+  border-radius: 2px;
+  background: currentColor;
+  animation: wv 1s ease-in-out infinite;
+}
+.rc-wave i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.rc-wave i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+/* Empty state: hint fades, suggestions rise with a short stagger. */
+.rc-empty-hint {
+  animation: fade-in var(--t-slow) var(--ease-out) both;
+}
+.rc-suggest {
+  animation: rise-in var(--t-med) var(--ease-out-expo) both;
+}
+.rc-suggest:nth-child(2) {
+  animation-delay: 50ms;
+}
+.rc-suggest:nth-child(3) {
+  animation-delay: 100ms;
+}
+.rc-suggest:nth-child(4) {
+  animation-delay: 150ms;
+}
+.rc-suggest:nth-child(5) {
+  animation-delay: 200ms;
+}
+
 /* === Citation badges (rounded mono chips — DESIGN.md §6) === */
 .cite {
   display: inline-flex;
