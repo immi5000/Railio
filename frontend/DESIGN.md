@@ -288,11 +288,52 @@ normally." Where data isn't wired yet, say so plainly rather than faking numbers
 ---
 
 ## 7. Motion
-Short and functional. Transitions **0.1–0.18s** — color/border on hover,
-`transform` on drawers, `brightness(0.94)` dim on CTA hover, grey-fill or
-black-border on row/card hover. Live-state keyframes (`wv` mic wave, `dot` live
-pulse, `field-pulse` SSE flash) are for real-time feedback only — reuse them,
-don't add decorative motion.
+
+**Principle.** Motion communicates state — arrival, progress, hierarchy. It
+never blocks input, never delays data, and animates `transform` + `opacity`
+only, with two sanctioned exceptions: the grid `0fr→1fr` panel collapse and the
+in-flow drawer `width` sweep (which turns itself off during drag-resize via
+`data-resizing`). Snappy = short durations + strong ease-out.
+
+**Tokens** (in `:root`, mirrored in `landing_page/styles.css`; the landing's
+`--hero-ease` is an alias of `--ease-out-expo`):
+
+| Token | Value | Use |
+|---|---|---|
+| `--t-fast` | 120ms | hover, press, color, menus |
+| `--t-med` | 220ms | entrances, collapses, exits |
+| `--t-slow` | 360ms | overlays, page mounts, empty states |
+| `--ease-out` | `cubic-bezier(.25,.46,.45,.94)` | default transitions |
+| `--ease-out-expo` | `cubic-bezier(.16,1,.3,1)` | all entrances |
+| `--ease-spring` | `cubic-bezier(.34,1.3,.64,1)` | tiny overshoot — chips/pills only |
+
+**Rules.**
+- Entrances are keyframes on mount (`fade-in`, `rise-in`, `scale-in`,
+  `menu-in`, `page-in`, `toast-in`, `drawer-in`) and always end at
+  `transform: none` — a resting transform creates a containing block that
+  breaks fixed children and backdrop-filter ancestors.
+- Exits are faster than entrances (`--t-fast` vs `--t-med`) and exist only
+  where they carry weight: modals, the citation drawer, the figure lightbox —
+  via `lib/useAnimatedClose.ts` (`data-closing` → exit keyframe →
+  `animationend` → unmount). Menus and dropdowns exit **instantly**.
+- Stagger ≤ 8 items, ≤ 70ms step (`nth-child` delays or `animationDelay`).
+- Chat auto-scroll stays instant while streaming — never smooth-scroll
+  per-token.
+- Entrance animations must not replay on data refetch or the live→persisted
+  message swap (ChatPane tracks which ids are genuinely new).
+- Press feedback: `:active { transform: scale(0.98) }` on buttons/pills; hover
+  stays the grey-fill / black-border motif with `brightness(0.94)` on CTAs.
+
+**Live-state keyframes** (`wv` mic wave, `dot` live pulse, `field-pulse` SSE
+flash, `shimmer` thinking text, `caret-blink` stream caret, `tool-spin` running
+tool, `ellipsis` loading text, `pill-settle` tool-done flash) are real-time
+feedback; decorative motion is limited to entrances/reveals.
+
+**Reduced motion.** A global `prefers-reduced-motion` kill switch at the end of
+`globals.css` (and of the landing stylesheet) forces all animation/transition
+durations to ~0. JS-driven motion (landing count-up, `useAnimatedClose`) checks
+`matchMedia` or degrades to instant on its own. State must always survive with
+motion off — text like "Thinking…" / "Listening…" carries the signal.
 
 ---
 
