@@ -868,7 +868,7 @@ button {
    born this session, so history loads and the live→persisted swap never
    re-animate. */
 .msg-in {
-  animation: rise-in var(--t-med) var(--ease-out-expo) both;
+  animation: rise-in var(--t-med) var(--ease-out-expo) backwards;
 }
 /* "Thinking…" — a light sweep across the text while waiting for the first
    token. Gradient-clipped text; the reduced-motion kill switch freezes the
@@ -927,11 +927,11 @@ button {
 /* Quick-reply chips pop in with a slight overshoot on the live turn only
    (ChatPane sets the class + per-chip delay). */
 .chip-in {
-  animation: rise-in var(--t-med) var(--ease-spring) both;
+  animation: rise-in var(--t-med) var(--ease-spring) backwards;
 }
 /* Photo-request card entrance (live-only, mounts once per request). */
 .photo-req-in {
-  animation: scale-in var(--t-med) var(--ease-out-expo) both;
+  animation: scale-in var(--t-med) var(--ease-out-expo) backwards;
 }
 /* Mic pill: 3-bar voice wave while listening (reuses the wv keyframe). The
    parent pill's active state colors the bars via currentColor. */
@@ -956,10 +956,10 @@ button {
 }
 /* Empty state: hint fades, suggestions rise with a short stagger. */
 .rc-empty-hint {
-  animation: fade-in var(--t-slow) var(--ease-out) both;
+  animation: fade-in var(--t-slow) var(--ease-out) backwards;
 }
 .rc-suggest {
-  animation: rise-in var(--t-med) var(--ease-out-expo) both;
+  animation: rise-in var(--t-med) var(--ease-out-expo) backwards;
 }
 .rc-suggest:nth-child(2) {
   animation-delay: 50ms;
@@ -1031,7 +1031,7 @@ button {
   justify-content: center;
   padding: 32px;
   background: rgba(0, 0, 0, 0.78);
-  animation: fade-in var(--t-med) var(--ease-out) both;
+  animation: fade-in var(--t-med) var(--ease-out) backwards;
 }
 .figure-lightbox-body {
   margin: 0;
@@ -1041,7 +1041,7 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  animation: scale-in var(--t-med) var(--ease-out-expo) both;
+  animation: scale-in var(--t-med) var(--ease-out-expo) backwards;
 }
 /* Exit (driven by useAnimatedClose) — faster than the entrance. */
 .figure-lightbox[data-closing="true"] {
@@ -1088,7 +1088,7 @@ button {
   inset: 0;
   background: rgba(0, 0, 0, 0.32);
   z-index: 60;
-  animation: fade-in var(--t-med) var(--ease-out) both;
+  animation: fade-in var(--t-med) var(--ease-out) backwards;
 }
 .drawer {
   position: fixed;
@@ -1102,7 +1102,7 @@ button {
   z-index: 61;
   overflow: auto;
   padding: 32px;
-  animation: drawer-in var(--t-slow) var(--ease-out-expo) both;
+  animation: drawer-in var(--t-slow) var(--ease-out-expo) backwards;
 }
 /* Exit (driven by useAnimatedClose) — slides back out, faster than in. */
 .drawer-backdrop[data-closing="true"] {
@@ -1123,7 +1123,7 @@ button {
   display: grid;
   place-items: center;
   padding: 24px;
-  animation: fade-in var(--t-med) var(--ease-out) both;
+  animation: fade-in var(--t-med) var(--ease-out) backwards;
 }
 /* Exit (driven by useAnimatedClose): the backdrop fades and every modal inside
    it — including a nested discard-confirm — scales away with it. */
@@ -1145,7 +1145,7 @@ button {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: scale-in var(--t-med) var(--ease-out-expo) both;
+  animation: scale-in var(--t-med) var(--ease-out-expo) backwards;
 }
 .modal-sm {
   width: min(400px, 100%);
@@ -1281,7 +1281,7 @@ button {
   padding: 4px;
   /* Pop in, vanish out — menus exit instantly (DESIGN.md §7). */
   transform-origin: top;
-  animation: menu-in var(--t-fast) var(--ease-out-expo) both;
+  animation: menu-in var(--t-fast) var(--ease-out-expo) backwards;
 }
 .combo-opt {
   padding: 8px 10px;
@@ -1630,7 +1630,7 @@ button {
   margin: 0 auto;
   width: 100%;
   /* Page entrance (see .dash-inner). */
-  animation: page-in var(--t-med) var(--ease-out-expo) both;
+  animation: page-in var(--t-med) var(--ease-out-expo) backwards;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -2509,7 +2509,7 @@ button {
   color: var(--dash-muted);
   font-family: "IBM Plex Mono", monospace;
   font-size: 13px;
-  animation: fade-in var(--t-slow) var(--ease-out) both;
+  animation: fade-in var(--t-slow) var(--ease-out) backwards;
 }
 /* Loading text: animated ellipsis on the mono loading strings — keep the copy,
    drop the literal "…" and let the pseudo-element cycle it. */
@@ -2785,7 +2785,7 @@ button {
   z-index: 100;
   border-left: 3px solid var(--dash-yellow);
   border-radius: 12px;
-  animation: toast-in var(--t-med) var(--ease-out-expo) both;
+  animation: toast-in var(--t-med) var(--ease-out-expo) backwards;
 }
 
 /* ============================================================
@@ -3015,7 +3015,7 @@ button {
   min-width: 240px;
   max-width: calc(100vw - 32px);
   transform-origin: top right;
-  animation: menu-in var(--t-fast) var(--ease-out-expo) both;
+  animation: menu-in var(--t-fast) var(--ease-out-expo) backwards;
   background: #fff;
   border: 1px solid var(--dash-border);
   border-radius: 14px;
@@ -3198,7 +3198,7 @@ button {
   padding-top: 28px;
   /* Page entrance — also covers the /work list⇄detail switch, since the
      subtree remounts on the ?ticket= param change. */
-  animation: page-in var(--t-med) var(--ease-out-expo) both;
+  animation: page-in var(--t-med) var(--ease-out-expo) backwards;
 }
 @media (max-width: 760px) {
   .dash-inner {
@@ -3462,7 +3462,7 @@ button {
   min-width: 260px;
   max-width: calc(100vw - 32px);
   transform-origin: top right;
-  animation: menu-in var(--t-fast) var(--ease-out-expo) both;
+  animation: menu-in var(--t-fast) var(--ease-out-expo) backwards;
   background: #fff;
   border: 1px solid var(--dash-border);
   border-radius: 14px;
@@ -3507,7 +3507,7 @@ button {
 }
 /* Stat cards rise in with a short stagger on page mount. */
 .dash-stats .dash-stat {
-  animation: rise-in var(--t-med) var(--ease-out-expo) both;
+  animation: rise-in var(--t-med) var(--ease-out-expo) backwards;
 }
 .dash-stats .dash-stat:nth-child(2) {
   animation-delay: 50ms;
@@ -3743,7 +3743,7 @@ button {
    the same keyed nodes, so the entrance never replays mid-session. Only the
    first 8 rows stagger; the rest arrive with the last step. */
 .dash-row:not(.dash-row--head) {
-  animation: fade-in var(--t-med) var(--ease-out) both;
+  animation: fade-in var(--t-med) var(--ease-out) backwards;
 }
 .dash-row:nth-child(2) {
   animation-delay: 25ms;

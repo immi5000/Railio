@@ -35,11 +35,17 @@ export function useAnimatedClose<T extends HTMLElement = HTMLElement>(
     setClosing(true);
     let timer: ReturnType<typeof setTimeout>;
     const done = () => {
-      node.removeEventListener("animationend", done);
+      node.removeEventListener("animationend", onEnd);
       clearTimeout(timer);
       onClose();
     };
-    node.addEventListener("animationend", done);
+    // Only the root node's own exit animation should end the close — child
+    // exit keyframes (e.g. .modal's scale-out) also bubble animationend, and a
+    // faster child would otherwise close before the backdrop finished fading.
+    const onEnd = (e: AnimationEvent) => {
+      if (e.target === node) done();
+    };
+    node.addEventListener("animationend", onEnd);
     timer = setTimeout(done, safetyMs);
   }, [onClose, safetyMs]);
 

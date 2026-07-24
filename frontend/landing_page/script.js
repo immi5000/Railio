@@ -207,7 +207,13 @@
       // subwrap/subinner form the 0fr→1fr grid collapse (styles.css) so the
       // sub-copy animates open on the selected step instead of jumping.
       + '<div class="subwrap"><div class="subinner"><p class="sub">' + escHtml(st.sub) + '</p></div></div>';
-    b.addEventListener('click', function () { active = i; renderHow(); });
+    // Guard the no-op click: without this, clicking the already-selected step
+    // rebuilds #how-dossier via innerHTML and replays dossier-in for nothing.
+    b.addEventListener('click', function () {
+      if (i === active) return;
+      active = i;
+      renderHow();
+    });
     stepsEl.appendChild(b);
   });
 

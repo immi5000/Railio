@@ -312,6 +312,10 @@ in-flow drawer `width` sweep (which turns itself off during drag-resize via
   `menu-in`, `page-in`, `toast-in`, `drawer-in`) and always end at
   `transform: none` — a resting transform creates a containing block that
   breaks fixed children and backdrop-filter ancestors.
+- Entrances fill **`backwards`**, never `both`/`forwards`: a forward fill keeps
+  applying the final keyframe after the animation ends, which silently
+  overrides hover/press `transform`s on the same element. Exits fill `both` —
+  they must hold the hidden state until React unmounts the node.
 - Exits are faster than entrances (`--t-fast` vs `--t-med`) and exist only
   where they carry weight: modals, the citation drawer, the figure lightbox —
   via `lib/useAnimatedClose.ts` (`data-closing` → exit keyframe →
