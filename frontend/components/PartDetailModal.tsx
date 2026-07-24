@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPart, patchPart } from "@/lib/api";
 import type { CreatePartBody, Part, PartLocation } from "@/lib/contract";
 import { deriveTotals, fmtMoney } from "@/lib/parts";
+import { useAnimatedClose } from "@/lib/useAnimatedClose";
 
 type Draft = {
   part_number: string;
@@ -106,10 +107,14 @@ export function PartDetailModal({
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
 
+  // Animated dismissal (DESIGN.md §7): every path that actually leaves the
+  // modal goes through anim.requestClose so the exit keyframe plays first.
+  const anim = useAnimatedClose<HTMLDivElement>(onClose);
+
   function requestClose() {
     if (mut.isPending) return;
     if (dirty) setConfirmDiscard(true);
-    else onClose();
+    else anim.requestClose();
   }
 
   useEffect(() => {
@@ -117,11 +122,11 @@ export function PartDetailModal({
       if (e.key !== "Escape" || mut.isPending) return;
       if (confirmDiscard) setConfirmDiscard(false);
       else if (dirty) setConfirmDiscard(true);
-      else onClose();
+      else anim.requestClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, mut.isPending, dirty, confirmDiscard]);
+  }, [anim.requestClose, mut.isPending, dirty, confirmDiscard]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (focusLocations) locSectionRef.current?.scrollIntoView({ block: "center" });
@@ -235,7 +240,7 @@ export function PartDetailModal({
 
   function save() {
     if (!creating && Object.keys(buildPatch(draft)).length === 0) {
-      onClose();
+      anim.requestClose();
       return;
     }
     mut.mutate(draft);
@@ -244,7 +249,12 @@ export function PartDetailModal({
   const canSave = !!draft.part_number.trim() && !!draft.name.trim();
 
   return (
-    <div className="modal-backdrop" onClick={requestClose}>
+    <div
+      ref={anim.ref}
+      className="modal-backdrop"
+      data-closing={anim.closing || undefined}
+      onClick={requestClose}
+    >
       <div
         className="modal"
         role="dialog"
@@ -532,7 +542,7 @@ export function PartDetailModal({
                   color: "var(--dash-danger)",
                   borderColor: "var(--dash-danger)",
                 }}
-                onClick={onClose}
+                onClick={anim.requestClose}
               >
                 Discard
               </button>

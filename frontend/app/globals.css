@@ -1011,6 +1011,7 @@ button {
   justify-content: center;
   padding: 32px;
   background: rgba(0, 0, 0, 0.78);
+  animation: fade-in var(--t-med) var(--ease-out) both;
 }
 .figure-lightbox-body {
   margin: 0;
@@ -1020,6 +1021,14 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  animation: scale-in var(--t-med) var(--ease-out-expo) both;
+}
+/* Exit (driven by useAnimatedClose) — faster than the entrance. */
+.figure-lightbox[data-closing="true"] {
+  animation: fade-out var(--t-fast) var(--ease-out) both;
+}
+.figure-lightbox[data-closing="true"] .figure-lightbox-body {
+  animation: scale-out var(--t-fast) var(--ease-out) both;
 }
 .figure-lightbox-body img {
   max-width: 100%;
@@ -1059,6 +1068,7 @@ button {
   inset: 0;
   background: rgba(0, 0, 0, 0.32);
   z-index: 60;
+  animation: fade-in var(--t-med) var(--ease-out) both;
 }
 .drawer {
   position: fixed;
@@ -1072,6 +1082,14 @@ button {
   z-index: 61;
   overflow: auto;
   padding: 32px;
+  animation: drawer-in var(--t-slow) var(--ease-out-expo) both;
+}
+/* Exit (driven by useAnimatedClose) — slides back out, faster than in. */
+.drawer-backdrop[data-closing="true"] {
+  animation: fade-out var(--t-fast) var(--ease-out) both;
+}
+.drawer[data-closing="true"] {
+  animation: drawer-out var(--t-med) var(--ease-out) both;
 }
 
 /* === Modal / centered dialog (DESIGN.md §6 extension) === */
@@ -1085,6 +1103,15 @@ button {
   display: grid;
   place-items: center;
   padding: 24px;
+  animation: fade-in var(--t-med) var(--ease-out) both;
+}
+/* Exit (driven by useAnimatedClose): the backdrop fades and every modal inside
+   it — including a nested discard-confirm — scales away with it. */
+.modal-backdrop[data-closing="true"] {
+  animation: fade-out var(--t-fast) var(--ease-out) both;
+}
+.modal-backdrop[data-closing="true"] .modal {
+  animation: scale-out var(--t-fast) var(--ease-out) both;
 }
 /* The shell itself never scrolls — .modal-body does. That's what lets the close
    button and the footer stay put over a long form. */
@@ -1098,6 +1125,7 @@ button {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  animation: scale-in var(--t-med) var(--ease-out-expo) both;
 }
 .modal-sm {
   width: min(400px, 100%);
@@ -1231,6 +1259,9 @@ button {
   overflow: auto;
   z-index: 70;
   padding: 4px;
+  /* Pop in, vanish out — menus exit instantly (DESIGN.md §7). */
+  transform-origin: top;
+  animation: menu-in var(--t-fast) var(--ease-out-expo) both;
 }
 .combo-opt {
   padding: 8px 10px;
@@ -2682,6 +2713,7 @@ button {
 }
 
 /* Toast */
+/* Figma idiom (DESIGN.md §6): black fill, yellow accent bar, system radius. */
 .toast {
   position: fixed;
   bottom: 24px;
@@ -2694,7 +2726,9 @@ button {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   z-index: 100;
-  border-left: 3px solid var(--mta);
+  border-left: 3px solid var(--dash-yellow);
+  border-radius: 12px;
+  animation: toast-in var(--t-med) var(--ease-out-expo) both;
 }
 
 /* ============================================================
@@ -2923,6 +2957,8 @@ button {
   right: 0;
   min-width: 240px;
   max-width: calc(100vw - 32px);
+  transform-origin: top right;
+  animation: menu-in var(--t-fast) var(--ease-out-expo) both;
   background: #fff;
   border: 1px solid var(--dash-border);
   border-radius: 14px;
@@ -3365,6 +3401,8 @@ button {
   right: 24px;
   min-width: 260px;
   max-width: calc(100vw - 32px);
+  transform-origin: top right;
+  animation: menu-in var(--t-fast) var(--ease-out-expo) both;
   background: #fff;
   border: 1px solid var(--dash-border);
   border-radius: 14px;

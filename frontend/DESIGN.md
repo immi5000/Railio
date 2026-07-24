@@ -257,8 +257,8 @@ title, Inter body, actions bottom-right (primary yellow + secondary white).
 Reuse confirm dialogs for destructive actions.
 
 ### Toast (`.toast`)
-🔧 Update to the figma idiom: black fill, white text, a **yellow** left accent
-bar (radius matched to the system), bottom-right, brief. (Drop any blue accent.)
+Figma idiom: black fill, white text, a **yellow** left accent bar, radius 12,
+bottom-right, brief; enters with `toast-in`.
 
 ### Ticket copilot (the new `/work` chat — canonical)
 - **Copilot card** (`.work-copilot`): a `.dash-card` with a mono title head

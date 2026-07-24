@@ -23,6 +23,7 @@ import type {
   Attachment,
 } from "@/lib/contract";
 import type { ChatSession } from "@/lib/chatSession";
+import { useAnimatedClose } from "@/lib/useAnimatedClose";
 import { useTicketParts, type TicketPartsController } from "@/lib/useTicketParts";
 import type { PartMatch } from "@/lib/parts";
 import { CitationDrawer } from "./CitationDrawer";
@@ -961,27 +962,31 @@ function FigureLightbox({
 }) {
   const url = fileUrl(figure.path);
   const label = figure.figure_label || figure.caption || "figure";
+  // Animated dismissal (DESIGN.md §7) — fade/scale out before unmount.
+  const anim = useAnimatedClose<HTMLDivElement>(onClose);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") anim.requestClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [anim.requestClose]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!url) return null;
   return (
     <div
+      ref={anim.ref}
       className="figure-lightbox"
+      data-closing={anim.closing || undefined}
       role="dialog"
       aria-modal="true"
       aria-label={label}
-      onClick={onClose}
+      onClick={anim.requestClose}
     >
       <button
         type="button"
         aria-label="Close"
         className="figure-lightbox-close"
-        onClick={onClose}
+        onClick={anim.requestClose}
       >
         ×
       </button>

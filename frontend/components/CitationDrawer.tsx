@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCorpusChunk, fileUrl } from "@/lib/api";
 import { techNameForChunk } from "@/lib/techNames";
+import { useAnimatedClose } from "@/lib/useAnimatedClose";
 
 export function CitationDrawer({
   chunkId,
@@ -16,10 +18,32 @@ export function CitationDrawer({
     queryFn: () => getCorpusChunk(chunkId),
   });
 
+  // Animated dismissal (DESIGN.md §7): the drawer slides back out before
+  // unmounting. Call sites keep passing a plain onClose.
+  const anim = useAnimatedClose<HTMLElement>(onClose);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") anim.requestClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [anim.requestClose]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <>
-      <div className="drawer-backdrop" onClick={onClose} />
-      <aside className="drawer" role="dialog" aria-modal="true">
+      <div
+        className="drawer-backdrop"
+        data-closing={anim.closing || undefined}
+        onClick={anim.requestClose}
+      />
+      <aside
+        ref={anim.ref}
+        className="drawer"
+        data-closing={anim.closing || undefined}
+        role="dialog"
+        aria-modal="true"
+      >
         <div
           style={{
             display: "flex",
@@ -29,7 +53,7 @@ export function CitationDrawer({
           }}
         >
           <span className="sect-eyebrow">Source</span>
-          <button onClick={onClose} className="btn btn-ghost btn-sm">
+          <button onClick={anim.requestClose} className="btn btn-ghost btn-sm">
             Close ×
           </button>
         </div>

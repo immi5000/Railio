@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import type { Part, PartAllocation } from "@/lib/contract";
 import { fmtLocations } from "@/lib/parts";
 import type { TicketPartsController } from "@/lib/useTicketParts";
+import { useAnimatedClose } from "@/lib/useAnimatedClose";
 
 // Per-part popup opened from the chat's inline "+" (and the sidebar). For a part
 // stocked across bins it shows a +/- stepper per location so the tech picks how
@@ -35,13 +36,16 @@ export function PartAllocatorModal({
     () => controller.qtyByPartId.get(part.id) ?? 0,
   );
 
+  // Animated dismissal (DESIGN.md §7) — all close paths play the exit first.
+  const anim = useAnimatedClose<HTMLDivElement>(onClose);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") anim.requestClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [anim.requestClose]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const total = hasLocs
     ? Object.values(byLoc).reduce((s, n) => s + n, 0)
@@ -67,7 +71,12 @@ export function PartAllocatorModal({
   }
 
   return createPortal(
-    <div className="modal-backdrop" onClick={onClose}>
+    <div
+      ref={anim.ref}
+      className="modal-backdrop"
+      data-closing={anim.closing || undefined}
+      onClick={anim.requestClose}
+    >
       <div
         className="modal modal-sm"
         role="dialog"
@@ -78,7 +87,7 @@ export function PartAllocatorModal({
           type="button"
           className="modal-close"
           aria-label="Close"
-          onClick={onClose}
+          onClick={anim.requestClose}
         >
           ×
         </button>
@@ -168,13 +177,17 @@ export function PartAllocatorModal({
                 className="btn btn-ghost btn-sm"
                 onClick={() => {
                   controller.remove(part.id);
-                  onClose();
+                  anim.requestClose();
                 }}
               >
                 Remove
               </button>
             )}
-            <button type="button" className="btn btn-primary btn-sm" onClick={onClose}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={anim.requestClose}
+            >
               Done
             </button>
           </div>
